@@ -143,7 +143,12 @@
           {% endfor %}
         {% endif %}
       {% endwith %}
-      <form method="POST" action="{{ url_for('main_bp.login') }}">
+
+      <!-- IMPORTANT : action vers l'endpoint du blueprint (ici 'main.login') -->
+      <form method="POST" action="{{ url_for('main.login') }}">
+        <!-- ✅ CSRF obligatoire pour POST -->
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <label for="username">Nom d'utilisateur :</label>
         <input type="text" id="username" name="username" required inputmode="email" autocomplete="username">
 
