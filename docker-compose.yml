@@ -2,9 +2,9 @@ services:
   db:
     image: postgres:16
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - cai-db:/var/lib/postgresql/data
     healthcheck:
@@ -12,23 +12,22 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
-    networks: [cai-net]
+    networks:
+      - cai-net
     restart: unless-stopped
 
   web:
     build: .
-    env_file: [.env]
-    environment:
-      - FLASK_CONFIG=${FLASK_CONFIG}
-      - SECRET_KEY=${SECRET_KEY}
-      - DATABASE_URL=${DATABASE_URL}
-      - POSTGRES_USER=${POSTGRES_USER}
+    command: ["./start.sh"]
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "5002:5000"
-    networks: [cai-net]
+      - "5000:5000"
+    networks:
+      - cai-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:5000/healthz"]

@@ -1,101 +1,129 @@
 import os
-import sys
 import click
+import importlib
 
 from app import create_app
 try:
-    # extensions may be under app.extensions
     from app.extensions import db
 except Exception:
-    # fallback for legacy layout
     from app import db  # type: ignore
+
+try:
+    from werkzeug.security import generate_password_hash
+except Exception:
+    generate_password_hash = None  # type: ignore
+
+def _discover_models():
+    """Import app.models and return classes that subclass db.Model."""
+    try:
+        mod = importlib.import_module('app.models')
+    except Exception as e:
+        print(f"[init-db] Warning: cannot import app.models: {e}")
+        return []
+    models = []
+    for name, obj in vars(mod).items():
+        try:
+            if isinstance(obj, type) and issubclass(obj, db.Model):
+                models.append(obj)
+        except Exception:
+            continue
+    return models
+
+def _choose_user_model(models):
+    # Prefer names that look like User/Utilisateur
+    preferred_names = {'user', 'users', 'utilisateur', 'utilisateurs', 'compte', 'account'}
+    for cls in models:
+        n = getattr(cls, '__tablename__', '').lower()
+        if n in preferred_names or cls.__name__.lower() in {'user','utilisateur','account','compte'}:
+            return cls
+    # Fallback: any model that has a username/email-like field
+    for cls in models:
+        for fld in ('username','nom_utilisateur','login','email'):
+            if hasattr(cls, fld):
+                return cls
+    return models[0] if models else None
+
+def _first_attr(obj, names):
+    for n in names:
+        if hasattr(obj, n):
+            return n
+    return None
 
 @click.group()
 def cli():
     pass
 
-@cli.command("init-db")
+@cli.command('init-db')
 def init_db():
-    """Create all tables and ensure admin/admin exists (idempotent)."""
-    app = create_app(os.environ.get("FLASK_CONFIG", "prod"))
+    """Create tables and ensure an admin/admin exists (idempotent)."""
+    app = create_app(os.environ.get('FLASK_CONFIG', 'prod'))
     with app.app_context():
-        # Create tables
+        # Import models so metadata is populated, then create tables
+        models = _discover_models()
         db.create_all()
 
-        # Try to find a User model dynamically (Utilisateur/User)
-        user_model = None
-        for cls in db.Model._decl_class_registry.values():  # type: ignore[attr-defined]
-            try:
-                if hasattr(cls, "__tablename__") and cls.__tablename__ in ("utilisateur", "users", "user", "utilisateurs"):
-                    user_model = cls
-                    break
-            except Exception:
-                continue
-        # fallback: find any model with a username-like field
-        if user_model is None:
-            for cls in db.Model._decl_class_registry.values():  # type: ignore[attr-defined]
-                for cand in ("nom_utilisateur", "username", "email"):
-                    if hasattr(cls, cand):
-                        user_model = cls
-                        break
-                if user_model:
-                    break
+        user_model = _choose_user_model(models)
+        if not user_model:
+            print("[init-db] No user-like model found; skipping admin bootstrap.")
+            return
 
-        if user_model is None:
-            click.echo("No user-like model found; skipping admin bootstrap.")
-            sys.exit(0)
+        username_field = _first_attr(user_model, ('username','nom_utilisateur','login','email'))
+        if not username_field:
+            print("[init-db] No username/email field; skipping admin bootstrap.")
+            return
 
-        # Determine username field
-        username_field = "nom_utilisateur" if hasattr(user_model, "nom_utilisateur") else ("username" if hasattr(user_model, "username") else "email")
-        # Determine admin flag field
-        admin_field = "is_admin" if hasattr(user_model, "is_admin") else ("role" if hasattr(user_model, "role") else None)
-
-        # Does admin exist?
-        exists = user_model.query.filter(getattr(user_model, username_field)=="admin").first()
-        if not exists:
-            user = user_model()
-            setattr(user, username_field, "admin")
-            # password
-            raw_pass = "admin"
-            if hasattr(user, "set_password"):
-                try:
-                    user.set_password(raw_pass)
-                except Exception:
-                    pass
-            elif hasattr(user, "mot_de_passe_hash"):
-                try:
-                    from werkzeug.security import generate_password_hash
-                    setattr(user, "mot_de_passe_hash", generate_password_hash(raw_pass))
-                except Exception:
-                    setattr(user, "mot_de_passe_hash", raw_pass)  # worst-case
-            elif hasattr(user, "password_hash"):
-                try:
-                    from werkzeug.security import generate_password_hash
-                    setattr(user, "password_hash", generate_password_hash(raw_pass))
-                except Exception:
-                    setattr(user, "password_hash", raw_pass)
-            elif hasattr(user, "password"):
-                setattr(user, "password", raw_pass)
-
-            # admin flag if present
-            if admin_field:
-                try:
-                    setattr(user, admin_field, True if admin_field=="is_admin" else "admin")
-                except Exception:
-                    pass
-
-            # actif if present
-            if hasattr(user, "actif"):
-                try:
-                    setattr(user, "actif", True)
-                except Exception:
-                    pass
-
-            db.session.add(user)
-            db.session.commit()
-            click.echo("Admin user created (admin/admin).")
+        # Determine identifier and lookup value
+        if username_field == 'email':
+            admin_identifier_value = 'admin@example.com'
         else:
-            click.echo("Admin already exists; nothing to do.")
+            admin_identifier_value = 'admin'
 
-if __name__ == "__main__":
+        existing = user_model.query.filter(getattr(user_model, username_field) == admin_identifier_value).first()
+        if existing:
+            print("[init-db] Admin already exists; nothing to do.")
+            return
+
+        # Create new admin
+        admin = user_model()
+
+        # Set username/email
+        setattr(admin, username_field, admin_identifier_value)
+
+        # Set password
+        if hasattr(admin, 'set_password'):
+            admin.set_password('admin')
+        else:
+            # Try common hash fields
+            if generate_password_hash and hasattr(admin, 'password_hash'):
+                admin.password_hash = generate_password_hash('admin')
+            elif generate_password_hash and hasattr(admin, 'mot_de_passe_hash'):
+                admin.mot_de_passe_hash = generate_password_hash('admin')
+            elif hasattr(admin, 'password'):
+                admin.password = 'admin'  # last resort
+
+        # Admin flags
+        if hasattr(admin, 'is_admin'):
+            admin.is_admin = True
+        if hasattr(admin, 'role'):
+            try:
+                setattr(admin, 'role', 'admin')
+            except Exception:
+                pass
+        if hasattr(admin, 'actif'):
+            try:
+                setattr(admin, 'actif', True)
+            except Exception:
+                pass
+        if hasattr(admin, 'type_utilisateur'):
+            try:
+                if getattr(admin, 'type_utilisateur') in (None, '', 'user'):
+                    setattr(admin, 'type_utilisateur', 'admin')
+            except Exception:
+                pass
+
+        db.session.add(admin)
+        db.session.commit()
+        print("[init-db] Admin user created.")
+
+if __name__ == '__main__':
     cli()
