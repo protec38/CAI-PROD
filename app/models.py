@@ -4,7 +4,8 @@ from datetime import datetime, timedelta
 import pytz  # ✅ Conversion UTC → Europe/Paris
 from flask_login import UserMixin
 import secrets
-
+from flask_sqlalchemy import SQLAlchemy
+db = SQLAlchemy()
 # 🌍 Utilitaire : UTC -> heure locale Paris
 def convertir_heure_locale(dt_utc):
     if not dt_utc:
