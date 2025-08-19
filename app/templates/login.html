@@ -21,7 +21,6 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      /* ✅ évite que le contenu colle aux encoches */
       padding: env(safe-area-inset-top) env(safe-area-inset-right)
                env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
@@ -92,12 +91,10 @@
 
     /* ✅ Mobile ≤ 480px */
     @media (max-width: 480px){
-      body{
-        align-items: flex-start;               /* pour éviter que le clavier masque tout */
-      }
+      body{ align-items: flex-start; }
       .login-container{
-        margin: 24px 12px;                    /* respirations latérales */
-        padding: 24px;                        /* padding réduit */
+        margin: 24px 12px;
+        padding: 24px;
         border-radius: 12px;
         box-shadow: 0 8px 28px rgba(0,0,0,.35);
       }
@@ -106,10 +103,10 @@
       input[type="text"], input[type="password"]{
         padding: 12px;
         margin-bottom: 16px;
-        font-size: 16px;                      /* iOS friendly */
+        font-size: 16px;
       }
       button{
-        padding: 14px;                        /* meilleure zone tactile */
+        padding: 14px;
         font-size: 16px;
       }
       .contact-info{
@@ -126,7 +123,6 @@
       }
     }
 
-    /* Optionnel : meilleur rendu si le système est en sombre */
     @media (prefers-color-scheme: dark){
       .login-container{ box-shadow: 0 0 20px rgba(0,0,0,.45); }
     }
@@ -144,8 +140,8 @@
         {% endif %}
       {% endwith %}
 
-      <!-- IMPORTANT : action vers l'endpoint du blueprint (ici 'main.login') -->
-      <form method="POST" action="{{ url_for('main.login') }}">
+      <!-- IMPORTANT : blueprint = main_bp -->
+      <form method="POST" action="{{ url_for('main_bp.login') }}">
         <!-- ✅ CSRF obligatoire pour POST -->
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 

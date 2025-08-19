@@ -45,6 +45,8 @@ def create_app(config_name: str | None = None) -> Flask:
     # -------------------------
     db.init_app(app)
     login_manager.init_app(app)
+    login_manager.login_view = "main_bp.login"
+    login_manager.login_message_category = "info"
     csrf.init_app(app)
     limiter.init_app(app)
 
