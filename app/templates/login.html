@@ -1,40 +1,25 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <link rel=\"stylesheet\" href=\"{{ url_for('static', filename='app.css') }}\">
-  <meta charset="UTF-8">
-  <title>Connexion</title>
-  <!-- ✅ Adaptation mobile -->
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  
-</head>
-<body>
-  <div class="login-container">
-    <div>
-      <h2>Connexion</h2>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="error">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Connexion</title>
+  </head>
+  <body>
+    <main>
+      <h1>Connexion</h1>
       <form method="POST" action="{{ url_for('main_bp.login') }}">
-        <label for="username">Nom d'utilisateur :</label>
-        <input type="text" id="username" name="username" required inputmode="email" autocomplete="username">
-
-        <label for="password">Mot de passe :</label>
-        <input type="password" id="password" name="password" required autocomplete="current-password">
-
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label>Nom d'utilisateur</label>
+        <input type="text" name="username" required autofocus>
+        <label>Mot de passe</label>
+        <input type="password" name="password" required>
         <button type="submit">Se connecter</button>
       </form>
-    </div>
-
-    <div class="contact-info">
-      <p>Besoin d’aide ? Contactez-nous à <br>
-         <a href="mailto:si@isere.protection-civile.org">si@isere.protection-civile.org</a>
-      </p>
-    </div>
-  </div>
-</body>
+      <form method="POST" action="{{ url_for('main_bp.logout') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Se déconnecter</button>
+      </form>
+    </main>
+  </body>
 </html>
