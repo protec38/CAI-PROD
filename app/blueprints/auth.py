@@ -1,7 +1,7 @@
 from flask import render_template, request, redirect, url_for, flash, session, current_app
 from app.models import db, Utilisateur
 from app.__init__ import bcrypt
-from app.blueprints.decorators import login_required
+from app.blueprints.decorators import login_required, role_required, event_member_required
 from collections import defaultdict
 import time
 
