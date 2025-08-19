@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+{% block content %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+<style>
+  :root{
+    --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
+    --ink:#0b1523; --line:#e9edf3; --muted:#5b6b7d;
+    --bg:#f7f9fc; --card:#ffffff;
+  }
+  .tb-wrap{ max-width:1100px; margin:24px auto; font-family:'Roboto',sans-serif; color:var(--ink); }
+  .tb-header{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  .tb-header h2{ margin:0; color:var(--bleu); font-weight:900; letter-spacing:.2px }
+  .btn{
+    display:inline-flex; gap:8px; align-items:center; background:var(--bleu); color:#fff;
+    padding:10px 14px; border-radius:10px; text-decoration:none; border:1px solid rgba(0,0,0,.08);
+    box-shadow:0 6px 18px rgba(0,0,0,.08);
+  }
+  .btn:hover{ opacity:.95; transform: translateY(-1px); }
+  .btn-green{ background:#27ae60; }
+  .btn-soft{
+    background:#fff; border:1px solid #e3e9f5; border-radius:10px; padding:6px 10px; font-weight:800; color:#0b2a55; text-decoration:none;
+  }
+  .btn-danger{ background:#fff2f2; border-color:#f5c2c0; color:#7b1d1a; }
+
+  .board{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px; }
+  @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 26px rgba(13,49,98,.08); }
+  .card h3{ margin:0; padding:12px 14px; border-bottom:1px solid var(--line); color:#0b2a55; font-weight:900; }
+  .card-content{ padding:14px; }
+
+  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .field label{ font-weight:900; color:#0b2a55; }
+  .field input, .field select, .field textarea{
+    border:1px solid #d8dee9; border-radius:10px; padding:10px; font-size:14px; background:#fff;
+  }
+
+  /* Filtres ligne */
+  .filters{ display:grid; grid-template-columns: 1.2fr .9fr .9fr .9fr .9fr; gap:10px; margin-bottom:12px; }
+  @media (max-width:900px){ .filters{ grid-template-columns: 1fr 1fr; } }
+  @media (max-width:560px){ .filters{ grid-template-columns: 1fr; } }
+
+  .tickets{ display:grid; gap:12px; }
+  .ticket{
+    border:1px solid #e6eaf2; border-radius:12px; padding:12px; background:#f8fbff;
+  }
+  .ticket .title{ font-weight:900; color:#0b2a55; margin:0 0 6px 0; display:flex; align-items:center; gap:8px; }
+  .ticket .desc{ white-space:pre-wrap; overflow-wrap:break-word; color:#1a2a44; }
+
+  .meta{ display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:#333; margin-top:6px }
+  .chip{ display:inline-flex; align-items:center; gap:6px; background:#eef2ff; padding:4px 8px; border-radius:999px; border:1px solid #e6ecff; font-weight:800; }
+  .chip.prio-basse{ background:#eafaf7; border-color:#c9efe5; color:#0b7a66; }
+  .chip.prio-normal{ background:#eaf2ff; border-color:#cfe2ff; color:#195aa7; }
+  .chip.prio-haute{ background:#ffefef; border-color:#ffd5d2; color:#a51810; }
+
+  /* Badges de statut colorés */
+  .status-badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:900; color:#fff; }
+  .st-ouvert{ background:#2e86de; }
+  .st-encours{ background:#ff8f1f; }
+  .st-termine{ background:#22c55e; }
+  .st-archive{ background:#94a3b8; }
+
+  /* Toast */
+  .toast{
+    position:fixed; right:16px; bottom:16px; background:#0b2a55; color:#fff; padding:10px 14px; border-radius:10px;
+    box-shadow:0 10px 24px rgba(0,0,0,.2); display:none;
+  }
+</style>
+
+<div class="tb-wrap">
+  <div class="tb-header">
+    <h2><i class="fa-solid fa-ticket"></i> Tickets – {{ evenement.nom }}</h2>
+    <a class="btn" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+  </div>
+
+  <div class="board">
+    <!-- Colonne création -->
+    <div class="card">
+      <h3><i class="fa-solid fa-plus"></i> Nouveau ticket</h3>
+      <div class="card-content">
+        {% if can_manage %}
+        <form method="POST" action="{{ url_for('main_bp.ticket_create') }}">
+          <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
+          <div class="field">
+            <label>Titre *</label>
+            <input type="text" name="title" maxlength="120" required placeholder="Ex : Apporter de l’eau zone C">
+          </div>
+          <div class="field">
+            <label>Description</label>
+            <textarea name="description" rows="3" maxlength="500" placeholder="Détails utiles…"></textarea>
+          </div>
+          <div class="field">
+            <label>Catégorie</label>
+            <select name="category">
+              <option>Logistique</option>
+              <option>Technique</option>
+              <option>Secours</option>
+              <option>Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Priorité</label>
+            <select name="priority">
+              <option>Normal</option>
+              <option>Haute</option>
+              <option>Basse</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Assigner à</label>
+            <select name="assigned_to_id">
+              <option value="">— Non assigné —</option>
+              {% for u in users %}
+                <option value="{{ u.id }}">{{ u.nom }} ({{ u.role }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label>Statut initial</label>
+            <select name="status">
+              <option>Ouvert</option>
+              <option>En cours</option>
+              <option>Terminé</option>
+              <option>Archivé</option>
+            </select>
+          </div>
+          <button class="btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Créer</button>
+        </form>
+        {% else %}
+          <p style="margin:0">Vous n’avez pas les droits pour créer des tickets.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Colonne liste -->
+    <div class="card">
+      <h3><i class="fa-solid fa-list-check"></i> Tous les tickets</h3>
+      <div class="card-content">
+
+        <!-- Filtres -->
+        <div class="filters">
+          <input id="f-search" type="text" placeholder="Recherche (titre/description)…" class="field-input" style="padding:10px;border:1px solid #d8dee9;border-radius:10px;">
+          <select id="f-status">
+            <option value="">(Tous)</option>
+            <option value="Ouvert">Ouvert</option>
+            <option value="En cours">En cours</option>
+            <option value="Terminé">Terminé</option>
+            <option value="Archivé">Archivé</option>
+          </select>
+          <select id="f-priority">
+            <option value="">(Toutes)</option>
+            <option value="Basse">Basse</option>
+            <option value="Normal">Normal</option>
+            <option value="Haute">Haute</option>
+          </select>
+          <select id="f-category">
+            <option value="">(Toutes)</option>
+            <option value="Logistique">Logistique</option>
+            <option value="Technique">Technique</option>
+            <option value="Secours">Secours</option>
+            <option value="Autre">Autre</option>
+          </select>
+          <select id="f-assignee">
+            <option value="">(Tous)</option>
+            {% for u in users %}
+              <option value="{{ u.id }}">{{ u.nom }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div id="tickets" class="tickets"><!-- injecté par JS --></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  /* ===== Données côté serveur ===== */
+  const CAN_MANAGE = {{ 'true' if can_manage else 'false' }};
+  const EVT_ID = {{ evenement.id }};
+  const CURRENT_USER_ID = {{ user.id }};
+  const USERS = [
+    {% for u in users %}
+      {"id": {{u.id}}, "nom": {{ u.nom|tojson }}, "role": {{ u.role|tojson }} }{{ "," if not loop.last else "" }}
+    {% endfor %}
+  ];
+
+  /* ===== Helpers ===== */
+  function showToast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.style.display='block';
+    setTimeout(()=>{ t.style.display='none'; }, 1800);
+  }
+  function statusBadge(status){
+    const s=(status||"").toLowerCase();
+    if(s==="ouvert") return `<span class="status-badge st-ouvert"><i class="fa-regular fa-circle"></i> Ouvert</span>`;
+    if(s==="en cours") return `<span class="status-badge st-encours"><i class="fa-solid fa-spinner"></i> En cours</span>`;
+    if(s==="terminé"||s==="termine") return `<span class="status-badge st-termine"><i class="fa-solid fa-check"></i> Terminé</span>`;
+    if(s==="archivé"||s==="archive") return `<span class="status-badge st-archive"><i class="fa-solid fa-box-archive"></i> Archivé</span>`;
+    return status||"";
+  }
+  function prioClass(priority){
+    const p=(priority||"").toLowerCase();
+    if(p==="haute") return "prio-haute";
+    if(p==="basse") return "prio-basse";
+    return "prio-normal";
+  }
+  function fmtDateIsoLocalPlus2(iso){
+    // Si le backend renvoie déjà +2, on laisse. Sinon on ajoute +2 en fallback.
+    if(!iso) return "—";
+    try{
+      const d = new Date(iso);
+      // Fallback +120min si l'heure parait UTC (heuristique simple)
+      const adjusted = new Date(d.getTime() + 120*60*1000);
+      return adjusted.toLocaleString();
+    }catch{ return "—"; }
+  }
+
+  /* ===== Rendu carte ticket ===== */
+  function ticketCardHTML(t){
+    const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
+    const meIcon = (t.assigned_to_id === CURRENT_USER_ID) ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
+    const assigneeLabel = t.assigned_to || "—";
+
+    const managePart = CAN_MANAGE ? `
+      <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <form onsubmit="return updateTicket(${t.id}, this);" style="display:flex; gap:8px; flex-wrap:wrap">
+          <select name="status">
+            ${["Ouvert","En cours","Terminé","Archivé"].map(s=>`<option ${s===t.status?"selected":""}>${s}</option>`).join("")}
+          </select>
+          <select name="priority">
+            ${["Basse","Normal","Haute"].map(s=>`<option ${s===t.priority?"selected":""}>${s}</option>`).join("")}
+          </select>
+          <select name="category">
+            ${["Logistique","Technique","Secours","Autre"].map(s=>`<option ${s===t.category?"selected":""}>${s}</option>`).join("")}
+          </select>
+          <select name="assigned_to_id">
+            <option value="">— Non assigné —</option>
+            ${USERS.map(u=>`<option value="${u.id}" ${t.assigned_to_id===u.id?"selected":""}>${u.nom} (${u.role})</option>`).join("")}
+          </select>
+          <button class="btn-soft" type="submit"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
+        </form>
+        <form method="POST" action="/tickets/${t.id}/delete" onsubmit="return confirm('Supprimer ce ticket ?')">
+          <button class="btn-soft btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> Supprimer</button>
+        </form>
+      </div>` : ``;
+
+    return `
+      <div class="ticket" id="ticket-${t.id}">
+        <div class="title">${meIcon}${t.title}</div>
+        <div class="meta">
+          <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${t.created_by||"—"}</span>
+          <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel}</span>
+          ${prChip}
+          <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
+          <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
+          ${statusBadge(t.status)}
+        </div>
+        ${t.description ? `<div class="desc" style="margin-top:6px">${t.description}</div>`:``}
+        ${managePart}
+      </div>`;
+  }
+
+  /* ===== AJAX update ===== */
+  async function updateTicket(id, form){
+    const fd = new FormData(form);
+    const res = await fetch(`/tickets/${id}/update`, { method:"POST", body: fd });
+    if(res.ok){ showToast("✅ Ticket mis à jour"); refreshTickets(); }
+    else { showToast("⚠️ Erreur mise à jour"); }
+    return false;
+  }
+
+  /* ===== Filtres ===== */
+  function applyFilters(list){
+    const q = (document.getElementById('f-search').value || '').toLowerCase().trim();
+    const st = document.getElementById('f-status').value;
+    const pr = document.getElementById('f-priority').value;
+    const cat = document.getElementById('f-category').value;
+    const asg = document.getElementById('f-assignee').value;
+
+    return list.filter(t=>{
+      const hay = ((t.title||"") + " " + (t.description||"")).toLowerCase();
+      const qok = !q || hay.includes(q);
+      const sok = !st || (t.status===st);
+      const pok = !pr || (t.priority===pr);
+      const cok = !cat || (t.category===cat);
+      const aok = !asg || (String(t.assigned_to_id||"")===String(asg));
+      return qok && sok && pok && cok && aok;
+    });
+  }
+
+  function renderTickets(list){
+    const wrap = document.getElementById("tickets");
+    wrap.innerHTML = list.map(ticketCardHTML).join("");
+  }
+
+  /* ===== Polling ===== */
+  let lastHash = "";
+  const hash = (obj)=> JSON.stringify(obj);
+
+  async function refreshTickets(){
+    try{
+      const res = await fetch(`/evenement/${EVT_ID}/tickets_json`);
+      if(!res.ok){ console.error("tickets_json status", res.status); return; }
+      const data = await res.json();
+      const list = Array.isArray(data.tickets) ? data.tickets : [];
+      const filtered = applyFilters(list);
+      const h = hash(filtered);
+      if(h !== lastHash){
+        renderTickets(filtered);
+        if(lastHash) showToast("🔔 Tickets actualisés");
+        lastHash = h;
+      }
+    }catch(e){ console.error("Erreur fetch tickets :", e); }
+  }
+
+  document.addEventListener("DOMContentLoaded", ()=>{
+    ['f-search','f-status','f-priority','f-category','f-assignee'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.addEventListener('input', refreshTickets);
+      if(el && el.tagName==='SELECT') el.addEventListener('change', refreshTickets);
+    });
+    refreshTickets();
+    setInterval(refreshTickets, 3000);
+  });
+</script>
+{% endblock %}

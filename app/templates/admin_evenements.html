@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 1000px; margin: 40px auto;">
+    <h1 class="text-center" style="color: #003b71; margin-bottom: 30px;">📋 Gestion des évènements</h1>
+
+    <!-- ✅ Tableau modernisé -->
+    <div style="overflow-x:auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 10px;">
+        <table class="table" style="border-collapse: collapse; width: 100%;">
+            <thead style="background-color: #003b71; color: white;">
+                <tr>
+                    <th style="padding: 12px;">ID</th>
+                    <th style="padding: 12px;">Nom</th>
+                    <th style="padding: 12px;">Type</th>
+                    <th style="padding: 12px;">Adresse</th>
+                    <th style="padding: 12px;">Statut</th>
+                    <th style="padding: 12px;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for evt in evenements %}
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 12px;">{{ evt.id }}</td>
+                    <td style="padding: 12px;">{{ evt.nom }}</td>
+                    <td style="padding: 12px;">{{ evt.type_evt }}</td>
+                    <td style="padding: 12px;">{{ evt.adresse }}</td>
+                    <td style="padding: 12px;">{{ evt.statut }}</td>
+                    <td style="padding: 12px;">
+                        {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
+                            <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn btn-sm" style="background-color: #ffc107; color: #212529; border-radius: 6px;">📝 Modifier</a>
+                            <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer cet évènement ?');">
+                                <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border-radius: 6px;">🗑 Supprimer</button>
+                            </form>
+                        {% else %}
+                            <span style="color: gray;">🔒</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 🔙 Bouton retour -->
+    <div class="text-center mt-4">
+        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn" style="background-color: #6c757d; color: white; border-radius: 6px;">⬅ Retour</a>
+    </div>
+</div>
+{% endblock %}

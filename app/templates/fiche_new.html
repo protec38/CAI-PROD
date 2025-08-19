@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Nouvelle Fiche Impliqué</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Roboto + FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background: linear-gradient(to right, #002f6c, #ff6f00);
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #002f6c;
+            margin-bottom: 30px;
+        }
+
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .form-group {
+            flex: 1 1 45%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group-full {
+            flex: 1 1 100%;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #002f6c;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        select[multiple] {
+            min-height: 150px;
+        }
+
+        small {
+            font-size: 13px;
+            color: #777;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            background-color: #ff6f00;
+            color: white;
+            padding: 14px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #e65c00;
+        }
+
+        .btn-retour {
+            display:inline-block;
+            margin-bottom:15px;
+            padding:10px 18px;
+            background-color:#002f6c;
+            color:#fff;
+            text-decoration:none;
+            border-radius:6px;
+        }
+        .btn-retour:hover {
+            background-color:#004a99;
+        }
+
+        @media (max-width: 768px) {
+            .form-group {
+                flex: 1 1 100%;
+            }
+        }
+
+        #bloc-competence-autre { display:none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="{{ url_for('main_bp.dashboard', evenement_id=session.get('evenement_id')) }}" class="btn-retour">
+       <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+    </a>
+
+    <h1><i class="fas fa-user-plus"></i> Nouvelle fiche impliqué</h1>
+    <form method="POST">
+        <div class="form-group">
+            <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
+            <input type="text" id="numero" name="numero" value="{{ numero_prevu }}" readonly>
+        </div>
+
+        <!-- Code Sinus -->
+        <div class="form-group">
+            <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
+            <input type="text" id="code_sinus" name="code_sinus" maxlength="30" placeholder="Ex : SINUS-ABC123...">
+        </div>
+
+        <div class="form-group">
+            <label for="nom">Nom <span style="color: red">*</span></label>
+            <input type="text" name="nom" maxlength="40" required>
+        </div>
+
+        <div class="form-group">
+            <label for="prenom">Prénom <span style="color: red">*</span></label>
+            <input type="text" name="prenom" maxlength="40" required>
+        </div>
+
+        <div class="form-group">
+            <label for="date_naissance">Date de naissance <span style="color: red">*</span></label>
+            <input type="date" name="date_naissance" required>
+        </div>
+
+        <div class="form-group-full">
+            <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
+            <input type="text" name="adresse" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
+            <input type="text" name="telephone" maxlength="15">
+        </div>
+
+        <div class="form-group">
+            <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
+            <input type="text" name="personne_a_prevenir" maxlength="50">
+        </div>
+
+        <div class="form-group">
+            <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
+            <input type="text" name="tel_personne_a_prevenir" maxlength="15">
+        </div>
+
+        <div class="form-group">
+            <label for="recherche_personne"><i class="fas fa-search"></i> Recherche de personne</label>
+            <textarea name="recherche_personne" rows="2" maxlength="200"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
+            <textarea name="difficulte" rows="2" maxlength="200"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
+            <select name="competences" id="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
+                {% for c in competences_list %}
+                    <option value="{{ c }}">{{ c }}</option>
+                {% endfor %}
+                <option value="Autre">Autre</option>
+            </select>
+            <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+        </div>
+
+        <div id="bloc-competence-autre" class="form-group">
+            <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
+            <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
+            <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
+        </div>
+
+        <div class="form-group">
+            <label for="autres_informations">Autres informations</label>
+            <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici..."></textarea>
+        </div>
+
+        <input type="hidden" name="heure_arrivee" id="heure_arrivee_js">
+
+        <div class="form-group-full">
+            <button type="submit"><i class="fas fa-save"></i> Enregistrer la fiche</button>
+        </div>
+    </form>
+</div>
+
+<script>
+document.querySelector("form").addEventListener("submit", function (e) {
+    const now = new Date();
+    now.setHours(now.getHours() + 2);
+    const formatted = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + ' ' +
+        String(now.getHours()).padStart(2, '0') + ':' +
+        String(now.getMinutes()).padStart(2, '0') + ':' +
+        String(now.getSeconds()).padStart(2, '0');
+    document.getElementById("heure_arrivee_js").value = formatted;
+
+    const select = document.getElementById('competences');
+    const autreOption = Array.from(select.options).find(o => o.value === 'Autre');
+    const autreInput = document.getElementById('competence_autre');
+    const autreTxt = (autreInput?.value || '').trim();
+
+    if (autreOption && autreOption.selected) {
+        if (!autreTxt) {
+            e.preventDefault();
+            alert("Merci de préciser l’autre compétence (20 caractères max).");
+            autreInput?.focus();
+            return;
+        }
+        if (autreTxt.length > 20) {
+            e.preventDefault();
+            alert("La compétence 'Autre' ne doit pas dépasser 20 caractères.");
+            autreInput.focus();
+            return;
+        }
+        let existing = Array.from(select.options).find(o => o.value === autreTxt);
+        if (!existing) {
+            const opt = new Option(autreTxt, autreTxt, true, true);
+            select.add(opt);
+        } else {
+            existing.selected = true;
+        }
+        autreOption.selected = false;
+
+        const selectedCount = Array.from(select.selectedOptions).length;
+        if (selectedCount > 4) {
+            e.preventDefault();
+            alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum (y compris 'Autre').");
+            return;
+        }
+    }
+});
+
+function onCompetencesChange(select) {
+    const selected = Array.from(select.selectedOptions);
+    if (selected.length > 4) {
+        alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
+        selected[selected.length - 1].selected = false;
+    }
+
+    const showAutre = selected.some(o => o.value === 'Autre');
+    const bloc = document.getElementById('bloc-competence-autre');
+    if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
+
+    if (!showAutre) {
+        const autreInput = document.getElementById('competence_autre');
+        if (autreInput) autreInput.value = '';
+    }
+}
+</script>
+
+</body>
+</html>

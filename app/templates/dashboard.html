@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Tableau de bord</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
+      --bg:#0a1324; --card:#0f1d39; --line:#193056;
+      --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a;
+    }
+    body{
+      font-family:'Roboto',sans-serif;
+      background:
+        radial-gradient(1200px 600px at 10% 0%, rgba(255,204,0,.15), transparent 60%),
+        linear-gradient(135deg,#00224d,#0b2b57 35%,#ff6f00 180%);
+      color:#fff; padding:20px;
+    }
+
+    /* Header */
+    .header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+    h1{color:var(--jaune);margin:0;letter-spacing:.2px;text-shadow:0 2px 10px rgba(0,0,0,.25)}
+    .btn{
+      background:var(--jaune);color:#00122a;padding:10px 14px;text-decoration:none;border-radius:10px;
+      margin-right:10px;display:inline-flex;align-items:center;gap:8px;font-weight:800;
+      box-shadow:0 6px 20px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.15)
+    }
+    .btn:hover{opacity:.95;transform:translateY(-1px)}
+    .btn-green{background:#27ae60;color:#fff}
+
+    /* Event card */
+    .event-info{
+      background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+      padding:18px;border-radius:16px;margin-top:12px;margin-bottom:16px;
+      border:1px solid rgba(255,255,255,.15);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 10px 30px rgba(0,0,0,.25)
+    }
+    .event-info h2{margin:0 0 6px 0}
+    .event-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+    .event-chip{
+      display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+      background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.16);font-weight:800
+    }
+
+    /* Filters */
+    .filters{display:grid;gap:10px;margin:18px 0 8px;grid-template-columns:1.2fr .9fr 1.2fr auto}
+    @media (max-width:900px){.filters{grid-template-columns:1fr 1fr}}
+    @media (max-width:560px){.filters{grid-template-columns:1fr}}
+    .control{
+      background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;
+      padding:8px 10px;display:flex;gap:8px;align-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)
+    }
+    .control input,.control select{all:unset;flex:1;background:transparent;color:#fff;font-size:15px}
+    .control .tag{
+      font-size:12px;font-weight:900;color:#fff;opacity:.9;display:inline-flex;align-items:center;gap:6px;
+      padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15)
+    }
+    .btn-small{padding:8px 12px;border-radius:10px;background:var(--orange);color:#fff;border:1px solid rgba(0,0,0,.2);font-weight:800}
+
+    /* Multi-select tailles */
+    #filter-competences{min-height:unset;max-height:140px;overflow:auto}
+    #filter-statut{max-height:96px;overflow:auto}
+    #filter-competences[multiple]{height:140px}
+    #filter-statut[multiple]{height:96px}
+
+    /* Badges statut */
+    .badge{padding:5px 10px;border-radius:999px;font-weight:900;display:inline-flex;align-items:center;gap:6px}
+    .badge.present{background:#2ecc71;color:#fff}
+    .badge.sorti{background:#e67e22;color:#fff}
+    .badge.supprime{background:#c0392b;color:#fff}
+    .badge-orange { background: #e67e22; }
+    .badge-green { background: #27ae60; }
+    .badge-red { background: #c0392b; }
+    .badge-blue { background: #2980b9; }
+    .badge-dark { background: #2c3e50; }
+    /* Bagages */
+    .badge-bagage{
+      display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;
+      background:#0c2a52;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.25)
+    }
+    .bagages-cell{min-width:160px}
+
+    /* Table */
+    .table-wrap{
+      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3)
+    }
+    table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(12,26,52,.65);color:#eaf2ff}
+
+    /* En-tête plus visible */
+    thead th{
+      position:sticky;top:0;z-index:1;
+      background:linear-gradient(90deg,var(--theadGrad1),var(--theadGrad2));
+      color:#0a152a;font-weight:900;text-transform:uppercase;letter-spacing:.35px;
+      padding:14px 12px;border-bottom:2px solid rgba(0,0,0,.25);
+      box-shadow:inset 0 -1px 0 rgba(255,255,255,.35);
+    }
+    thead th .th-label{display:flex;align-items:center;gap:8px}
+    thead th .th-label i{opacity:.85}
+
+    /* Corps + zébrage léger */
+    tbody td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
+    tbody tr:nth-child(odd){background:rgba(255,255,255,.04)}
+    tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
+    tbody tr:hover{background:rgba(255,255,255,.08)}
+
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn-action{
+      display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;font-weight:800;
+      text-decoration:none;border:1px solid rgba(255,255,255,.14);cursor:pointer;
+      transition:transform .05s ease,opacity .15s ease;font-size:14px;line-height:1;
+      background:rgba(255,255,255,.08);color:#fff
+    }
+    .btn-action:active{transform:translateY(1px)}
+    .btn-blue{background:linear-gradient(180deg,#2e7bd8,#195aa7)}
+    .btn-yellow{background:linear-gradient(180deg,#ffd34d,#f4b400);color:#1a1300}
+    .btn-orange{background:linear-gradient(180deg,#ff8a2a,#ff6f00)}
+    .btn-red{background:linear-gradient(180deg,#e74c3c,#c0392b)}
+    .actions a{color:inherit;font-weight:inherit;text-decoration:none}
+    .actions form{display:inline-block;margin:0}
+    .actions form button{all:unset;display:inline-flex}
+
+    select[name="statut_evt"]{padding:6px 8px;font-weight:900;background:#fff;color:#00122a;border-radius:8px;border:none}
+
+    .badge-competence{
+      display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
+      color:#fff;font-size:12px;font-weight:800;margin:2px
+    }
+
+    /* Mobile : scroll horizontal + colonnes visibles */
+    @media (max-width:640px){
+      .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+      table{ min-width:720px; }
+      table th, table td { white-space:nowrap; }
+      thead th, tbody td { display:none; }
+      thead th:nth-child(2), tbody td:nth-child(2),
+      thead th:nth-child(3), tbody td:nth-child(3),
+      thead th:nth-child(4), tbody td:nth-child(4),
+      thead th:nth-child(9), tbody td:nth-child(9) {
+        display:table-cell;
+      }
+    }
+
+    /* Modal (centré écran) */
+    .modal{
+      position:fixed; inset:0; background:rgba(0,0,0,.55);
+      display:none; align-items:center; justify-content:center; z-index:1000;
+    }
+    .modal-content{
+      background:#f3f6fb; color:#000; width:min(520px,92vw); border-radius:14px;
+      box-shadow:0 20px 40px rgba(0,0,0,.45); overflow:hidden; margin:0;
+    }
+    .modal-header,.modal-footer{padding:12px 16px;background:#fff;border-bottom:1px solid #e6e6e6}
+    .modal-header{display:flex;align-items:center;justify-content:space-between}
+    .modal-header h3{margin:0;font-size:18px}
+    .modal-content form{padding:14px 16px}
+    .modal .form-group{margin-bottom:12px}
+    .modal label{display:block;font-weight:800;margin-bottom:6px}
+    .modal input[type="text"],.modal textarea{width:100%;border:1px solid #d6d6d6;border-radius:10px;padding:10px;font-size:14px;background:#fff}
+    .modal small.hint{display:block;color:#444;margin-top:4px}
+    .modal .close{background:transparent;border:0;font-size:22px;cursor:pointer;color:#333}
+    .modal-footer{display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e6e6e6}
+  </style>
+</head>
+
+<body>
+  <div class="header">
+    <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord</h1>
+    <div>
+      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
+      <a href="{{ url_for('main_bp.fiche_new') }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
+      <a href="{{ url_for('main_bp.logout') }}" class="btn"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
+    {% if user.is_admin or user.role in ["codep", "responsable"] %}
+      <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn">
+        <i class="fa-solid fa-eye"></i> Vue Autorité & Partage
+      </a>
+    {% endif %}
+      {% if user.is_admin or user.role == "codep" or (user.role == "responsable" and user in evenement.utilisateurs) %}
+        <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn">
+          <i class="fa-solid fa-file-pdf"></i> Export PDF
+        </a>
+        <a href="{{ url_for('main_bp.export_evenement_fiches_csv', evenement_id=evenement.id) }}" class="btn">
+          <i class="fa-solid fa-file-csv"></i> Export CSV
+        </a>
+      {% endif %}
+
+      {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
+        <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn">
+          <i class="fa-solid fa-ticket"></i> Tickets
+        </a>
+      {% endif %}
+    </div>
+  </div>
+
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flashes">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% if evenement %}
+  <div class="event-info">
+    <h2 id="evt-nom"><i class="fas fa-calendar-alt"></i> {{ evenement.nom }}</h2>
+    <div class="event-row" style="margin:6px 0 10px;">
+      <span class="event-chip">
+        <i class="fa-solid fa-location-dot"></i>
+        <span id="evt-adresse">{{ evenement.adresse }}</span>
+      </span>
+      <span class="event-chip"><i class="fa-solid fa-clock"></i> Créé le {{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span>
+      <span class="event-chip"><i class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> présents</span>
+      <span class="event-chip">
+        {% if peut_modifier_statut %}
+          <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
+            <i class="fa-solid fa-signal"></i>
+            <select id="evt-statut-select" name="statut_evt" onchange="this.form.submit()">
+              {% for option in ['En cours de gréement', 'Ouvert', 'Effectif dépassé', 'Complet', 'Fermé'] %}
+              <option value="{{ option }}" {% if evenement.statut == option %}selected{% endif %}>{{ option }}</option>
+              {% endfor %}
+            </select>
+          </form>
+        {% else %}
+          <span id="statut-lecture-seule">
+            {% if evenement.statut == "En cours de gréement" %}
+              <span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> {{ evenement.statut }}</span>
+            {% elif evenement.statut == "Ouvert" %}
+              <span class="badge badge-green"><i class="fa-solid fa-door-open"></i> {{ evenement.statut }}</span>
+            {% elif evenement.statut == "Effectif dépassé" %}
+              <span class="badge badge-red"><i class="fa-solid fa-user-times"></i> {{ evenement.statut }}</span>
+            {% elif evenement.statut == "Complet" %}
+              <span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> {{ evenement.statut }}</span>
+            {% elif evenement.statut == "Fermé" %}
+              <span class="badge badge-dark"><i class="fa-solid fa-lock"></i> {{ evenement.statut }}</span>
+            {% else %}
+              {{ evenement.statut }}
+        {% endif %}
+  </span>
+{% endif %}
+      </span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 🔎 Filtres + Recherche -->
+  <div class="filters">
+    <div class="control">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="search-bar" placeholder="Rechercher par nom ou prénom…">
+    </div>
+    <div class="control">
+      <span class="tag"><i class="fa-solid fa-filter"></i> Statuts</span>
+      <select id="filter-statut" multiple size="4">
+        <option value="présent">Présent</option>
+        <option value="sorti">Sorti</option>
+        <option value="supprimé">Supprimé</option>
+      </select>
+    </div>
+    <div class="control">
+      <span class="tag"><i class="fa-solid fa-filter"></i> Compétences</span>
+      <select id="filter-competences" multiple size="4">
+        {% for comp in competence_colors.keys() %}
+          <option value="{{ comp }}">{{ comp }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="control" style="justify-content:center">
+      <button class="btn-small" id="btn-reset-filters"><i class="fa-solid fa-rotate"></i> Réinitialiser</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><span class="th-label"><i class="fa-solid fa-hashtag"></i> Numéro</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-user"></i> Nom</span></th>
+          <th><span class="th-label"><i class="fa-regular fa-user"></i> Prénom</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-circle-check"></i> Statut</span></th>
+          <th><span class="th-label"><i class="fa-regular fa-clock"></i> Heure d’arrivée</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-triangle-exclamation"></i> Difficultés</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-award"></i> Compétences</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-suitcase-rolling"></i> Bagages</span></th>
+          <th><span class="th-label"><i class="fa-solid fa-ellipsis"></i> Actions</span></th>
+        </tr>
+      </thead>
+      <tbody id="fiches-table-body"></tbody>
+    </table>
+  </div>
+
+  <!-- ===== Modal : Bagage ===== -->
+  <div id="modal-bagage" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-suitcase-rolling"></i> Rattacher bagage(s)</h3>
+        <button class="close" onclick="fermerModalBagage()" aria-label="Fermer">&times;</button>
+      </div>
+      <form id="form-bagage" method="post">
+        <div class="form-group">
+          <label>Fiche</label>
+          <input type="text" id="bagage-fiche-numero" value="" readonly />
+          <input type="hidden" id="bagage-fiche-id" name="fiche_id" value="">
+        </div>
+        <div class="form-group">
+          <label for="numeros">Numéro(s) de bagage</label>
+          <textarea name="numeros" id="numeros" rows="3" maxlength="300" placeholder="Ex : BAG-001, BAG-002 BAG-003"></textarea>
+          <small class="hint">Séparez par virgules, espaces ou retours à la ligne.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-action btn-orange"><i class="fa-solid fa-plus"></i> <span>Enregistrer</span></button>
+          <button type="button" class="btn-action" onclick="fermerModalBagage()"><i class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== Modal : Sortie ===== -->
+  <div id="modal-sortie" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-person-walking-arrow-right"></i> Déclarer la sortie</h3>
+        <button class="close" onclick="fermerModalSortie()" aria-label="Fermer">&times;</button>
+      </div>
+      <form id="form-sortie" method="post">
+        <div class="form-group">
+          <label>Fiche</label>
+          <input type="text" id="sortie-fiche-numero" value="" readonly />
+          <input type="hidden" id="sortie-fiche-id" value="">
+        </div>
+        <div class="form-group">
+          <label for="sortie-destination">Destination</label>
+          <input type="text" id="sortie-destination" name="destination" maxlength="100" placeholder="Ex : Domicile, CHU, Famille…">
+        </div>
+        <div class="form-group">
+          <label for="sortie-moyen">Moyen de transport</label>
+          <input type="text" id="sortie-moyen" name="moyen_transport" maxlength="100" placeholder="Ex : Bus, Ambulance, Véhicule perso…">
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-action btn-orange"><i class="fa-solid fa-check"></i> <span>Valider la sortie</span></button>
+          <button type="button" class="btn-action" onclick="fermerModalSortie()"><i class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    /* === Règle d'affichage du bouton Supprimer (évaluée côté serveur) === */
+    const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
+
+    /* Utils DOM */
+    function setHTMLIfChanged(el, html){ if(!el) return; const next=(html||"").trim(); const prev=(el.innerHTML||"").trim(); if(next!==prev) el.innerHTML=html; }
+    function setTextIfChanged(el, text){ if(!el) return; const next=(text||"").trim(); const prev=(el.textContent||"").trim(); if(next!==prev) el.textContent=text; }
+
+    /* UI helpers */
+    function getStatutHtml(statut){
+      if(statut==='présent') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
+      if(statut==='sorti') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
+      if(statut==='supprimé') return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
+      return statut;
+    }
+    // Fonction pour générer le badge HTML côté JS
+    function getStatutEvenementHTML(statut) {
+      switch (statut) {
+        case "En cours de gréement":
+          return `<span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> ${statut}</span>`;
+        case "Ouvert":
+          return `<span class="badge badge-green"><i class="fa-solid fa-door-open"></i> ${statut}</span>`;
+        case "Effectif dépassé":
+          return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
+        case "Complet":
+          return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
+        case "Fermé":
+          return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
+        default:
+          return statut;
+      }
+    }
+
+    function renderCompetenceBadges(raw){
+      if(!raw) return "<em>Aucune</em>";
+      const colorMap={
+        "Médecin":"#e74c3c","Infirmier":"#3498db","Sapeur-pompier":"#e67e22","SST":"#1abc9c",
+        "Psychologue":"#9b59b6","Bénévole":"#34495e","Artisan":"#f39c12","Interprète":"#2ecc71",
+        "Logisticien":"#16a085","Conducteur":"#d35400","Agent sécurité":"#2c3e50","Autre":"#7f8c8d"
+      };
+      return raw.split(',').map(c=>{
+        const comp=c.trim(); const color=colorMap[comp]||"#999";
+        return `<span class="badge-competence" style="background:${color}">${comp}</span>`;
+      }).join(" ");
+    }
+    function renderBagageBadges(numeros){
+      if(!numeros || !numeros.length) return '<em>Aucun</em>';
+      return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${n}</span>`).join(' ');
+    }
+
+    function actionsHTML(f){
+      const delBtn = CAN_DELETE_FICHE ? `
+        <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
+          <button type="submit" class="btn-action btn-red" title="Supprimer la fiche">
+            <i class="fa-solid fa-trash-can"></i> <span>Supprimer</span>
+          </button>
+        </form>` : ``;
+
+      return `
+        <div class="actions">
+          <a class="btn-action btn-blue" href="/fiche/${f.id}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
+          <a class="btn-action btn-yellow" href="/fiche/edit/${f.id}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
+          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, '${f.numero}')">
+            <i class="fa-solid fa-person-walking-arrow-right"></i> <span>Sortie</span>
+          </button>
+          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, '${f.numero}')">
+            <i class="fa-solid fa-suitcase-rolling"></i> <span>Bagage</span>
+          </button>
+          ${delBtn}
+        </div>`;
+    }
+
+    function ligneFicheHTML(f){
+      return `
+        <tr id="fiche-row-${f.id}">
+          <td data-col="numero">${f.numero}</td>
+          <td data-col="nom">${f.nom}</td>
+          <td data-col="prenom">${f.prenom}</td>
+          <td data-col="statut">${getStatutHtml(f.statut)}</td>
+          <td data-col="heure_arrivee">${f.heure_arrivee}</td>
+          <td data-col="difficultes">${f.difficultes || ""}</td>
+          <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
+          <td class="bagages-cell"><div id="bagages-${f.id}"><em>Chargement…</em></div></td>
+          <td data-col="actions">${actionsHTML(f)}</td>
+        </tr>`;
+    }
+
+    /* Cache côté client */
+    const rowsCache=new Map();
+
+    function upsertRow(f){
+      const tbody=document.getElementById("fiches-table-body");
+      let tr=document.getElementById(`fiche-row-${f.id}`);
+      if(!tr){
+        tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
+      }else{
+        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero);
+        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom);
+        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom);
+        setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
+        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee);
+        const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
+        const c=tr.querySelector('[data-col="competences"]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
+      }
+      rowsCache.set(f.id, f);
+      majBagagesCell(f.id);
+    }
+
+    function majBagagesCell(ficheId){
+      fetch(`/fiche/${ficheId}/bagages_json`)
+        .then(r=>r.json())
+        .then(d=>{
+          const cible=document.getElementById(`bagages-${ficheId}`);
+          if(!cible) return;
+          const html=(d && Array.isArray(d.numeros))? renderBagageBadges(d.numeros) : '<em>Aucun</em>';
+          setHTMLIfChanged(cible, html);
+        })
+        .catch(()=>{
+          const cible=document.getElementById(`bagages-${ficheId}`);
+          setHTMLIfChanged(cible, '<em>—</em>');
+        });
+    }
+
+    /* Filtres */
+    function getSelectValues(sel){ return Array.from(sel.selectedOptions||[]).map(o=>o.value); }
+
+    function rowMatchesFilters(row, f){
+      const searchTerm=(document.getElementById("search-bar").value||"").toLowerCase();
+      const nom=row.children[1]?.textContent.toLowerCase()||"";
+      const prenom=row.children[2]?.textContent.toLowerCase()||"";
+      const searchOk=!searchTerm || nom.includes(searchTerm) || prenom.includes(searchTerm);
+
+      const selectedStatus=getSelectValues(document.getElementById('filter-statut'));
+      const statutTxt=(f.statut||'').toLowerCase();
+      const statusOk=selectedStatus.length===0 || selectedStatus.includes(statutTxt);
+
+      const selectedComps=getSelectValues(document.getElementById('filter-competences'));
+      const ficheComps=(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const compOk=selectedComps.length===0 || ficheComps.some(c=>selectedComps.includes(c));
+
+      return searchOk && statusOk && compOk;
+    }
+
+    function applyAllFilters(){
+      const rows=document.querySelectorAll("#fiches-table-body tr");
+      rows.forEach(row=>{
+        const id=Number(row.id.replace('fiche-row-',''));
+        const f=rowsCache.get(id);
+        row.style.display=rowMatchesFilters(row,f)? "":"none";
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      /* Forcer les modals fermés au chargement */
+      ['modal-bagage','modal-sortie'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.style.display='none';
+      });
+      /* Fermer en cliquant sur l’arrière-plan */
+      ['modal-bagage','modal-sortie'].forEach(id=>{
+        const m=document.getElementById(id);
+        if(!m) return;
+        m.addEventListener('click', (e)=>{ if(e.target===m) m.style.display='none'; });
+      });
+      /* Fermer via Échap */
+      document.addEventListener('keydown', (e)=>{
+        if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); }
+      });
+
+      /* Filtres */
+      document.getElementById("search-bar").addEventListener("input", applyAllFilters);
+      document.getElementById("filter-statut").addEventListener("change", applyAllFilters);
+      document.getElementById("filter-competences").addEventListener("change", applyAllFilters);
+      document.getElementById("btn-reset-filters").addEventListener("click",(e)=>{
+        e.preventDefault();
+        document.getElementById("search-bar").value="";
+        Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
+        Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
+        applyAllFilters();
+      });
+
+      /* Premier chargement */
+      refreshFiches();
+    });
+
+    /* Rafraîchissement périodique */
+function refreshFiches(){
+  fetch(`/evenement/{{ evenement.id }}/fiches_json`)
+    .then(res=>res.json())
+    .then(data=>{
+      const idsActuels = new Set();
+      data.fiches.forEach(f => {
+        idsActuels.add(f.id);
+        upsertRow(f);
+      });
+
+      // Suppression des lignes disparues
+      Array.from(rowsCache.keys()).forEach(id => {
+        if(!idsActuels.has(id)){
+          const tr = document.getElementById(`fiche-row-${id}`);
+          if(tr) tr.remove();
+          rowsCache.delete(id);
+        }
+      });
+
+      // Mise à jour compteurs
+      const nbp = document.getElementById("nb_present");
+      const nbt = document.getElementById("nb_total");
+      if(nbp) setTextIfChanged(nbp, String(data.nb_present));
+      if(nbt) setTextIfChanged(nbt, String(data.nb_total));
+
+      // 🔄 Mise à jour adresse de l'événement
+      if (data.evenement && data.evenement.adresse) {
+        const adrEl = document.getElementById("evt-adresse");
+        if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
+          adrEl.textContent = data.evenement.adresse;
+        }
+      }
+
+      // 🔄 Mise à jour du statut (mode édition)
+      const statutSelect = document.getElementById("evt-statut-select");
+        if (statutSelect && data.evenement && data.evenement.statut) {
+          if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
+            statutSelect.value = data.evenement.statut.trim();
+          }
+        }
+
+
+
+      // 🔄 Mise à jour du nom de l'événement
+      if (data.evenement && data.evenement.nom) {
+        const nomEl = document.getElementById("evt-nom");
+        if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
+          nomEl.textContent = data.evenement.nom;
+        }
+        const nomInput = document.getElementById("evt-nom-input");
+        if (nomInput && nomInput.value.trim() !== data.evenement.nom.trim()) {
+          nomInput.value = data.evenement.nom;
+        }
+      }
+
+
+
+      
+            // 🔄 Mise à jour statut de l'événement (lecture seule avec icône + couleur)
+      if (data.evenement && data.evenement.statut) {
+        const statutEl = document.getElementById("statut-lecture-seule");
+        const newHTML = getStatutEvenementHTML(data.evenement.statut);
+        if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
+          statutEl.innerHTML = newHTML;
+        }
+      }
+
+
+      applyAllFilters();
+    })
+    .catch(err => console.error("Erreur refreshFiches:", err));
+}
+setInterval(refreshFiches, 3000);
+
+
+
+    /* Popups */
+    function ouvrirModalBagage(ficheId, ficheNumero){
+      const form=document.getElementById('form-bagage');
+      form.action="/fiche/"+ficheId+"/bagages/ajouter";
+      document.getElementById('bagage-fiche-id').value=ficheId;
+      document.getElementById('bagage-fiche-numero').value=ficheNumero||("#"+ficheId);
+      document.getElementById('numeros').value="";
+      fetch("/fiche/"+ficheId+"/bagages_json")
+        .then(r=>r.json())
+        .then(data=>{
+          if(data && Array.isArray(data.numeros)){
+            document.getElementById('numeros').value=data.numeros.join(", ");
+          }
+          document.getElementById('modal-bagage').style.display='flex';
+          setTimeout(()=>document.getElementById('numeros').focus(),50);
+        })
+        .catch(()=>{
+          document.getElementById('modal-bagage').style.display='flex';
+          setTimeout(()=>document.getElementById('numeros').focus(),50);
+        });
+    }
+    function fermerModalBagage(){ const m=document.getElementById('modal-bagage'); if(m) m.style.display='none'; }
+
+    function ouvrirModalSortie(ficheId, ficheNumero, destination="", moyen=""){
+      const form=document.getElementById('form-sortie');
+      form.action="/fiche/"+ficheId+"/sortie";
+      document.getElementById('sortie-fiche-id').value=ficheId;
+      document.getElementById('sortie-fiche-numero').value=ficheNumero||("#"+ficheId);
+      document.getElementById('sortie-destination').value=destination||"";
+      document.getElementById('sortie-moyen').value=moyen||"";
+      document.getElementById('modal-sortie').style.display='flex';
+      setTimeout(()=>document.getElementById('sortie-destination').focus(),50);
+    }
+    function fermerModalSortie(){ const m=document.getElementById('modal-sortie'); if(m) m.style.display='none'; }
+  </script>
+</body>
+</html>
