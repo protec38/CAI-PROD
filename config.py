@@ -2,11 +2,11 @@ import os
 from datetime import timedelta
 
 class BaseConfig:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "supersecret")  # KEEP fallback for dev safety
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///instance/cai.db"
+    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret")  # override in .env
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///instance/cai.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    # Safe defaults for Postgres connection pooling
+    # DB pool (safe defaults)
     SQLALCHEMY_ENGINE_OPTIONS = {
         "pool_size": 10,
         "max_overflow": 20,

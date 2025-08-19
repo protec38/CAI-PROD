@@ -1,103 +1,77 @@
+import os
 import click
 from werkzeug.security import generate_password_hash
-import importlib
+from app import create_app
+from app.extensions import db
 
-try:
-    from app import create_app
-except Exception as e:
-    raise
-
-# Try to import db from extensions first (preferred), fallback to app
-try:
-    from app.extensions import db  # type: ignore
-except Exception:
-    from app import db  # type: ignore
-
-app = create_app()
+app = create_app(os.environ.get("FLASK_CONFIG", "prod"))
 
 @click.group()
 def cli():
     pass
 
-def _find_user_model():
-    # Import app.models to register mappers
-    try:
-        import app.models as models
-    except Exception as e:
-        raise RuntimeError(f"Impossible d'importer app.models: {e}")
-    # Try common class names
-    for name in ("Utilisateur", "User", "Users", "Account", "Compte"):
-        if hasattr(models, name):
-            return getattr(models, name)
-    # Last resort: find first class with likely attributes
-    for attr in dir(models):
-        obj = getattr(models, attr)
-        if getattr(obj, '__tablename__', None) in ("utilisateur", "user", "users", "account", "compte"):
-            return obj
-    raise RuntimeError("Modèle utilisateur introuvable (essaye Utilisateur/User).")
-
 @cli.command("init-db")
 def init_db():
-    """Crée le schéma et bootstrap admin/admin si manquant (idempotent)."""
+    """Create tables and bootstrap admin/admin (idempotent)."""
     with app.app_context():
-        # Créer le schéma
+        from importlib import import_module
+        # Import models module to register models with SQLAlchemy
+        try:
+            import_module("app.models")
+        except Exception as e:
+            # models.py may not exist; ignore
+            print("[init-db] Warning: could not import app.models:", e)
+
         db.create_all()
 
-        UserModel = _find_user_model()
-
-        # Déterminer le champ username/login/email
-        username_fields = ["nom_utilisateur", "username", "login", "email"]
-        password_fields = ["mot_de_passe_hash", "password_hash", "password"]
-
-        # Construire un filtre pour trouver l'utilisateur 'admin'
-        username_field = None
-        for f in username_fields:
-            if hasattr(UserModel, f):
-                username_field = f
+        # Try to discover user model
+        user_model = None
+        # Walk through db.Model subclasses
+        for cls in db.Model.__subclasses__():
+            name = cls.__name__.lower()
+            cols = cls.__table__.columns.keys() if hasattr(cls, "__table__") else []
+            if {"username", "password_hash"} <= set(cols) or {"nom_utilisateur", "mot_de_passe_hash"} <= set(cols) or "is_admin" in cols:
+                user_model = cls
                 break
-        if username_field is None:
-            raise RuntimeError("Champ username/login/email introuvable sur le modèle utilisateur.")
 
-        # Vérifier si 'admin' existe déjà
-        existing = UserModel.query.filter(getattr(UserModel, username_field)=="admin").first()
-        if existing:
-            print("[init-db] admin existe déjà — OK")
+        if not user_model:
+            print("[init-db] No user model found; skipping admin bootstrap.")
             return
 
-        # Créer l'utilisateur admin
-        admin = UserModel()
-
-        # Renseigner username
-        setattr(admin, username_field, "admin")
-
-        # Renseigner rôles/champs booléens si présents
-        for field, value in ("role", "admin"), ("type_utilisateur", "admin"), ("is_admin", True), ("actif", True):
-            if hasattr(UserModel, field):
-                setattr(admin, field, value)
-
-        # Déterminer où écrire le hash du mot de passe
-        pw_field = None
-        for f in password_fields:
-            if hasattr(UserModel, f):
-                pw_field = f
+        # Find username field
+        username_field = "username"
+        for cand in ("nom_utilisateur", "username", "login", "email"):
+            if hasattr(user_model, cand):
+                username_field = cand
                 break
 
-        # Générer un hash court compatible VARCHAR(128)
-        # -> forcer PBKDF2-SHA256 (Werkzeug), ~80-100 caractères
-        pw_hash = generate_password_hash("admin", method="pbkdf2:sha256", salt_length=16)
+        # Query existing admin
+        admin = user_model.query.filter(getattr(user_model, username_field) == "admin").first()
+        if admin:
+            print("[init-db] admin already exists; nothing to do.")
+            return
 
-        if pw_field:
-            setattr(admin, pw_field, pw_hash)
-        elif hasattr(admin, "set_password") and callable(getattr(admin, "set_password")):
-            # Si set_password existe mais utilise un schéma trop long (scrypt),
-            # on tente d'injecter notre hash directement via attribut connu.
-            # S'il n'y a vraiment pas d'attribut, on appelle set_password en dernier recours.
+        # Create admin with PBKDF2-SHA256 (fits VARCHAR(128))
+        admin = user_model()
+        setattr(admin, username_field, "admin")
+
+        # Try set_password; else populate known hash fields
+        if hasattr(admin, "set_password"):
             try:
-                admin.set_password("admin")  # type: ignore[attr-defined]
-            except Exception as e:
-                raise RuntimeError(f"Aucun champ mot_de_passe_hash/password_hash et set_password a échoué: {e}")
-        else:
-            raise RuntimeError("Aucun champ mot_de_passe_hash/password_hash ni set_password trouvé.")
+                admin.set_password("admin")
+            except Exception:
+                pass
+
+        hash_value = generate_password_hash("admin", method="pbkdf2:sha256")
+        for passwd_field in ("mot_de_passe_hash", "password_hash", "mot_de_passe", "password"):
+            if hasattr(admin, passwd_field):
+                setattr(admin, passwd_field, hash_value)
+                break
+
+        # Default flags
+        for flag_field, value in (("is_admin", True), ("actif", True), ("role", "admin"), ("type_utilisateur", "admin")):
+            if hasattr(admin, flag_field):
+                setattr(admin, flag_field, value)
 
         db.session.add(admin)
         db.session.commit()
