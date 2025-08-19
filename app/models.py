@@ -25,7 +25,7 @@ utilisateur_evenement = db.Table(
 class Utilisateur(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     nom_utilisateur = db.Column(db.String(64), unique=True, nullable=False)
-    mot_de_passe_hash = db.Column(db.String(128), nullable=False)
+    mot_de_passe_hash = db.Column(db.Text, nullable=False)
 
     nom = db.Column(db.String(100), nullable=True)
     prenom = db.Column(db.String(100), nullable=True)
