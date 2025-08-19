@@ -1,17 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
-<head>
-  <link rel=\"stylesheet\" href=\"{{ url_for('static', filename='app.css') }}\">
-    <meta charset="UTF-8">
-    <title>{% block title %}Titre{% endblock %}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-</head>
-<body>
-    <div class="container">
-        {% block content %}
-        {% endblock %}
-    </div>
-</body>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}CAI{% endblock %}</title>
+    <script>
+      // Attach CSRF token to fetch requests automatically
+      document.addEventListener('DOMContentLoaded', () => {
+        const token = "{{ csrf_token() }}";
+        const _fetch = window.fetch;
+        window.fetch = function(resource, init = {}) {
+          init.headers = new Headers(init.headers || {});
+          init.headers.set('X-CSRFToken', token);
+          return _fetch(resource, init);
+        }
+      });
+    </script>
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    {% block content %}{% endblock %}
+  </body>
 </html>
