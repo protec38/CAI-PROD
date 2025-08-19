@@ -2,9 +2,10 @@ from flask import Flask
 from flask_migrate import Migrate
 from flask_wtf import CSRFProtect
 from flask_wtf.csrf import generate_csrf
+import os
 
 from config import Config, require_secure_secret_key
-from .models import db  # IMPORTANT : models.py doit définir `db = SQLAlchemy()`
+from .models import db  # models.py doit définir: from flask_sqlalchemy import SQLAlchemy ; db = SQLAlchemy()
 
 csrf = CSRFProtect()
 migrate = Migrate()
@@ -26,7 +27,7 @@ def create_app():
     def inject_csrf_token():
         return dict(csrf_token=generate_csrf)
 
-    # Security headers
+    # En-têtes de sécurité
     @app.after_request
     def set_security_headers(resp):
         resp.headers.setdefault("X-Frame-Options", "DENY")
@@ -37,12 +38,18 @@ def create_app():
             resp.headers.setdefault("Content-Security-Policy", csp)
         return resp
 
-    # Register blueprints (conserve les endpoints main_bp.*)
-    from .routes import main_bp
-    app.register_blueprint(main_bp)
-
-    # Seed admin si absent et ADMIN_PASSWORD défini
+    # --- CRÉATION DES TABLES AVANT TOUT USAGE DE LA DB ---
     with app.app_context():
+        # S'assurer que le dossier SQLite existe (../db par rapport à app/)
+        uri = app.config.get("SQLALCHEMY_DATABASE_URI", "")
+        if uri.startswith("sqlite:///"):
+            db_dir = os.path.abspath(os.path.join(app.root_path, "..", "db"))
+            os.makedirs(db_dir, exist_ok=True)
+
+        # Idempotent: crée toutes les tables qui manquent
+        db.create_all()
+
+        # Seed admin si absent ET mot de passe fourni
         from .models import Utilisateur
         admin = Utilisateur.query.filter_by(
             nom_utilisateur=app.config.get("ADMIN_USERNAME", "admin")
@@ -54,8 +61,13 @@ def create_app():
                 is_admin=True,
                 actif=True,
             )
+            # ton modèle doit avoir set_password / check_password
             admin.set_password(app.config["ADMIN_PASSWORD"])
             db.session.add(admin)
             db.session.commit()
+
+    # Enregistrer le blueprint principal (conserve les endpoints main_bp.*)
+    from .routes import main_bp
+    app.register_blueprint(main_bp)
 
     return app
