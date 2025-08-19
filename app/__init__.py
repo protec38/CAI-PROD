@@ -6,6 +6,7 @@ from flask_wtf import CSRFProtect
 from .models import db  # type: ignore
 from .backup_utils import *  # noqa
 from config import Config, require_secure_secret_key
+from flask_wtf.csrf import generate_csrf
 
 bcrypt = Bcrypt()
 csrf = CSRFProtect()
@@ -24,6 +25,9 @@ def create_app():
     csrf.init_app(app)
     migrate.init_app(app, db)
 
+    @app.context_processor
+    def inject_csrf_token():
+        return dict(csrf_token=generate_csrf)
     # Security headers
     @app.after_request
     def set_security_headers(resp):
