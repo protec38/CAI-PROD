@@ -1,14 +1,11 @@
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
-from flask_bcrypt import Bcrypt
 from flask_wtf import CSRFProtect
-from .models import db  # type: ignore
-from .backup_utils import *  # noqa
-from config import Config, require_secure_secret_key
 from flask_wtf.csrf import generate_csrf
 
-bcrypt = Bcrypt()
+from config import Config, require_secure_secret_key
+from .models import db  # IMPORTANT : models.py doit définir `db = SQLAlchemy()`
+
 csrf = CSRFProtect()
 migrate = Migrate()
 
@@ -16,18 +13,19 @@ def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
     app.config.from_object(Config)
 
-    # Hard fail if SECRET_KEY is not secure (outside debug)
+    # Stop si SECRET_KEY non sécure hors debug
     require_secure_secret_key(Config)
 
     # Init extensions
     db.init_app(app)
-    bcrypt.init_app(app)
     csrf.init_app(app)
     migrate.init_app(app, db)
 
+    # Jinja: expose csrf_token() pour les formulaires
     @app.context_processor
     def inject_csrf_token():
         return dict(csrf_token=generate_csrf)
+
     # Security headers
     @app.after_request
     def set_security_headers(resp):
@@ -39,21 +37,24 @@ def create_app():
             resp.headers.setdefault("Content-Security-Policy", csp)
         return resp
 
-    # Register blueprints
-    from .routes import main_bp  # preserve compatibility of endpoint names
+    # Register blueprints (conserve les endpoints main_bp.*)
+    from .routes import main_bp
     app.register_blueprint(main_bp)
 
-    # Seed admin if missing and an ADMIN_PASSWORD is provided
+    # Seed admin si absent et ADMIN_PASSWORD défini
     with app.app_context():
         from .models import Utilisateur
-        admin = Utilisateur.query.filter_by(username=app.config.get("ADMIN_USERNAME", "admin")).first()
+        admin = Utilisateur.query.filter_by(
+            nom_utilisateur=app.config.get("ADMIN_USERNAME", "admin")
+        ).first()
         if not admin and app.config.get("ADMIN_PASSWORD"):
-            pwd_hash = bcrypt.generate_password_hash(app.config["ADMIN_PASSWORD"]).decode("utf-8")
             admin = Utilisateur(
-                username=app.config["ADMIN_USERNAME"],
+                nom_utilisateur=app.config["ADMIN_USERNAME"],
                 role="admin",
-                password_hash=pwd_hash,
+                is_admin=True,
+                actif=True,
             )
+            admin.set_password(app.config["ADMIN_PASSWORD"])
             db.session.add(admin)
             db.session.commit()
 
