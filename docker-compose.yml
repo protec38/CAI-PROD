@@ -16,12 +16,13 @@ services:
 
   init:
     build: .
+    command: ["python", "manage.py", "init-db"]
     env_file:
       - .env
     depends_on:
       db:
         condition: service_healthy
-    command: python manage.py init-db
+    restart: "no"
 
   web:
     build: .

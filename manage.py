@@ -1,9 +1,8 @@
-import os
 import click
 from flask.cli import with_appcontext
 from app import create_app
 from app.extensions import db
-from app.models import User
+from app.models import Utilisateur
 
 app = create_app()
 
@@ -13,13 +12,23 @@ def init_db_command():
     """Create all tables and ensure default admin exists (idempotent)."""
     db.create_all()
     # Ensure admin/admin exists; ignore if already there
-    if not User.query.filter_by(username='admin').first():
-        admin = User(username='admin', is_admin=True, actif=True if hasattr(User, 'actif') else True)
-        # set_password if available
+    admin = Utilisateur.query.filter_by(nom_utilisateur='admin').first()
+    if not admin:
+        admin = Utilisateur(
+            nom_utilisateur='admin',
+            role='admin',
+            type_utilisateur='admin',
+            is_admin=True,
+            actif=True,
+        )
         if hasattr(admin, 'set_password'):
             admin.set_password('admin')
-        elif hasattr(admin, 'mot_de_passe_hash'):
-            admin.mot_de_passe_hash = 'admin'  # fallback; replace later by proper hash in your model
+        else:
+            # Fallback if custom field names exist
+            try:
+                admin.mot_de_passe_hash = 'admin'
+            except Exception:
+                pass
         db.session.add(admin)
         db.session.commit()
     click.echo('Database initialized.')

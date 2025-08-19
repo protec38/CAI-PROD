@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort
 from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, utilisateur_evenement
-from . import db
+from .extensions import db
 from werkzeug.security import check_password_hash
 from functools import wraps
 from datetime import datetime, timedelta

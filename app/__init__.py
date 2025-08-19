@@ -1,4 +1,4 @@
-import os, time
+import os
 from flask import Flask
 from flask_talisman import Talisman
 from .extensions import db, login_manager, csrf, limiter
@@ -19,19 +19,15 @@ def create_app(config_name: str | None = None):
     limiter.init_app(app)
 
     # Blueprints
-    from .routes import main_bp
-    app.register_blueprint(main_bp)
+    try:
+        from .routes import main_bp
+        app.register_blueprint(main_bp)
+    except Exception as e:
+        app.logger.error("Failed to register blueprint: %s", e)
+        raise
 
     @app.route("/healthz")
     def healthz():
         return {"status": "ok"}, 200
 
-    # Database init with simple retry (handles DB not ready yet)
-    from sqlalchemy import text
-    max_tries = int(os.environ.get("DB_INIT_MAX_TRIES", "20"))
-    delay = float(os.environ.get("DB_INIT_DELAY", "1.0"))
-
-    with app.app_context():
-            pass  # DB init handled by init task
-
-        return app
+    return app
