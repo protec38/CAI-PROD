@@ -57,11 +57,14 @@ def create_app():
         if not admin and app.config.get("ADMIN_PASSWORD"):
             admin = Utilisateur(
                 nom_utilisateur=app.config["ADMIN_USERNAME"],
+                nom="Admin",
+                prenom="System",
                 role="admin",
+                type_utilisateur="interne",   # obligatoire NOT NULL
+                niveau=10,                    # valeur par défaut pour admin
                 is_admin=True,
                 actif=True,
             )
-            # ton modèle doit avoir set_password / check_password
             admin.set_password(app.config["ADMIN_PASSWORD"])
             db.session.add(admin)
             db.session.commit()
