@@ -1,0 +1,138 @@
+{# templates/autorite_dashboard.html #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <link rel=\"stylesheet\" href=\"{{ url_for('static', filename='app.css') }}\">
+  <meta charset="UTF-8">
+  <title>Vue Autorité – {{ evenement.nom }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1 id="evt-nom"><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
+      <div class="chips">
+        <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
+        <span class="chip" id="evt-statut-chip">
+          {% set st = evenement.statut or '' %}
+          {% if st == 'Ouvert' %}
+            <i class="fa-solid fa-circle text-green"></i> <span id="evt-statut">Ouvert</span>
+          {% elif st == 'Complet' %}
+            <i class="fa-solid fa-circle text-orange"></i> <span id="evt-statut">Complet</span>
+          {% elif st == 'Fermé' %}
+            <i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
+          {% elif st == 'En cours de gréement' %}
+            <i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
+          {% elif st == 'Effectif dépassé' %}
+            <i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
+          {% else %}
+            <i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>
+          {% endif %}
+        </span>
+        <span class="chip"><i class="fa-solid fa-clock"></i> <span id="evt-date">{{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}</span></span>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="ico"><i class="fa-solid fa-user-check"></i></div><div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div><div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-people-group"></i></div><div><div class="k">Total</div><div class="v" id="stat-total">—</div></div></div>
+      </div>
+    </div>
+
+    {% if manage %}
+    <div class="card manage">
+      <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+      <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
+        <label class="muted">Expiration (heures, optionnel)</label>
+        <input type="number" name="duration_hours" min="1" step="1" placeholder="ex: 24">
+        <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
+        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+      </form>
+
+      <div class="links">
+        {% if links %}
+          {% for l in links %}
+            {% set url = url_for('main_bp.autorite_share_public', token=l.token, _external=True) %}
+            <div style="margin:10px 0">
+              <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }} {% if l.expires_at %} — <strong>Expire :</strong> {{ l.expires_at.strftime('%d/%m/%Y %H:%M') }}{% else %} — <span class="muted">sans expiration{% endif %}</span>
+                {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}
+              </div>
+              <code class="share">{{ url }}</code>
+              <div class="row">
+                <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('{{ url }}')">
+                  <i class="fa-regular fa-copy"></i> Copier
+                </button>
+                {% if not l.revoked %}
+                <form method="POST" action="{{ url_for('main_bp.revoke_share_link', token=l.token) }}" onsubmit="return confirm('Révoquer ce lien ?');">
+                  <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="muted">Aucun lien pour l’instant.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <script>
+  const EVT_ID = {{ evenement.id }};
+  const PUBLIC_TOKEN = {{ (public_token | default(None)) | tojson }};
+
+  function setTxt(id, val){
+    const el=document.getElementById(id);
+    if(!el) return;
+    const next = (val === undefined || val === null || val === '') ? '—' : String(val);
+    if(el.textContent.trim() !== next.trim()){ el.textContent = next; }
+  }
+
+  function setStatutChip(statut){
+    const chip = document.getElementById('evt-statut-chip');
+    const lbl  = document.getElementById('evt-statut');
+    if(!chip || !lbl) return;
+    let icon = '<i class="fa-regular fa-circle"></i>';
+    if(statut==='Ouvert') icon = '<i class="fa-solid fa-circle" style="color:#22c55e"></i>';
+    else if(statut==='Complet') icon = '<i class="fa-solid fa-circle" style="color:#f59e0b"></i>';
+    else if(statut==='Fermé') icon = '<i class="fa-solid fa-circle-xmark"></i>';
+    else if(statut==='En cours de gréement') icon = '<i class="fa-solid fa-screwdriver-wrench"></i>';
+    else if(statut==='Effectif dépassé') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+    chip.innerHTML = icon + ' <span id="evt-statut"></span>';
+    document.getElementById('evt-statut').textContent = statut || '—';
+  }
+
+  function refreshAutorite(){
+    const qs = PUBLIC_TOKEN ? `?token=${encodeURIComponent(PUBLIC_TOKEN)}` : '';
+    fetch(`/evenement/${EVT_ID}/autorite_json${qs}`)
+      .then(r=>{
+        if(!r.ok){ console.warn('autorite_json HTTP', r.status); }
+        return r.json();
+      })
+      .then(d=>{
+        if(d.evenement){
+          setTxt('evt-nom', d.evenement.nom);
+          setTxt('evt-adresse', d.evenement.adresse);
+          setTxt('evt-date', d.evenement.date_ouverture);
+          setStatutChip(d.evenement.statut);
+        }
+        if(d.stats){
+          setTxt('stat-present', d.stats.nb_present);
+          setTxt('stat-sorti', d.stats.nb_sorti);
+          setTxt('stat-total', d.stats.nb_total);
+        }
+      })
+      .catch(err=>console.error('autorite_json error', err));
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    refreshAutorite();
+    setInterval(refreshAutorite, 4000);
+  });
+</script>
+
+</body>
+</html>
