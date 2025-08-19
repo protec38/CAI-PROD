@@ -25,7 +25,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "5002:5000"
     networks:
       - cai-net
     restart: unless-stopped
