@@ -9,43 +9,35 @@ services:
       - cai-db:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+    networks: [cai-net]
     restart: unless-stopped
-
-  init:
-    build: .
-    command: ["python", "manage.py", "init-db"]
-    env_file:
-      - .env
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: "no"
 
   web:
     build: .
-    command: gunicorn 'run:app' --workers 4 --threads 2 --bind 0.0.0.0:5000 --timeout 60
-    env_file:
-      - .env
+    env_file: [.env]
     environment:
       - FLASK_CONFIG=${FLASK_CONFIG}
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL}
+      - POSTGRES_USER=${POSTGRES_USER}
     depends_on:
       db:
         condition: service_healthy
-      init:
-        condition: service_completed_successfully
     ports:
       - "5002:5000"
+    networks: [cai-net]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz'); print('ok')"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:5000/healthz"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+networks:
+  cai-net: {}
 
 volumes:
   cai-db: {}
