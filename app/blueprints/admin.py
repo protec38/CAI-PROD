@@ -9,6 +9,7 @@ import io
 from ..models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, utilisateur_evenement
 from .. import db
 from ..backup_utils import is_db_empty, backup_to_bytesio, wipe_db, bulk_restore
+from .decorators import login_required   # <--- à créer si pas déjà fait
 
 
 def register(bp):
