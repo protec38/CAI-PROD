@@ -1,11 +1,11 @@
 from flask import render_template, request, redirect, url_for, flash, session, current_app
-from app.models import db, Utilisateur
-from app.__init__ import bcrypt
-from app.blueprints.decorators import login_required, role_required, event_member_required
 from collections import defaultdict
 import time
 
-# Basic in-memory rate limiter for login attempts per IP
+from app.models import db, Utilisateur
+from app.blueprints.decorators import login_required
+
+# Anti bruteforce simple côté mémoire (par IP)
 _LOGIN_ATTEMPTS = defaultdict(list)
 _MAX_ATTEMPTS = 10
 _WINDOW_SEC = 900  # 15 min
@@ -30,9 +30,8 @@ def register(bp):
 
             username = request.form.get("username", "").strip()
             password = request.form.get("password", "")
-            user = Utilisateur.query.filter_by(username=username).first()
 
-            # Block default admin/admin when configured to do so
+            # Interdire admin/admin en prod si configuré
             if (
                 current_app.config.get("DISABLE_DEFAULT_ADMIN_LOGIN", True)
                 and username == "admin"
@@ -43,7 +42,9 @@ def register(bp):
                 flash("Identifiants par défaut désactivés. Définissez ADMIN_PASSWORD ou changez le mot de passe.", "danger")
                 return render_template("login.html")
 
-            if user and bcrypt.check_password_hash(user.password_hash, password):
+            user = Utilisateur.query.filter_by(nom_utilisateur=username).first()
+
+            if user and user.check_password(password):
                 session["user_id"] = user.id
                 session.permanent = True
                 flash("Connexion réussie.", "success")
