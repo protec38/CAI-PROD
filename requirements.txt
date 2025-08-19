@@ -1,0 +1,13 @@
+flask
+flask_sqlalchemy
+flask_migrate
+werkzeug
+bcrypt
+flask_bcrypt
+pytz
+pycountry
+reportlab
+flask-login
+openpyxl
+
+

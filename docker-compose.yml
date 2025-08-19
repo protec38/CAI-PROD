@@ -1,0 +1,63 @@
+version: "3"
+
+services:
+  cai:
+    build: .
+    ports:
+      - "5002:5000"
+    volumes:
+      - ./db:/app/db
+    environment:
+      - SECRET_KEY=supersecret
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
