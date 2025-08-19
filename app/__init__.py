@@ -32,29 +32,6 @@ def create_app(config_name: str | None = None):
     delay = float(os.environ.get("DB_INIT_DELAY", "1.0"))
 
     with app.app_context():
-        for attempt in range(1, max_tries + 1):
-            try:
-                # Touch the DB to confirm connectivity
-                db.session.execute(text("SELECT 1"))
-                db.create_all()
-                # Import models after init to avoid circular imports
-                from .models import User  # noqa
-                # Ensure admin/admin exists if missing
-                if not User.query.filter_by(username="admin").first():
-                    admin = User(username="admin", is_admin=True)
-                    try:
-                        admin.set_password("admin")
-                    except Exception:
-                        if hasattr(admin, "password"):
-                            admin.password = "admin"
-                    db.session.add(admin)
-                    db.session.commit()
-                break
-            except Exception as e:
-                if attempt == max_tries:
-                    app.logger.warning("Database init failed after %s attempts: %s", attempt, e)
-                    break
-                app.logger.info("DB not ready (attempt %s/%s): %s; retrying in %.1fs", attempt, max_tries, e, delay)
-                time.sleep(delay)
+            pass  # DB init handled by init task
 
-    return app
+        return app

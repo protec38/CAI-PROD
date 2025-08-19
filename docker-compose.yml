@@ -11,8 +11,17 @@ services:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
     restart: unless-stopped
+
+  init:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python manage.py init-db
 
   web:
     build: .
@@ -24,13 +33,15 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - DATABASE_URL=${DATABASE_URL}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
     ports:
-      - "5002:5000"
+      - "5000:5000"
     restart: unless-stopped
     healthcheck:
-      test:
-        ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz'); print('ok')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz'); print('ok')"]
       interval: 30s
       timeout: 5s
       retries: 3
