@@ -10,19 +10,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# 1) Dépendances (cache-friendly)
+# Dépendances
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 2) Code de l'app (copie explicite = plus fiable)
+# Code
 COPY app /app/app
 COPY manage.py run.py start.sh /app/
+COPY db /app/db            # ← nécessite que le dossier db/ existe dans le repo
 
-# 3) SQL de cascade (IMPORTANT pour éviter "Fichier SQL introuvable")
-#    -> assure-toi que ce fichier existe dans ton repo: db/alter_cascade.sql
-COPY db/ /app/db/
-
-# 4) Normalisation + exécutable
+# Exécutable
 RUN sed -i 's/\r$//' /app/start.sh && chmod +x /app/start.sh
 
 EXPOSE 5000
