@@ -1,60 +1,76 @@
+import os
 import click
-from sqlalchemy import text
-from pathlib import Path
+from flask import Flask
+from werkzeug.security import generate_password_hash
+
 from app import create_app
 from app.extensions import db
 
 app = create_app()
 
+def _find_user_model():
+    try:
+        from app.models import Utilisateur as M
+        return M
+    except Exception:
+        try:
+            from app.models import User as M  # type: ignore
+            return M
+        except Exception:
+            raise RuntimeError("Impossible de trouver le modèle Utilisateur/User")
+
+def _set_password(user, raw_password: str):
+    # Essaye set_password si dispo, sinon set hash dans attribut connu
+    if hasattr(user, "set_password"):
+        user.set_password(raw_password)
+        return True
+    pwd_hash = generate_password_hash(raw_password, method="pbkdf2:sha256")
+    for field in ("mot_de_passe_hash","password_hash","mot_de_passe","password"):
+        if hasattr(user, field):
+            setattr(user, field, pwd_hash)
+            return True
+    raise RuntimeError("Aucun champ de mot de passe pris en charge (mot_de_passe_hash/password_hash/...)")
+
+def _get_username_filter(Model, username: str):
+    # essaie les champs classiques
+    for field in ("nom_utilisateur","username","login","email"):
+        if hasattr(Model, field):
+            return getattr(Model, field) == username
+    raise RuntimeError("Aucun champ d'identifiant utilisateur (nom_utilisateur/username/login/email)")
+
 @click.group()
 def cli():
-    """Outils de maintenance."""
     pass
 
 @cli.command("init-db")
 def init_db():
-    """Crée les tables et l'admin/admin si absent (idempotent)."""
-    from app.models import Utilisateur  # noqa
-    from werkzeug.security import generate_password_hash
-
     with app.app_context():
         db.create_all()
-        admin = db.session.execute(
-            db.select(Utilisateur).where(Utilisateur.nom_utilisateur == "admin")
-        ).scalar_one_or_none()
-        if not admin:
-            admin = Utilisateur(
-                nom_utilisateur="admin",
-                nom="Admin",
-                role="admin",
-                type_utilisateur="admin",
-                is_admin=True,
-                actif=True,
-            )
-            try:
-                admin.set_password("admin")  # scrypt par défaut (Werkzeug ≥ 3)
-            except Exception:
-                admin.mot_de_passe_hash = generate_password_hash(
-                    "admin", method="pbkdf2:sha256", salt_length=16
-                )
-            db.session.add(admin)
+        Model = _find_user_model()
+        # Existence de admin ?
+        fil = _get_username_filter(Model, "admin")
+        exists = db.session.query(db.exists().where(fil)).scalar()
+        if not exists:
+            # Créer l'admin
+            user = Model()
+            # Remplir quelques champs courants si existants
+            for field, value in (
+                ("nom_utilisateur","admin"),
+                ("username","admin"),
+                ("login","admin"),
+                ("role","admin"),
+                ("type_utilisateur","admin"),
+                ("is_admin", True),
+                ("actif", True),
+            ):
+                if hasattr(user, field):
+                    setattr(user, field, value)
+            _set_password(user, "admin")
+            db.session.add(user)
             db.session.commit()
-            click.echo("[init-db] admin/admin créé avec succès")
+            print("[init-db] admin/admin créé avec succès")
         else:
-            click.echo("[init-db] admin déjà présent (OK)")
-
-@cli.command("apply-cascade")
-def apply_cascade():
-    """Applique les ON DELETE CASCADE sur les FKs (idempotent)."""
-    sql_path = Path(__file__).parent / "db" / "alter_cascade.sql"
-    if not sql_path.exists():
-        raise click.ClickException(f"Fichier SQL introuvable: {sql_path}")
-    with app.app_context():
-        sql = sql_path.read_text(encoding="utf-8")
-        for stmt in [s.strip() for s in sql.split(";") if s.strip()]:
-            db.session.execute(text(stmt))
-        db.session.commit()
-        click.echo("[apply-cascade] Contraintes CASCADE appliquées.")
+            print("[init-db] admin existe déjà")
 
 if __name__ == "__main__":
     cli()
