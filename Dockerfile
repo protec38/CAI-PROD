@@ -11,7 +11,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
+COPY db /app/db 
 COPY . .
 
 # Normalize line endings & ensure start.sh is executable
