@@ -2,9 +2,17 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
+    <!-- ✅ Meilleur rendu mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- ✅ CSRF pour auto-injection -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>{% block title %}Titre{% endblock %}</title>
+
+    <!-- Fonts & Icons (inchangés) -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -39,12 +47,41 @@
             background-color: #002952;
         }
     </style>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Ton CSS statique (inchangé) -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    {% block head %}{% endblock %}
 </head>
 <body>
     <div class="container">
         {% block content %}
         {% endblock %}
     </div>
+
+    <!-- ✅ Auto-injection CSRF dans tous les <form method="POST"> -->
+    <script>
+    (function(){
+      try{
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        if(!meta) return;
+        var token = meta.getAttribute('content') || '';
+        document.querySelectorAll('form').forEach(function(f){
+          var method = (f.getAttribute('method') || '').toLowerCase();
+          if(method === 'post' && !f.hasAttribute('data-no-auto-csrf')){
+            if(!f.querySelector('input[name="csrf_token"]')){
+              var i = document.createElement('input');
+              i.type = 'hidden';
+              i.name = 'csrf_token';
+              i.value = token;
+              f.prepend(i);
+            }
+          }
+        });
+      }catch(e){}
+    })();
+    </script>
+
+    {% block scripts %}{% endblock %}
 </body>
 </html>

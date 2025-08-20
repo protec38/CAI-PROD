@@ -15,17 +15,19 @@ def convertir_heure_locale(dt_utc):
 # Association utilisateur <-> evenement (many-to-many)
 utilisateur_evenement = db.Table(
     'utilisateur_evenement',
-    db.Column('utilisateur_id', db.Integer, db.ForeignKey('utilisateur.id'), primary_key=True),
-    db.Column('evenement_id', db.Integer, db.ForeignKey('evenement.id'), primary_key=True)
+    db.Column('utilisateur_id', db.Integer, db.ForeignKey('utilisateur.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('evenement_id', db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), primary_key=True)
 )
 
 # ======================
 # Utilisateur
 # ======================
 class Utilisateur(db.Model, UserMixin):
+    __tablename__ = "utilisateur"
+
     id = db.Column(db.Integer, primary_key=True)
-    nom_utilisateur = db.Column(db.String(64), unique=True, nullable=False)
-    mot_de_passe_hash = db.Column(db.Text, nullable=False)
+    nom_utilisateur = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    mot_de_passe_hash = db.Column(db.Text, nullable=False)  # TEXT -> accepte scrypt/argon2 longs
 
     nom = db.Column(db.String(100), nullable=True)
     prenom = db.Column(db.String(100), nullable=True)
@@ -42,11 +44,12 @@ class Utilisateur(db.Model, UserMixin):
     evenements = db.relationship(
         'Evenement',
         secondary=utilisateur_evenement,
-        backref=db.backref('utilisateurs', lazy='dynamic')
+        backref=db.backref('utilisateurs', lazy='dynamic'),
+        passive_deletes=True
     )
 
     def set_password(self, password):
-        self.mot_de_passe_hash = generate_password_hash(password)
+        self.mot_de_passe_hash = generate_password_hash(password)  # scrypt par défaut
 
     def check_password(self, password):
         return check_password_hash(self.mot_de_passe_hash, password)
@@ -59,13 +62,15 @@ class Utilisateur(db.Model, UserMixin):
 # Évènement
 # ======================
 class Evenement(db.Model):
+    __tablename__ = "evenement"
+
     id = db.Column(db.Integer, primary_key=True)
-    numero = db.Column(db.String(50), unique=True, nullable=False)
+    numero = db.Column(db.String(50), unique=True, nullable=False, index=True)
     nom = db.Column(db.String(100), nullable=False)
     adresse = db.Column(db.String(200), nullable=True)
-    statut = db.Column(db.String(50), nullable=True)
-    type_evt = db.Column(db.String(50), nullable=True)
-    date_ouverture = db.Column(db.DateTime, default=datetime.utcnow)
+    statut = db.Column(db.String(50), nullable=True, index=True)
+    type_evt = db.Column(db.String(50), nullable=True, index=True)
+    date_ouverture = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     createur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
     createur = db.relationship('Utilisateur', backref='evenements_crees', foreign_keys=[createur_id])
@@ -74,15 +79,17 @@ class Evenement(db.Model):
         'FicheImplique',
         backref='evenement',
         lazy=True,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
 
-    # ✅ utilise back_populates pour matcher Ticket.evenement (pas de backref ici)
+    # ✅ relation cohérente avec Ticket.evenement (back_populates)
     tickets = db.relationship(
         'Ticket',
         back_populates='evenement',
         lazy=True,
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        passive_deletes=True
     )
 
     @property
@@ -97,8 +104,10 @@ class Evenement(db.Model):
 # Fiche impliqué
 # ======================
 class FicheImplique(db.Model):
+    __tablename__ = "fiche_implique"
+
     id = db.Column(db.Integer, primary_key=True)
-    numero = db.Column(db.String(20), unique=True, nullable=False)
+    numero = db.Column(db.String(20), unique=True, nullable=False, index=True)
 
     nom = db.Column(db.String(100))
     prenom = db.Column(db.String(100))
@@ -118,16 +127,16 @@ class FicheImplique(db.Model):
     destination = db.Column(db.String(255))
     moyen_transport = db.Column(db.String(255))
 
-    est_animal = db.Column(db.Boolean, default=False)
-    humain = db.Column(db.Boolean, default=True)
+    est_animal = db.Column(db.Boolean, default=False, index=True)
+    humain = db.Column(db.Boolean, default=True, index=True)
     heure_sortie = db.Column(db.DateTime, nullable=True)
     numero_recherche = db.Column(db.String(20), nullable=True)
 
-    statut = db.Column(db.String(20), nullable=False, default="présent")
-    heure_arrivee = db.Column(db.DateTime, default=datetime.utcnow)
+    statut = db.Column(db.String(20), nullable=False, default="présent", index=True)
+    heure_arrivee = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     autres_informations = db.Column(db.Text, nullable=True)
 
-    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id'), nullable=False)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
 
     # ✅ Heures locales
@@ -147,10 +156,12 @@ class FicheImplique(db.Model):
 # Animal
 # ======================
 class Animal(db.Model):
+    __tablename__ = "animal"
+
     id = db.Column(db.Integer, primary_key=True)
     espece = db.Column(db.String(50), nullable=True)
     nom = db.Column(db.String(50), nullable=True)
-    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id'), nullable=True)
+    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='CASCADE'), nullable=True)
 
     def __repr__(self):
         return f"<Animal {self.nom}>"
@@ -160,13 +171,21 @@ class Animal(db.Model):
 # Bagage
 # ======================
 class Bagage(db.Model):
+    __tablename__ = "bagage"
+
     id = db.Column(db.Integer, primary_key=True)
     numero = db.Column(db.String(50), nullable=False)
-    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id'), nullable=False)
-    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id'), nullable=False)
+    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='CASCADE'), nullable=False)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False)
 
-    fiche = db.relationship('FicheImplique', backref=db.backref('bagages', lazy=True, cascade="all, delete-orphan"))
-    evenement = db.relationship('Evenement', backref=db.backref('bagages', lazy=True, cascade="all, delete-orphan"))
+    fiche = db.relationship(
+        'FicheImplique',
+        backref=db.backref('bagages', lazy=True, cascade="all, delete-orphan", passive_deletes=True)
+    )
+    evenement = db.relationship(
+        'Evenement',
+        backref=db.backref('bagages', lazy=True, cascade="all, delete-orphan", passive_deletes=True)
+    )
 
     def __repr__(self):
         return f"<Bagage {self.numero}>"
@@ -177,15 +196,16 @@ class Bagage(db.Model):
 # ======================
 class ShareLink(db.Model):
     __tablename__ = "share_links"
+
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(128), unique=True, index=True, nullable=False)
-    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
+    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id", ondelete='CASCADE'), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)   # None = pas d’expiration
     revoked = db.Column(db.Boolean, default=False, nullable=False)
 
-    evenement = db.relationship("Evenement", backref="share_links")
+    evenement = db.relationship("Evenement", backref=db.backref("share_links", lazy=True, cascade="all, delete-orphan", passive_deletes=True))
     auteur = db.relationship("Utilisateur")
 
     @staticmethod
@@ -205,9 +225,10 @@ class ShareLink(db.Model):
 # ======================
 class Ticket(db.Model):
     __tablename__ = "ticket"
+
     id = db.Column(db.Integer, primary_key=True)
 
-    evenement_id   = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
+    evenement_id   = db.Column(db.Integer, db.ForeignKey("evenement.id", ondelete='CASCADE'), nullable=False)
     created_by_id  = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
     assigned_to_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
 
