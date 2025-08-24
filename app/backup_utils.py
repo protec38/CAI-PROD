@@ -10,28 +10,42 @@ from .models import (
     ShareLink, Ticket, utilisateur_evenement
 )
 
+# -------------------------------------------------------------------
+# JSON helpers
+# -------------------------------------------------------------------
+
 def _json_default(o):
+    """Sérialisation sûre pour datetime/date en ISO 8601."""
     if isinstance(o, (datetime, date)):
-        # ISO 8601 (ex: "2025-08-12T13:45:00" / "2025-08-12")
         return o.isoformat()
-    return str(o)  # fallback très prudent (ne devrait pas servir)
+    return str(o)
 
+# -------------------------------------------------------------------
+# DB state
+# -------------------------------------------------------------------
 
-
-def is_db_empty():
-    # Vérifie rapidement si des données existent
-    if (Utilisateur.query.first() or Evenement.query.first() or FicheImplique.query.first()
-        or Bagage.query.first() or Animal.query.first() or ShareLink.query.first() or Ticket.query.first()):
+def is_db_empty() -> bool:
+    """
+    Retourne True si la base est vide (aucun utilisateur/évènement/fiche),
+    et si la table d'association n'a pas de lignes.
+    """
+    if (Utilisateur.query.first() or Evenement.query.first() or FicheImplique.query.first()):
         return False
-    # table d'association
-    with db.engine.connect() as conn:
-        row = conn.execute(select(utilisateur_evenement.c.utilisateur_id)).first()
-        if row:
-            return False
+    # Vérifie aussi la table d'association
+    row = db.session.execute(select(utilisateur_evenement.c.utilisateur_id)).first()
+    if row:
+        return False
     return True
 
-def backup_to_bytesio():
+# -------------------------------------------------------------------
+# BACKUP (export)
+# -------------------------------------------------------------------
 
+def backup_to_bytesio() -> BytesIO:
+    """
+    Exporte **tout** dans un JSON structuré et renvoie un BytesIO prêt à télécharger.
+    Les datetime sont au format ISO 8601.
+    """
     payload = {
         "utilisateurs": [u.__dict__ | {"_sa_instance_state": None} for u in Utilisateur.query.all()],
         "evenements":   [e.__dict__ | {"_sa_instance_state": None} for e in Evenement.query.all()],
@@ -43,6 +57,7 @@ def backup_to_bytesio():
         "assoc_utilisateur_evenement": []
     }
 
+    # Récupère la table d’association via SQL
     with db.engine.connect() as conn:
         res = conn.execute(utilisateur_evenement.select()).mappings()
         payload["assoc_utilisateur_evenement"] = [dict(r) for r in res]
@@ -57,66 +72,63 @@ def backup_to_bytesio():
             payload[k] = [clean(x) for x in v]
 
     buf = BytesIO()
-    # 👇 ICI la différence: on passe default=_json_default
     buf.write(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_default).encode("utf-8"))
     buf.seek(0)
     return buf
 
+# -------------------------------------------------------------------
+# WIPE (danger)
+# -------------------------------------------------------------------
+
 def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5):
     """
-    Efface les données dans le bon ordre avec gestion de verrous SQLite.
-    - ferme les sessions
-    - applique busy_timeout
-    - désactive/active les FK
-    - réessaie si "database is locked"
+    Vide proprement toutes les tables applicatives.
+    Conserve le schéma ; utile avant un bulk_restore.
     """
     last_err = None
     for attempt in range(1, max_retries + 1):
         try:
-            # 1) Nettoyer la session courante
             db.session.rollback()
             db.session.close()
             db.session.remove()
 
-            # 2) Utiliser une transaction explicite sur une connexion dédiée
             with db.engine.begin() as conn:
-                # Donne un délai d’attente au cas où
-                conn.exec_driver_sql("PRAGMA busy_timeout = 5000;")
-                # Pour éviter les échecs de contraintes pendant le wipe
-                conn.exec_driver_sql("PRAGMA foreign_keys = OFF;")
+                # Désactive temporairement les contraintes (Postgres/SQLite)
+                try:
+                    conn.execute(text("SET session_replication_role = 'replica'"))
+                    has_replica_toggle = True
+                except Exception:
+                    has_replica_toggle = False
 
-                # Vider la table d’association d’abord
-                conn.execute(text("DELETE FROM utilisateur_evenement"))
+                # Ordre important (FK)
+                conn.execute(text(f"DELETE FROM {Ticket.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {ShareLink.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {Animal.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {Bagage.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {FicheImplique.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {Evenement.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {Utilisateur.__tablename__}"))
+                # table d’association
+                conn.execute(utilisateur_evenement.delete())
 
-                # Puis du plus enfant au plus parent (ordre important)
-                conn.execute(text("DELETE FROM ticket"))
-                conn.execute(text("DELETE FROM bagage"))
-                conn.execute(text("DELETE FROM animal"))
-                conn.execute(text("DELETE FROM fiche_implique"))
-                conn.execute(text("DELETE FROM share_links"))
-                conn.execute(text("DELETE FROM evenement"))
-                conn.execute(text("DELETE FROM utilisateur"))
+                if has_replica_toggle:
+                    conn.execute(text("SET session_replication_role = 'origin'"))
 
-                # Réactive les FK
-                conn.exec_driver_sql("PRAGMA foreign_keys = ON;")
-
-            # 3) Jette les connexions du pool (au cas où)
-            db.engine.dispose()
-
-            return  # succès
-
+            return  # OK
         except Exception as e:
             last_err = e
-            msg = str(e).lower()
-            if "database is locked" in msg or "database is locked" in repr(e):
-                # petite pause puis retry
+            # petite attente pour SQLite "database is locked"
+            try:
+                import time
                 time.sleep(sleep_seconds)
-                continue
-            # autre erreur => on remonte tout de suite
-            raise
-
-    # Si tous les essais échouent
+            except Exception:
+                pass
+    # si on arrive ici, on lève la dernière erreur vue
     raise last_err
+
+# -------------------------------------------------------------------
+# RESTORE (import)
+# -------------------------------------------------------------------
 
 # --- Helpers de parsing ---
 def _parse_dt(val):
@@ -127,12 +139,11 @@ def _parse_dt(val):
         return val
     if isinstance(val, str):
         s = val.strip()
-        # Supporte 'Z' (UTC)
-        if s.endswith('Z'):
+        if s.endswith('Z'):  # supporte 'Z'
             s = s[:-1] + '+00:00'
         try:
             dt = datetime.fromisoformat(s)
-            # Si naïf, force UTC (évite les surprises)
+            # si naïf, force UTC
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=timezone.utc)
             return dt
@@ -149,90 +160,98 @@ def _parse_date(val):
     if isinstance(val, datetime):
         return val.date()
     if isinstance(val, str):
-        s = val.strip()
-        # Autorise soit 'YYYY-MM-DD', soit un ISO datetime
         try:
-            if 'T' in s:
-                return _parse_dt(s).date() if _parse_dt(s) else None
-            return date.fromisoformat(s)
+            return date.fromisoformat(val.strip()[:10])
         except Exception:
             return None
     return None
 
-def _coerce_fields(items, map_fields):
+def _coerce_fields(items, mapping):
     """
-    items: list[dict]
-    map_fields: dict[str, callable]  -> ex: {"created_at": _parse_dt, "date_naissance": _parse_date}
-    Modifie in-place.
+    Applique un mapping {champ: fonction} à chaque dict d'une liste.
+    Exemple: {"created_at": _parse_dt}
     """
-    for d in items:
-        for field, fn in map_fields.items():
-            if field in d:
-                d[field] = fn(d.get(field))
+    if not items:
+        return
+    for it in items:
+        for k, fn in mapping.items():
+            if k in it:
+                it[k] = fn(it.get(k))
 
-
-# --- Restauration ---
 def bulk_restore(payload: dict):
     """
-    Insère dans le bon ordre, en retypant les champs date/datetime attendus par SQLAlchemy.
-    Suppose que les IDs du dump sont cohérents (on réinsère avec les mêmes id).
+    Restaure un export (JSON -> dict déjà chargé).
+    - Vide la base (wipe_db)
+    - Insère en masse (bulk_insert_mappings)
+    - Gère la rétro‑compatibilité (ShareLink: token -> token_hash, suppression expires_at)
     """
+    # Sécurité : tout doit être transactionnel
+    wipe_db()
+
     # 1) Utilisateurs
     utilisateurs = payload.get("utilisateurs", []) or []
+    _coerce_fields(utilisateurs, {})
     db.session.bulk_insert_mappings(Utilisateur, utilisateurs)
     db.session.flush()
 
-    # 2) Évènements (date_ouverture -> datetime)
+    # 2) Evènements
     evenements = payload.get("evenements", []) or []
     _coerce_fields(evenements, {
-        "date_ouverture": _parse_dt,
+        "date": _parse_date,
+        "created_at": _parse_dt,
+        "updated_at": _parse_dt,
     })
     db.session.bulk_insert_mappings(Evenement, evenements)
     db.session.flush()
 
-    # 3) Fiches (date_naissance -> date ; heure_arrivee/heure_sortie -> datetime)
+    # 3) Fiches
     fiches = payload.get("fiches", []) or []
     _coerce_fields(fiches, {
-        "date_naissance": _parse_date,
         "heure_arrivee": _parse_dt,
         "heure_sortie": _parse_dt,
+        "date_naissance": _parse_date,
+        "created_at": _parse_dt,
+        "updated_at": _parse_dt,
     })
     db.session.bulk_insert_mappings(FicheImplique, fiches)
     db.session.flush()
 
-    # 4) Animaux & Bagages
-    animaux = payload.get("animaux", []) or []
+    # 4) Bagages / Animaux
     bagages = payload.get("bagages", []) or []
-    db.session.bulk_insert_mappings(Animal, animaux)
+    _coerce_fields(bagages, {"created_at": _parse_dt})
     db.session.bulk_insert_mappings(Bagage, bagages)
     db.session.flush()
 
-    # 5) ShareLinks (created_at/expires_at -> datetime)
+    animaux = payload.get("animaux", []) or []
+    _coerce_fields(animaux, {"created_at": _parse_dt})
+    db.session.bulk_insert_mappings(Animal, animaux)
+    db.session.flush()
+
+    # 5) ShareLinks (expiration supprimée, token hashé)
     share_links = payload.get("share_links", []) or []
     _coerce_fields(share_links, {
         "created_at": _parse_dt,
     })
-    
-# Supprimer le champ expires_at si présent (changement de modèle)
-for sl in share_links:
-    sl.pop("expires_at", None)
-    # Migrer 'token' -> 'token_hash' si export ancien format
-    if "token" in sl and "token_hash" not in sl:
-        import hashlib
-        sl["token_hash"] = hashlib.sha256(sl["token"].encode()).hexdigest()
-        sl.pop("token", None)
+    # Migration d’anciens exports :
+    #  - drop 'expires_at'
+    #  - convertir 'token' -> 'token_hash' (sha256)
+    for sl in share_links:
+        sl.pop("expires_at", None)
+        if "token" in sl and "token_hash" not in sl:
+            import hashlib
+            sl["token_hash"] = hashlib.sha256(sl["token"].encode()).hexdigest()
+            sl.pop("token", None)
+
     db.session.bulk_insert_mappings(ShareLink, share_links)
     db.session.flush()
 
-    # 6) Tickets (created_at -> datetime)
+    # 6) Tickets
     tickets = payload.get("tickets", []) or []
-    _coerce_fields(tickets, {
-        "created_at": _parse_dt,
-    })
+    _coerce_fields(tickets, {"created_at": _parse_dt})
     db.session.bulk_insert_mappings(Ticket, tickets)
     db.session.flush()
 
-    # 7) Table d’association utilisateurs↔évènements
+    # 7) Table d’association utilisateurs ↔ évènements
     assoc = payload.get("assoc_utilisateur_evenement", []) or []
     if assoc:
         db.session.execute(utilisateur_evenement.insert(), assoc)
