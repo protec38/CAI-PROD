@@ -1,58 +1,86 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="UTF-8">
   <title>Connexion</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-<style>
-:root{ --bleu:#002f6c; --bleu-dark:#001f4c; --orange:#ff6f00; }
-    body{ background:linear-gradient(to right,var(--bleu),var(--orange)); font-family:Arial,sans-serif; color:white; min-height:100vh; margin:0; display:flex; align-items:center; justify-content:center; padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    .login-container{ background:white; color:black; padding:40px; border-radius:15px; box-shadow:0 0 15px rgba(0,0,0,.3); width:100%; max-width:400px; display:flex; flex-direction:column; justify-content:space-between; }
-    h2{ text-align:center; color:var(--bleu); margin:0 0 10px; }
-    label{ display:block; font-weight:600; }
-    input[type="text"],input[type="password"]{ width:100%; padding:12px; margin-top:10px; margin-bottom:20px; border:1px solid #ccc; border-radius:8px; font-size:16px; line-height:1.2; }
-    button{ width:100%; background-color:var(--bleu); color:white; border:none; padding:12px; border-radius:8px; font-size:16px; cursor:pointer; font-weight:700; transition:transform .03s ease, filter .15s ease; touch-action:manipulation; }
-    button:hover{ background-color:var(--bleu-dark); filter:brightness(1.02); }
-    button:active{ transform:translateY(1px); }
-    .error{ color:#c0392b; text-align:center; margin-bottom:15px; font-weight:700; }
-    .contact-info{ margin-top:25px; text-align:center; font-size:14px; color:#666; }
-    .contact-info a{ color:#003b71; text-decoration:none; }
-    .contact-info a:hover{ text-decoration:underline; }
-    @media (max-width:480px){ body{align-items:flex-start;} .login-container{ margin:24px 12px; padding:24px; border-radius:12px; box-shadow:0 8px 28px rgba(0,0,0,.35);} h2{font-size:22px;} label{font-size:14px;} input[type="text"],input[type="password"]{ padding:12px; margin-bottom:16px; font-size:16px; } button{ padding:14px; font-size:16px; } .contact-info{ margin-top:18px; font-size:13px; } }
-    @media (max-height:540px){ .login-container{ margin:12px; padding:20px; } }
-    @media (prefers-color-scheme: dark){ .login-container{ box-shadow:0 0 20px rgba(0,0,0,.45);} }
-</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- CSRF meta -->
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+
+  <style>
+    :root { --bleu:#003b71; --orange:#f58220; --gris:#f5f5f5; }
+    *{ box-sizing:border-box }
+    body{
+      font-family:'Roboto',sans-serif; background:var(--gris); margin:0; padding:0;
+      min-height:100vh; display:flex; align-items:center; justify-content:center;
+    }
+    .card{
+      width:min(420px, 92vw); background:#fff; border-radius:12px; padding:26px 22px;
+      border-top:6px solid var(--orange); box-shadow:0 8px 24px rgba(0,0,0,.12);
+    }
+    .brand{
+      display:flex; align-items:center; gap:12px; justify-content:center; margin-bottom:12px;
+      color:var(--bleu); font-weight:900; letter-spacing:.2px;
+    }
+    .brand img{ height:64px; width:auto }
+    h1{ text-align:center; margin:8px 0 18px; color:var(--bleu); font-size:22px }
+    label{ display:block; font-weight:700; margin-top:12px; color:#1a2a3a }
+    input[type="text"], input[type="password"]{
+      width:100%; padding:12px 12px; border:1px solid #d6d6d6; border-radius:10px; margin-top:6px;
+      font-size:16px; line-height:1.2;
+    }
+    .btn{
+      width:100%; margin-top:18px; padding:12px 16px; border:none; border-radius:10px;
+      background:var(--orange); color:#fff; font-weight:900; cursor:pointer;
+      box-shadow:0 2px 6px rgba(0,0,0,.12);
+    }
+    .btn:hover{ filter:brightness(1.03) }
+    .flash{ padding:12px 16px; border-radius:10px; margin:8px 0; text-align:center; font-weight:700 }
+    .flash-danger{ background:#f8d7da; color:#721c24 }
+    .flash-success{ background:#d4edda; color:#155724 }
+    .footer{ margin-top:12px; font-size:13px; text-align:center; color:#5a6a7a; }
+  </style>
 </head>
 <body>
-  <div class="login-container">
-    <div>
-      <h2>Connexion</h2>
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-          {% for category, message in messages %}
-            <div class="error">{{ message }}</div>
-          {% endfor %}
-        {% endif %}
-      {% endwith %}
-      <form method="POST" action="{{ url_for('main_bp.login') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <label for="username">Nom d'utilisateur :</label>
-        <input type="text" id="username" name="username" required inputmode="email" autocomplete="username">
-        <label for="password">Mot de passe :</label>
-        <input type="password" id="password" name="password" required autocomplete="current-password">
-        <button type="submit">Se connecter</button>
-      </form>
+
+  <div class="card">
+    <div class="brand">
+      <img src="{{ url_for('static', filename='img/logo-protection-civile.jpg') }}" alt="Protection Civile">
+      <div>Protection&nbsp;Civile</div>
     </div>
-    <div class="contact-info">
-      <p>Besoin d’aide ? Contactez-nous à <br>
-         <a href="mailto:si@isere.protection-civile.org">si@isere.protection-civile.org</a>
-      </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <h1><i class="fa-solid fa-right-to-bracket"></i> Connexion</h1>
+
+    <form method="post" action="{{ url_for('main_bp.login') }}">
+      <!-- CSRF hidden -->
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <label for="username">Nom d'utilisateur</label>
+      <input id="username" name="username" type="text" autocomplete="username" required>
+
+      <label for="password">Mot de passe</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required>
+
+      <button type="submit" class="btn"><i class="fa-solid fa-unlock"></i> Se connecter</button>
+    </form>
+
+    <div class="footer">
+      Tentatives limitées (sécurité). En cas de souci, contactez l’administrateur.
     </div>
   </div>
+
+  <!-- CSRF helper (pour fetch / formulaires dynamiques si besoin) -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
-  <script src="{{ url_for(\'static\', filename=\'csrf.js\') }}"></script>
 </body>
 </html>
