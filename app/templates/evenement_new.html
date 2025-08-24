@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Gestion des évènements</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
@@ -199,7 +200,8 @@
         <!-- 🔧 Création d’évènement -->
         <div class="form-section">
             <h1>Créer un nouvel évènement</h1>
-            <form method="post">
+            <form method="post" action="{{ url_for('main_bp.evenement_new') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label for="nom_evt">Nom de l'évènement</label>
                 <input type="text" id="nom_evt" name="nom_evt" required>
 
@@ -230,6 +232,7 @@
         <div class="form-section">
             <h2>Rejoindre un évènement existant</h2>
             <form method="post" action="{{ url_for('main_bp.select_evenement') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <label for="evenement_id">Sélectionner un évènement</label>
                 <select name="evenement_id" id="evenement_id" required onchange="afficherStatut()">
                     <option value="" disabled selected>-- Choisir un évènement --</option>
@@ -253,5 +256,8 @@
         document.getElementById("statut-selectionne").innerText = statutText;
     }
     </script>
+
+    <!-- CSRF helper (fetch & formulaires dynamiques) -->
+    <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>
