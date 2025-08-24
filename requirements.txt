@@ -17,3 +17,4 @@ flask-limiter
 flask-wtf
 itsdangerous
 psycopg2-binary
+redis>=5

@@ -2,71 +2,7 @@
 {% block content %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-<style>
-  :root{
-    --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
-    --ink:#0b1523; --line:#e9edf3; --muted:#5b6b7d;
-    --bg:#f7f9fc; --card:#ffffff;
-  }
-  .tb-wrap{ max-width:1100px; margin:24px auto; font-family:'Roboto',sans-serif; color:var(--ink); }
-  .tb-header{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
-  .tb-header h2{ margin:0; color:var(--bleu); font-weight:900; letter-spacing:.2px }
-  .btn{
-    display:inline-flex; gap:8px; align-items:center; background:var(--bleu); color:#fff;
-    padding:10px 14px; border-radius:10px; text-decoration:none; border:1px solid rgba(0,0,0,.08);
-    box-shadow:0 6px 18px rgba(0,0,0,.08);
-  }
-  .btn:hover{ opacity:.95; transform: translateY(-1px); }
-  .btn-green{ background:#27ae60; }
-  .btn-soft{
-    background:#fff; border:1px solid #e3e9f5; border-radius:10px; padding:6px 10px; font-weight:800; color:#0b2a55; text-decoration:none;
-  }
-  .btn-danger{ background:#fff2f2; border-color:#f5c2c0; color:#7b1d1a; }
 
-  .board{ display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px; }
-  @media (max-width:900px){ .board{ grid-template-columns:1fr; } }
-
-  .card{ background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 26px rgba(13,49,98,.08); }
-  .card h3{ margin:0; padding:12px 14px; border-bottom:1px solid var(--line); color:#0b2a55; font-weight:900; }
-  .card-content{ padding:14px; }
-
-  .field{ display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
-  .field label{ font-weight:900; color:#0b2a55; }
-  .field input, .field select, .field textarea{
-    border:1px solid #d8dee9; border-radius:10px; padding:10px; font-size:14px; background:#fff;
-  }
-
-  /* Filtres ligne */
-  .filters{ display:grid; grid-template-columns: 1.2fr .9fr .9fr .9fr .9fr; gap:10px; margin-bottom:12px; }
-  @media (max-width:900px){ .filters{ grid-template-columns: 1fr 1fr; } }
-  @media (max-width:560px){ .filters{ grid-template-columns: 1fr; } }
-
-  .tickets{ display:grid; gap:12px; }
-  .ticket{
-    border:1px solid #e6eaf2; border-radius:12px; padding:12px; background:#f8fbff;
-  }
-  .ticket .title{ font-weight:900; color:#0b2a55; margin:0 0 6px 0; display:flex; align-items:center; gap:8px; }
-  .ticket .desc{ white-space:pre-wrap; overflow-wrap:break-word; color:#1a2a44; }
-
-  .meta{ display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:#333; margin-top:6px }
-  .chip{ display:inline-flex; align-items:center; gap:6px; background:#eef2ff; padding:4px 8px; border-radius:999px; border:1px solid #e6ecff; font-weight:800; }
-  .chip.prio-basse{ background:#eafaf7; border-color:#c9efe5; color:#0b7a66; }
-  .chip.prio-normal{ background:#eaf2ff; border-color:#cfe2ff; color:#195aa7; }
-  .chip.prio-haute{ background:#ffefef; border-color:#ffd5d2; color:#a51810; }
-
-  /* Badges de statut colorés */
-  .status-badge{ display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-weight:900; color:#fff; }
-  .st-ouvert{ background:#2e86de; }
-  .st-encours{ background:#ff8f1f; }
-  .st-termine{ background:#22c55e; }
-  .st-archive{ background:#94a3b8; }
-
-  /* Toast */
-  .toast{
-    position:fixed; right:16px; bottom:16px; background:#0b2a55; color:#fff; padding:10px 14px; border-radius:10px;
-    box-shadow:0 10px 24px rgba(0,0,0,.2); display:none;
-  }
-</style>
 
 <div class="tb-wrap">
   <div class="tb-header">

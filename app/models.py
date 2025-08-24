@@ -127,6 +127,9 @@ class FicheImplique(db.Model):
     heure_arrivee = db.Column(db.DateTime, default=datetime.utcnow)
     autres_informations = db.Column(db.Text, nullable=True)
 
+    # Timeline relation
+    timeline_entries = db.relationship('TimelineEntry', backref='fiche', lazy='dynamic', cascade='all, delete-orphan')
+
     evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id'), nullable=False)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
 
@@ -178,11 +181,11 @@ class Bagage(db.Model):
 class ShareLink(db.Model):
     __tablename__ = "share_links"
     id = db.Column(db.Integer, primary_key=True)
-    token = db.Column(db.String(128), unique=True, index=True, nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, index=True, nullable=False)  # sha256 hex
     evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    expires_at = db.Column(db.DateTime, nullable=True)   # None = pas d’expiration
+    # expires_at removed: tokens no longer expire
     revoked = db.Column(db.Boolean, default=False, nullable=False)
 
     evenement = db.relationship("Evenement", backref="share_links")
@@ -190,16 +193,11 @@ class ShareLink(db.Model):
 
     @staticmethod
     def new_token():
+        import secrets
         return secrets.token_urlsafe(32)
 
     def is_active(self):
-        if self.revoked:
-            return False
-        if self.expires_at and datetime.utcnow() > self.expires_at:
-            return False
-        return True
-
-
+        return not self.revoked
 # ======================
 # Tickets (logistique/technique)
 # ======================
@@ -236,3 +234,33 @@ class Ticket(db.Model):
             "assigned_to": (self.assigned_to.nom if self.assigned_to else None),
             "assigned_to_id": (self.assigned_to_id or None),
         }
+
+
+# ======================
+# Audit log
+# ======================
+
+class AuditLog(db.Model):
+    __tablename__ = "audit_log"
+    id = db.Column(db.Integer, primary_key=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
+    action = db.Column(db.String(200), nullable=False)
+    entity_type = db.Column(db.String(50), nullable=True)
+    entity_id = db.Column(db.Integer, nullable=True)
+    ip = db.Column(db.String(64), nullable=True)
+    extra = db.Column(db.Text, nullable=True)
+
+
+# ======================
+# Timeline / Suivi des fiches
+# ======================
+
+class TimelineEntry(db.Model):
+    __tablename__ = "timeline_entry"
+    id = db.Column(db.Integer, primary_key=True)
+    fiche_id = db.Column(db.Integer, db.ForeignKey("fiche_implique.id"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
+    kind = db.Column(db.String(20), default="comment", nullable=False)  # comment/status/etc.
+    content = db.Column(db.Text, nullable=False)

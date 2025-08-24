@@ -25,7 +25,7 @@ class BaseConfig:
     # CSRF uniquement sur méthodes mutantes
     WTF_CSRF_ENABLED = True
     WTF_CSRF_METHODS = ["POST","PUT","PATCH","DELETE"]
-    WTF_CSRF_CHECK_DEFAULT = False
+    WTF_CSRF_CHECK_DEFAULT = True
     WTF_CSRF_SSL_STRICT = False
     WTF_CSRF_TIME_LIMIT = 60*60*8
 

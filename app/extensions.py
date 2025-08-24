@@ -7,4 +7,5 @@ from flask_limiter.util import get_remote_address
 db = SQLAlchemy()
 login_manager = LoginManager()
 csrf = CSRFProtect()
-limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
+import os
+limiter = Limiter(key_func=get_remote_address, storage_uri=os.getenv("REDIS_URL","redis://redis:6379/0"))

@@ -1,0 +1,11 @@
+
+{% extends "base.html" %}
+{% block title %}Lien de partage créé{% endblock %}
+{% block content %}
+  <h1>Lien de partage créé</h1>
+  <p class="muted">Copiez ce lien et transmettez-le aux autorités. <strong>Il ne sera plus affiché après cette page.</strong></p>
+  <code class="share">{{ url }}</code>
+  <div style="margin-top:14px">
+    <a class="btn" href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}">Retour</a>
+  </div>
+{% endblock %}

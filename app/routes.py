@@ -1,8 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort
-from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, utilisateur_evenement
-from .extensions import db
+from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, AuditLog, TimelineEntry, utilisateur_evenement
+from .extensions import db, limiter
 from werkzeug.security import check_password_hash
 from functools import wraps
+from .audit import log_action
 from datetime import datetime, timedelta
 from flask import jsonify
 from flask_login import current_user
@@ -36,25 +37,26 @@ def login_required(f):
 def get_current_user():
     return Utilisateur.query.get(session["user_id"])
 
+
 # 🔐 Page de connexion
 @main_bp.route("/", methods=["GET", "POST"])
+@limiter.limit("5 per 3 minutes")
 def login():
     if request.method == "POST":
-        nom_utilisateur = request.form["username"]
-        mot_de_passe = request.form["password"]
+        nom_utilisateur = request.form.get("username", "")
+        mot_de_passe = request.form.get("password", "")
         user = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
-
         if user and user.check_password(mot_de_passe):
             session["user_id"] = user.id
+            log_action("login_success", "utilisateur", user.id)
             return redirect(url_for("main_bp.evenement_new"))
         else:
             flash("Nom d'utilisateur ou mot de passe invalide.", "danger")
-
     return render_template("login.html")
-
 # 🔓 Déconnexion
 @main_bp.route("/logout")
 def logout():
+    log_action("logout")
     session.clear()
     return redirect(url_for("main_bp.login"))
 
@@ -453,6 +455,7 @@ def utilisateur_delete(id):
     flash("Utilisateur supprimé.", "info")
     return redirect(url_for("main_bp.admin_utilisateurs"))
 
+
 # 🔍 Détail d’une fiche impliqué
 @main_bp.route("/fiche/<int:id>")
 @login_required
@@ -460,12 +463,12 @@ def fiche_detail(id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(id)
 
-    if fiche.evenement not in user.evenements and not user.is_admin and user.role != "codep":
+    if fiche.evenement not in user.evenements and not getattr(user, "is_admin", False) and getattr(user, "role", None) != "codep":
         flash("⛔ Vous n'avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    return render_template("fiche_detail.html", fiche=fiche, user=user)
-
+    entries = fiche.timeline_entries.order_by(TimelineEntry.created_at.desc()).all()
+    return render_template("fiche_detail.html", fiche=fiche, user=user, entries=entries)
 
 # ✏️ Modification d’une fiche impliqué
 from datetime import datetime
@@ -1347,22 +1350,10 @@ def autorite_dashboard_manage(evenement_id):
     links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
     return render_template("autorite_dashboard.html", user=user, evenement=evt, links=links, manage=True)
 
-# Création d’un lien (login requis)
-@main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
-@login_required
-def create_share_link(evenement_id):
-    user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
-    if not can_manage_sharing(user):
-        abort(403)
-    # durée optionnelle (en heures), vide = sans expiration
-    hours = (request.form.get("duration_hours") or "").strip()
-    expires_at = None
-    if hours.isdigit():
-        expires_at = datetime.utcnow() + timedelta(hours=int(hours))
-
-    token = ShareLink.new_token()
-    link = ShareLink(token=token, evenement_id=evt.id, created_by=user.id, expires_at=expires_at)
+\1token = ShareLink.new_token()
+    import hashlib
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    link = ShareLink(token_hash=token_hash, evenement_id=evt.id, created_by=user.id)
     db.session.add(link)
     db.session.commit()
     flash("🔗 Lien de partage créé.", "success")
@@ -1384,7 +1375,9 @@ def revoke_share_link(token):
 # Endpoint public (sans login) — lecture seule
 @main_bp.route("/autorite/share/<token>")
 def autorite_share_public(token):
-    link = ShareLink.query.filter_by(token=token).first()
+    import hashlib
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    link = ShareLink.query.filter_by(token_hash=token_hash).first()
     if not link or not link.is_active():
         return render_template("autorite_share_invalid.html"), 410  # expiré/révoqué
 
@@ -1398,7 +1391,9 @@ def autorite_json(evenement_id):
     evt = Evenement.query.get_or_404(evenement_id)
 
     if token:
-        link = ShareLink.query.filter_by(token=token, evenement_id=evenement_id).first()
+        import hashlib
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        link = ShareLink.query.filter_by(token_hash=token_hash, evenement_id=evenement_id).first()
         if not link or not link.is_active():
             # 403 si invalide; côté client on reste avec '—'
             return jsonify({"error":"forbidden"}), 403
@@ -1668,3 +1663,40 @@ def admin_restore():
 @main_bp.route('/healthz')
 def _healthz():
     return {'status':'ok'}, 200
+
+
+# =====================
+# Page d'audit (admin uniquement)
+# =====================
+@main_bp.route("/admin/logs")
+@login_required
+def admin_logs():
+    user = get_current_user()
+    if not getattr(user, "is_admin", False):
+        flash("⛔ Accès réservé à l'administrateur.", "danger")
+        return redirect(url_for("main_bp.dashboard"))
+    page = int(request.args.get("page", 1))
+    per_page = 50
+    logs = AuditLog.query.order_by(AuditLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    return render_template("admin_logs.html", logs=logs, user=user)
+
+
+# =====================
+# Timeline: ajout d'un commentaire
+# =====================
+@main_bp.route("/fiche/<int:fiche_id>/timeline/add", methods=["POST"])
+@login_required
+def add_timeline_comment(fiche_id):
+    user = get_current_user()
+    fiche = FicheImplique.query.get_or_404(fiche_id)
+    # TODO: autorisations fines si besoin (mêmes règles que l'édition de fiche)
+    content = (request.form.get("comment") or "").strip()
+    if not content:
+        flash("Le commentaire est vide.", "warning")
+        return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
+    entry = TimelineEntry(fiche_id=fiche.id, user_id=user.id, content=content, kind="comment")
+    db.session.add(entry)
+    db.session.commit()
+    log_action("timeline_add", "FicheImplique", fiche.id, extra=content[:200])
+    flash("Commentaire ajouté.", "success")
+    return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))

@@ -1,0 +1,29 @@
+
+{% extends "base.html" %}
+{% block title %}Journal d'audit{% endblock %}
+{% block content %}
+<h1>Journal d'audit</h1>
+<p class="muted">Actions récentes (50 par page)</p>
+<table class="table">
+  <thead><tr><th>Quand</th><th>Utilisateur</th><th>Action</th><th>Objet</th><th>ID</th><th>IP</th></tr></thead>
+  <tbody>
+  {% for e in logs.items %}
+    <tr>
+      <td>{{ e.created_at|fr_datetime }}</td>
+      <td>{% if e.user_id %}#{{ e.user_id }}{% else %}—{% endif %}</td>
+      <td>{{ e.action }}</td>
+      <td>{{ e.entity_type or "—" }}</td>
+      <td>{{ e.entity_id or "—" }}</td>
+      <td>{{ e.ip or "—" }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Aucune entrée</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<div class="pagination">
+  {% if logs.has_prev %}<a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.prev_num) }}">&laquo; Précédent</a>{% endif %}
+  <span class="muted">Page {{ logs.page }} / {{ logs.pages }}</span>
+  {% if logs.has_next %}<a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.next_num) }}">Suivant &raquo;</a>{% endif %}
+</div>
+{% endblock %}

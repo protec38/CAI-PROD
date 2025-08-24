@@ -2,42 +2,12 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="UTF-8">
   <title>Vue Autorité – {{ evenement.nom }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-  <style>
-    :root{ --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00; --ink:#0b1523; --line:#e9edf3; }
-    body{ font-family: Roboto, system-ui, Arial, sans-serif; margin:0; background:linear-gradient(135deg,#002f6c,#ff6f00); }
-    .wrap{ max-width:1100px; margin:24px auto; padding:12px; }
-    .card{ background:#fff; border-radius:14px; border:1px solid var(--line); box-shadow:0 10px 26px rgba(13,49,98,.10); padding:18px; }
-
-    .hero{
-      color:#fff; padding:20px; border-radius:16px;
-      background:linear-gradient(135deg, rgba(0,47,108,.96), rgba(245,130,32,.92));
-      box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:16px;
-    }
-    .hero h1{ margin:0 0 8px 0; }
-    .chips{ display:flex; gap:10px; flex-wrap:wrap; }
-    .chip{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.18); padding:8px 12px; border-radius:999px; font-weight:800 }
-
-    .tiles{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-top:12px; }
-    @media (max-width:800px){ .tiles{ grid-template-columns:1fr; } }
-    .tile{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px; display:flex; align-items:center; gap:12px; }
-    .tile .ico{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; background:#f2f6fb; color:#0b2a55; }
-    .tile .k{ font-size:12px; color:#536276; font-weight:900; text-transform:uppercase; }
-    .tile .v{ font-size:20px; font-weight:900; color:var(--ink); }
-
-    .manage{ margin-top:16px; }
-    .links{ margin-top:10px; border-top:1px dashed var(--line); padding-top:10px; }
-    .btn{ display:inline-flex; align-items:center; gap:8px; background:var(--jaune); color:#00122a; padding:10px 12px; border-radius:10px; text-decoration:none; font-weight:900; border:1px solid rgba(0,0,0,.12); }
-    .btn-danger{ background:#e74c3c; color:#fff; }
-    .btn-secondary{ background:#f2f2f2; color:#111; }
-    code.share{ display:block; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fafcff; word-break:break-all; }
-    .muted{ color:#667788; font-size:13px; }
-    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-    input[type="number"]{ padding:8px; border-radius:8px; border:1px solid var(--line); width:130px; }
-  </style>
+  
 </head>
 <body>
   <div class="wrap">
@@ -76,22 +46,21 @@
       <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
         <label class="muted">Expiration (heures, optionnel)</label>
-        <input type="number" name="duration_hours" min="1" step="1" placeholder="ex: 24">
-        <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
+                <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
         <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
       </form>
 
       <div class="links">
         {% if links %}
           {% for l in links %}
-            {% set url = url_for('main_bp.autorite_share_public', token=l.token, _external=True) %}
+            {% set url = None %} {# Le token n'est pas stocké (hash only) #}
             <div style="margin:10px 0">
               <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }} {% if l.expires_at %} — <strong>Expire :</strong> {{ l.expires_at.strftime('%d/%m/%Y %H:%M') }}{% else %} — <span class="muted">sans expiration{% endif %}</span>
                 {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}
               </div>
-              <code class="share">{{ url }}</code>
+              <code class="share">Lien non récupérable (token affiché à la création)</code>
               <div class="row">
-                <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('{{ url }}')">
+                <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('Lien non récupérable (token affiché à la création)')">
                   <i class="fa-regular fa-copy"></i> Copier
                 </button>
                 {% if not l.revoked %}
@@ -164,5 +133,6 @@
   });
 </script>
 
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>

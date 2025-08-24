@@ -1,171 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-  :root{
-    --bleu:#002f6c;
-    --bleu-700:#0b2a55;
-    --orange:#f58220;
-    --jaune:#ffcc00;
-    --ink:#0b1523;
-    --muted:#5b6b7d;
-    --line:#e9edf3;
-    --card:#ffffff;
-    --chip:#f2f6fb;
-    --badge:#f7f9fc;
-    --bg-grad-start:#002f6c;
-    --bg-grad-end:#ff6f00;
-  }
 
-  .fd-wrap{
-    font-family:'Roboto',system-ui,-apple-system,Segoe UI,Arial,sans-serif;
-    color:var(--ink);
-    max-width:1200px;
-    margin-inline:auto;
-    padding:16px;
-  }
-
-  /* ===== HERO ===== */
-  .fd-hero{
-    position:relative;
-    background: radial-gradient(1100px 600px at -10% -10%, rgba(255,204,0,.20), transparent 60%),
-                linear-gradient(135deg, rgba(0,47,108,.98), rgba(245,130,32,.95));
-    border-radius:18px; color:#fff; padding:24px 24px 88px 24px;
-    box-shadow:0 14px 40px rgba(0,0,0,.28); overflow:hidden;
-  }
-  .fd-hero h2{ margin:0 0 8px 0; font-weight:900; letter-spacing:.2px; }
-  .fd-hero .meta{ display:flex; gap:10px; flex-wrap:wrap; font-weight:700; opacity:.98; }
-
-  .chip{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 12px; border-radius:999px; background:rgba(255,255,255,.12);
-    border:1px solid rgba(255,255,255,.18); color:#fff; font-weight:900; font-size:13px;
-    backdrop-filter: blur(6px);
-  }
-  .chip i{ font-size:14px; }
-
-  /* ===== Summary tiles ===== */
-  .fd-tiles{
-    display:grid; grid-template-columns: repeat(4, 1fr);
-    gap:12px; margin-top: 16px;
-  }
-  @media (max-width: 1000px){ .fd-tiles{ grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 600px){ .fd-tiles{ grid-template-columns: 1fr; } }
-
-  .tile{
-    background: rgba(255,255,255,.12);
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 14px;
-    padding:12px 14px;
-    display:flex; gap:12px; align-items:center; color:#fff;
-  }
-  .tile .ico{
-    width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
-    background: rgba(255,255,255,.18);
-  }
-  .tile .k{ font-size: 12px; opacity:.95; }
-  .tile .v{ font-size: 16px; font-weight: 900; letter-spacing:.2px; }
-
-  /* ===== Timeline ===== */
-  .timeline{
-    position:absolute; left:22px; right:22px; bottom:16px;
-    background: rgba(255,255,255,.14);
-    border: 1px solid rgba(255,255,255,.16);
-    border-radius: 12px; padding:10px 12px;
-    display:flex; align-items:center; justify-content: space-between; gap:10px;
-    font-weight:800; color:#fff;
-  }
-  .timeline .dot{
-    display:inline-grid; place-items:center; width:28px; height:28px; border-radius:999px;
-    background:#fff; color:var(--bleu); font-size:12px; font-weight:900;
-  }
-  .timeline .sep{ flex:1; height:4px; border-radius:999px; background: linear-gradient(90deg, #fff, rgba(255,255,255,.35)); }
-  .timeline .lbl{ font-size:12px; opacity:.95; }
-  .timeline .val{ font-size:13px; }
-
-  /* ===== Grid content ===== */
-  .fd-grid{
-    display:grid; grid-template-columns: 1.2fr .8fr; gap:18px; margin-top:18px;
-  }
-  @media (max-width: 1000px){ .fd-grid{ grid-template-columns: 1fr; } }
-
-  .fd-card{
-    background:var(--card);
-    border-radius:16px;
-    box-shadow: 0 10px 26px rgba(13,49,98,.08);
-    padding:18px;
-    border: 1px solid var(--line);
-  }
-
-  .fd-section h4{
-    margin:0 0 12px 0; color: var(--bleu-700);
-    font-weight:900; letter-spacing:.2px;
-    display:flex; align-items:center; gap:10px;
-  }
-  .fd-section h4 i{
-    width:28px; height:28px; display:grid; place-items:center;
-    border-radius:8px; background:#eaf1ff; color:#1e3a8a;
-  }
-
-  .fd-list{
-    display:grid; grid-template-columns: 1fr 1fr; gap:12px 16px;
-  }
-  @media (max-width: 700px){ .fd-list{ grid-template-columns: 1fr; } }
-
-  .fd-item{
-    background:var(--badge); border:1px solid var(--line); border-radius:12px;
-    padding:12px 12px; min-height:70px;
-  }
-  .fd-item .lbl{ display:block; font-size:11px; font-weight:900; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; margin-bottom:6px; }
-  .fd-item .val{ font-weight:800; color:var(--ink); line-height:1.35; white-space: pre-wrap; overflow-wrap: break-word; word-break: break-word;}
-
-  /* badges */
-  .fd-badges{ display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
-  .badge-competence, .badge-bagage{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:6px 10px; border-radius:999px; font-weight:900; font-size:12px; color:#fff;
-    box-shadow: 0 2px 8px rgba(0,0,0,.12);
-  }
-  .badge-bagage{ background: var(--bleu); }
-  .badge-competence.medecin{ background:#e74c3c; }
-  .badge-competence.infirmier{ background:#3498db; }
-  .badge-competence.pompier{ background:#e67e22; }
-  .badge-competence.sst{ background:#1abc9c; }
-  .badge-competence.psy{ background:#9b59b6; }
-  .badge-competence.benevole{ background:#34495e; }
-  .badge-competence.artisan{ background:#f39c12; }
-  .badge-competence.interprete{ background:#2ecc71; }
-  .badge-competence.logisticien{ background:#16a085; }
-  .badge-competence.conducteur{ background:#d35400; }
-  .badge-competence.securite{ background:#2c3e50; }
-  .badge-competence.autre{ background:#7f8c8d; }
-
-  /* statut pill */
-  .statut-pill{
-    display:inline-flex; align-items:center; gap:8px;
-    padding:8px 12px; border-radius:999px; font-weight:900; letter-spacing:.2px; color:#fff;
-  }
-  .statut-present{ background:#22c55e; }
-  .statut-sorti{ background:#f59e0b; }
-  .statut-supprime{ background:#ef4444; }
-
-  /* actions */
-  .fd-actions{ display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
-  .btn-soft{
-    display:inline-flex; align-items:center; gap:8px; text-decoration:none;
-    padding:12px 16px; border-radius:12px; font-weight:900;
-    border:1px solid var(--line); background:#fff; color:var(--ink);
-    box-shadow: 0 6px 18px rgba(0,0,0,.06);
-    transition: transform .03s ease, box-shadow .2s ease, opacity .2s ease;
-  }
-  .btn-soft:hover{ box-shadow: 0 12px 26px rgba(0,0,0,.12); opacity:.95; transform: translateY(-1px); }
-  .btn-secondary{ background:#f7f9fc; }
-  .btn-warning{ background:#fff4e2; color:#5b3a00; border-color:#ffd697; }
-
-  @media print{
-    .fd-actions{ display:none; }
-    .fd-hero{ box-shadow:none; }
-  }
-</style>
 
 <div class="fd-wrap">
 
@@ -387,4 +222,29 @@
     </a>
   </div>
 </div>
+
+<section id="timeline" class="card" style="margin-top:16px;">
+  <h2>Suivi / Timeline</h2>
+  <form method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}" class="row">
+    <textarea name="comment" rows="3" placeholder="Ajouter un commentaire de suivi..." style="flex:1; width:100%;"></textarea>
+    <button class="btn" type="submit">Ajouter</button>
+  </form>
+  <div class="timeline-list">
+    
+    {% if not entries %}
+      <p class="muted">Aucun commentaire pour l'instant.</p>
+    {% else %}
+      <ul class="timeline-ul">
+        {% for e in entries %}
+          <li class="timeline-item">
+            <div class="timeline-time">{{ e.created_at|fr_datetime }}</div>
+            <div class="timeline-content">{{ e.content|e }}</div>
+            <div class="timeline-meta">par #{{ e.user_id }}</div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+</section>
+
 {% endblock %}

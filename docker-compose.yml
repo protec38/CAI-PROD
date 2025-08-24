@@ -1,5 +1,9 @@
-services:
-  db:
+\1
+redis:
+  image: redis:7
+  restart: unless-stopped
+  networks: [cai-net]
+db:
     image: postgres:16
     environment:
       - POSTGRES_DB=${POSTGRES_DB}

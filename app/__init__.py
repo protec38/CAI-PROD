@@ -55,6 +55,17 @@ def create_app(config_name: str | None = None) -> Flask:
     def handle_csrf_error(e):
         return render_template("csrf_error.html", reason=e.description), 400
 
+# === Audit des requêtes mutantes ===
+@app.before_request
+def before_log_mutations():
+    from flask import request
+    from .audit import log_action
+    if request.method in {"POST","PUT","PATCH","DELETE"} and not request.path.startswith("/static"):
+        # endpoint string may be None in some cases
+        ep = request.endpoint or request.path
+        log_action(f"HTTP {request.method} {ep}")
+
+
     # Blueprints
     from .routes import main_bp
     app.register_blueprint(main_bp)
