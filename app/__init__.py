@@ -38,28 +38,13 @@ def create_app(config_name: str | None = None) -> Flask:
     login_manager.login_message_category = "info"
 
     # --- Loader utilisateur ---
-    try:
-        from .models import Utilisateur as UserModel
-    except Exception:
-        try:
-            from .models import User as UserModel  # type: ignore
-        except Exception:
-            UserModel = None  # type: ignore
-
+    from .models import Utilisateur as UserModel  # ton modèle user
     @login_manager.user_loader
     def load_user(user_id: str):
-        if UserModel is None:
-            return None
         try:
             return db.session.get(UserModel, int(user_id))
         except Exception:
-            try:
-                return db.session.get(UserModel, user_id)
-            except Exception:
-                try:
-                    return UserModel.query.get(user_id)
-                except Exception:
-                    return None
+            return UserModel.query.get(user_id)
 
     # --- Gestion CSRF ---
     @app.errorhandler(CSRFError)
