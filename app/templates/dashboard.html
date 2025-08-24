@@ -222,6 +222,8 @@
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <i class="fa-solid fa-signal"></i>
             <select id="evt-statut-select" name="statut_evt" onchange="this.form.submit()">
               {% for option in ['En cours de gréement', 'Ouvert', 'Effectif dépassé', 'Complet', 'Fermé'] %}
@@ -305,6 +307,8 @@
         <button class="close" onclick="fermerModalBagage()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-bagage" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="bagage-fiche-numero" value="" readonly />
@@ -331,6 +335,8 @@
         <button class="close" onclick="fermerModalSortie()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-sortie" method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="sortie-fiche-numero" value="" readonly />
@@ -405,6 +411,8 @@
     function actionsHTML(f){
       const delBtn = CAN_DELETE_FICHE ? `
         <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
           <button type="submit" class="btn-action btn-red" title="Supprimer la fiche">
             <i class="fa-solid fa-trash-can"></i> <span>Supprimer</span>
           </button>
@@ -671,5 +679,6 @@ setInterval(refreshFiches, 3000);
       }, true);
     })();
   </script>
+  <script src="{{ url_for(\'static\', filename=\'csrf.js\') }}"></script>
 </body>
 </html>

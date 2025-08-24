@@ -17,6 +17,8 @@
       <div class="card-content">
         {% if can_manage %}
         <form method="POST" action="{{ url_for('main_bp.ticket_create') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
           <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
           <div class="field">
             <label>Titre *</label>
@@ -180,6 +182,8 @@
           <button class="btn-soft" type="submit"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
         </form>
         <form method="POST" action="/tickets/${t.id}/delete" onsubmit="return confirm('Supprimer ce ticket ?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
           <button class="btn-soft btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> Supprimer</button>
         </form>
       </div>` : ``;

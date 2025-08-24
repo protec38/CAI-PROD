@@ -31,6 +31,8 @@
     <h3><i class="fa-solid fa-upload"></i> Restaurer une sauvegarde</h3>
     <div class="bk-body">
       <form method="POST" action="{{ url_for('main_bp.admin_restore') }}" enctype="multipart/form-data">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="fld">
           <label for="backup_file"><strong>Fichier JSON</strong></label>
           <input type="file" name="backup_file" id="backup_file" accept="application/json" required>

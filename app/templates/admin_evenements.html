@@ -29,6 +29,8 @@
                         {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
                             <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn btn-sm" style="background-color: #ffc107; color: #212529; border-radius: 6px;">📝 Modifier</a>
                             <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer cet évènement ?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                                 <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border-radius: 6px;">🗑 Supprimer</button>
                             </form>
                         {% else %}

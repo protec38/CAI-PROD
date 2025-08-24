@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <title>Nouvelle Fiche Impliqué</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -122,6 +123,8 @@ body {
 
     <h1><i class="fas fa-user-plus"></i> Nouvelle fiche impliqué</h1>
     <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <div class="form-group">
             <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
             <input type="text" id="numero" name="numero" value="{{ numero_prevu }}" readonly>
@@ -274,5 +277,6 @@ function onCompetencesChange(select) {
 }
 </script>
 
+  <script src="{{ url_for(\'static\', filename=\'csrf.js\') }}"></script>
 </body>
 </html>

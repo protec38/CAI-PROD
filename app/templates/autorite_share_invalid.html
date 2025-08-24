@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="UTF-8">
   <title>Lien indisponible</title>
   
@@ -14,5 +15,6 @@ body{font-family:Roboto,Arial,sans-serif;background:#f6f7fb;margin:0;display:gri
     <h2>⚠️ Lien indisponible</h2>
     <p>Ce lien a expiré ou a été révoqué par l’organisateur.</p>
   </div>
+  <script src="{{ url_for(\'static\', filename=\'csrf.js\') }}"></script>
 </body>
 </html>

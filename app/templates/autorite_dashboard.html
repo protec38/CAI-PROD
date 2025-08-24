@@ -78,6 +78,8 @@
     <div class="card manage">
       <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         <label class="muted">Expiration (heures, optionnel)</label>
                 <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
         <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
@@ -98,6 +100,8 @@
                 </button>
                 {% if not l.revoked %}
                 <form method="POST" action="{{ url_for('main_bp.revoke_share_link', token=l.token) }}" onsubmit="return confirm('Révoquer ce lien ?');">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
                   <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
                 </form>
                 {% endif %}
@@ -167,5 +171,6 @@
 </script>
 
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+  <script src="{{ url_for(\'static\', filename=\'csrf.js\') }}"></script>
 </body>
 </html>

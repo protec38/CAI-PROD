@@ -226,6 +226,8 @@
 <section id="timeline" class="card" style="margin-top:16px;">
   <h2>Suivi / Timeline</h2>
   <form method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}" class="row">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <textarea name="comment" rows="3" placeholder="Ajouter un commentaire de suivi..." style="flex:1; width:100%;"></textarea>
     <button class="btn" type="submit">Ajouter</button>
   </form>

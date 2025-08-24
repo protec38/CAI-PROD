@@ -5,6 +5,8 @@
     <h1 class="text-center" style="color: #003b71; margin-bottom: 30px;">✏️ Modifier l’évènement</h1>
 
     <form method="POST" style="background: #fff; padding: 30px; border-radius: 10px; border-top: 6px solid #f58220; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
         
         <label for="nom" style="font-weight: bold;">Nom de l’évènement</label>
         <input type="text" id="nom" name="nom" required value="{{ evenement.nom }}" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc;">
