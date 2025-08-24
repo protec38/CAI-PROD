@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>Tableau de bord</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
@@ -647,6 +648,28 @@ setInterval(refreshFiches, 3000);
       setTimeout(()=>document.getElementById('sortie-destination').focus(),50);
     }
     function fermerModalSortie(){ const m=document.getElementById('modal-sortie'); if(m) m.style.display='none'; }
+  </script>
+
+  <!-- === CSRF additions === -->
+  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+  <script>
+    (function(){
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      const token = meta ? meta.getAttribute('content') : '';
+      document.addEventListener('submit', function(e){
+        const f = e.target;
+        if (!(f instanceof HTMLFormElement)) return;
+        const method = (f.getAttribute('method') || '').toLowerCase();
+        if (!['post','put','patch','delete'].includes(method)) return;
+        if (!f.querySelector('input[name="csrf_token"]')) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = 'csrf_token';
+          input.value = token;
+          f.appendChild(input);
+        }
+      }, true);
+    })();
   </script>
 </body>
 </html>
