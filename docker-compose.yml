@@ -1,15 +1,14 @@
-services:
-  redis:
-    image: redis:7
-    restart: unless-stopped
-    networks: [cai-net]
-
-  db:
+\1
+redis:
+  image: redis:7
+  restart: unless-stopped
+  networks: [cai-net]
+db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - cai-db:/var/lib/postgresql/data
     healthcheck:
@@ -24,16 +23,13 @@ services:
     build: .
     env_file: [.env]
     environment:
-      FLASK_CONFIG: ${FLASK_CONFIG}
-      SECRET_KEY: ${SECRET_KEY}
-      DATABASE_URL: ${DATABASE_URL}
-      FORCE_HTTPS: ${FORCE_HTTPS:-1}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      - FLASK_CONFIG=${FLASK_CONFIG}
+      - SECRET_KEY=${SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+      - FORCE_HTTPS=${FORCE_HTTPS}
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_started
     ports:
       - "5002:5000"
     networks: [cai-net]

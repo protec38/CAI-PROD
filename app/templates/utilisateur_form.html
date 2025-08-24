@@ -6,6 +6,91 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
+<style>
+body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(to right, #002f6c, #ff6f00);
+            color: #fff;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: white;
+            color: black;
+            padding: 30px;
+            border-radius: 10px;
+            border-top: 6px solid #f58220;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #003b71;
+            margin-bottom: 30px;
+        }
+
+        label {
+            font-weight: 600;
+            display: block;
+            margin-top: 15px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            margin-top: 30px;
+            width: 100%;
+            background-color: #f58220;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #e36d00;
+        }
+
+        .event-checkboxes {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        .event-checkboxes label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: normal;
+        }
+
+        a.btn-back {
+            display: inline-block;
+            margin-top: 20px;
+            color: #003b71;
+            text-decoration: none;
+        }
+
+
+/* Timeline styles */
+.timeline-ul{ list-style:none; margin:0; padding:0; }
+.timeline-item{ padding:12px 8px; border-left:3px solid var(--line, #e9edf3); margin-left:8px; position:relative; }
+.timeline-item::before{ content:''; width:10px; height:10px; background: var(--orange, #ff6f00); border-radius:50%; position:absolute; left:-6px; top:18px; }
+.timeline-time{ font-size:12px; color:#667788; margin-bottom:4px; }
+.timeline-content{ font-size:14px; }
+.timeline-meta{ font-size:12px; color:#99a3af; }
+</style>
 </head>
 <body>
 <div class="container">

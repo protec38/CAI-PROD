@@ -211,8 +211,16 @@ def bulk_restore(payload: dict):
     share_links = payload.get("share_links", []) or []
     _coerce_fields(share_links, {
         "created_at": _parse_dt,
-        "expires_at": _parse_dt,
     })
+    
+# Supprimer le champ expires_at si présent (changement de modèle)
+for sl in share_links:
+    sl.pop("expires_at", None)
+    # Migrer 'token' -> 'token_hash' si export ancien format
+    if "token" in sl and "token_hash" not in sl:
+        import hashlib
+        sl["token_hash"] = hashlib.sha256(sl["token"].encode()).hexdigest()
+        sl.pop("token", None)
     db.session.bulk_insert_mappings(ShareLink, share_links)
     db.session.flush()
 

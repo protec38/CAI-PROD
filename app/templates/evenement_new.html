@@ -7,6 +7,160 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     
+<style>
+:root{
+            --bleu:#003b71;
+            --orange:#f58220;
+            --gris:#f5f5f5;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--gris);
+            margin: 0;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right)
+                     env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+
+        .header {
+            background-color: var(--bleu);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+
+        .header img {
+            height: 80px;
+            margin-bottom: 10px;
+            max-width: 90%;
+            height: auto;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            border-top: 6px solid var(--orange);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: var(--bleu);
+            margin-bottom: 25px;
+        }
+
+        label {
+            font-weight: bold;
+            display: block;
+            margin-top: 15px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 16px; /* ✅ évite le zoom iOS */
+            line-height: 1.2;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 20px;
+            background-color: var(--orange);
+            color: white;
+            border: none;
+            text-decoration: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px 0 0;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,.12);
+            transition: transform .03s ease, filter .15s ease;
+            touch-action: manipulation;
+        }
+
+        .btn:hover { background-color: #e36d00; filter: brightness(1.02); }
+        .btn:active { transform: translateY(1px); }
+
+        .btn-group {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            margin-bottom: 50px;
+        }
+
+        #statut-selectionne {
+            margin-top: 10px;
+            font-weight: bold;
+            color: var(--bleu);
+        }
+
+        /* ✅ Flash message styles */
+        .flash {
+            padding: 12px 20px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-weight: bold;
+            text-align: center;
+        }
+        .flash-success { background-color: #d4edda; color: #155724; }
+        .flash-danger  { background-color: #f8d7da; color: #721c24; }
+        .flash-warning { background-color: #fff3cd; color: #856404; }
+        .flash-info    { background-color: #d1ecf1; color: #0c5460; }
+
+        /* ========== 📱 Responsive ========== */
+        @media (max-width: 900px){
+            .container{
+                margin: 24px auto;
+                padding: 24px;
+                max-width: 92vw;
+            }
+        }
+
+        @media (max-width: 600px){
+            .header{ padding: 16px; }
+            .container{
+                margin: 16px;
+                padding: 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 24px rgba(0,0,0,.12);
+            }
+            h1, h2{ margin-bottom: 18px; }
+
+            .btn-group{
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .btn{
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                width: 100%;
+                margin: 6px 0 0 0;
+                padding: 14px 16px; /* meilleure zone tactile */
+            }
+        }
+
+        @media (max-width: 400px){
+            .container{ margin: 12px; padding: 16px; }
+            input, select{ padding: 12px; }
+            .btn{ padding: 14px; font-size: 15px; }
+        }
+
+        /* ✅ Petites hauteurs (clavier affiché, paysage, etc.) */
+        @media (max-height: 560px){
+            .container{ margin: 12px auto; padding: 16px; }
+        }
+</style>
 </head>
 <body>
     <div class="header">

@@ -10,6 +10,108 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
     
+<style>
+body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background: linear-gradient(to right, #002f6c, #ff6f00);
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+
+        h1 {
+            text-align: center;
+            color: #002f6c;
+            margin-bottom: 30px;
+        }
+
+        form {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .form-group {
+            flex: 1 1 45%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group-full {
+            flex: 1 1 100%;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #002f6c;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+
+        select[multiple] {
+            min-height: 150px;
+        }
+
+        small {
+            font-size: 13px;
+            color: #777;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            background-color: #ff6f00;
+            color: white;
+            padding: 14px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #e65c00;
+        }
+
+        .btn-retour {
+            display:inline-block;
+            margin-bottom:15px;
+            padding:10px 18px;
+            background-color:#002f6c;
+            color:#fff;
+            text-decoration:none;
+            border-radius:6px;
+        }
+        .btn-retour:hover {
+            background-color:#004a99;
+        }
+
+        @media (max-width: 768px) {
+            .form-group {
+                flex: 1 1 100%;
+            }
+        }
+
+        #bloc-competence-autre { display:none; }
+</style>
 </head>
 <body>
 

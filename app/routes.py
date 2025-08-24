@@ -1350,7 +1350,7 @@ def autorite_dashboard_manage(evenement_id):
     links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
     return render_template("autorite_dashboard.html", user=user, evenement=evt, links=links, manage=True)
 
-    token = ShareLink.new_token()
+\1token = ShareLink.new_token()
     import hashlib
     token_hash = hashlib.sha256(token.encode()).hexdigest()
     link = ShareLink(token_hash=token_hash, evenement_id=evt.id, created_by=user.id)
