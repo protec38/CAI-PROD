@@ -8,8 +8,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-<style>
-:root{
+  <style>
+    :root{
       --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
       --bg:#0a1324; --card:#0f1d39; --line:#193056;
       --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a;
@@ -78,6 +78,7 @@
     .badge-red { background: #c0392b; }
     .badge-blue { background: #2980b9; }
     .badge-dark { background: #2c3e50; }
+
     /* Bagages */
     .badge-bagage{
       display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;
@@ -91,8 +92,6 @@
       border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3)
     }
     table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(12,26,52,.65);color:#eaf2ff}
-
-    /* En-tête plus visible */
     thead th{
       position:sticky;top:0;z-index:1;
       background:linear-gradient(90deg,var(--theadGrad1),var(--theadGrad2));
@@ -102,8 +101,6 @@
     }
     thead th .th-label{display:flex;align-items:center;gap:8px}
     thead th .th-label i{opacity:.85}
-
-    /* Corps + zébrage léger */
     tbody td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
     tbody tr:nth-child(odd){background:rgba(255,255,255,.04)}
     tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
@@ -132,7 +129,7 @@
       color:#fff;font-size:12px;font-weight:800;margin:2px
     }
 
-    /* Mobile : scroll horizontal + colonnes visibles */
+    /* Mobile */
     @media (max-width:640px){
       .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
       table{ min-width:720px; }
@@ -141,12 +138,10 @@
       thead th:nth-child(2), tbody td:nth-child(2),
       thead th:nth-child(3), tbody td:nth-child(3),
       thead th:nth-child(4), tbody td:nth-child(4),
-      thead th:nth-child(9), tbody td:nth-child(9) {
-        display:table-cell;
-      }
+      thead th:nth-child(9), tbody td:nth-child(9) { display:table-cell; }
     }
 
-    /* Modal (centré écran) */
+    /* Modal */
     .modal{
       position:fixed; inset:0; background:rgba(0,0,0,.55);
       display:none; align-items:center; justify-content:center; z-index:1000;
@@ -165,7 +160,7 @@
     .modal small.hint{display:block;color:#444;margin-top:4px}
     .modal .close{background:transparent;border:0;font-size:22px;cursor:pointer;color:#333}
     .modal-footer{display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e6e6e6}
-</style>
+  </style>
 </head>
 
 <body>
@@ -175,11 +170,11 @@
       <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
       <a href="{{ url_for('main_bp.fiche_new') }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
       <a href="{{ url_for('main_bp.logout') }}" class="btn"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
-    {% if user.is_admin or user.role in ["codep", "responsable"] %}
-      <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn">
-        <i class="fa-solid fa-eye"></i> Vue Autorité & Partage
-      </a>
-    {% endif %}
+      {% if user.is_admin or user.role in ["codep", "responsable"] %}
+        <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn">
+          <i class="fa-solid fa-eye"></i> Vue Autorité & Partage
+        </a>
+      {% endif %}
       {% if user.is_admin or user.role == "codep" or (user.role == "responsable" and user in evenement.utilisateurs) %}
         <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn">
           <i class="fa-solid fa-file-pdf"></i> Export PDF
@@ -188,7 +183,6 @@
           <i class="fa-solid fa-file-csv"></i> Export CSV
         </a>
       {% endif %}
-
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn">
           <i class="fa-solid fa-ticket"></i> Tickets
@@ -353,21 +347,18 @@
     </div>
   </div>
 
-  <!-- === Script principal robuste === -->
+  <!-- === Script principal (AJAX full refresh des parties dynamiques / 3s) === -->
   <script>
-    /* === Règle d'affichage du bouton Supprimer (évaluée côté serveur) === */
     const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
 
-    /* Utils DOM */
     function setHTMLIfChanged(el, html){ if(!el) return; const next=(html||"").trim(); const prev=(el.innerHTML||"").trim(); if(next!==prev) el.innerHTML=html; }
     function setTextIfChanged(el, text){ if(!el) return; const next=(text||"").trim(); const prev=(el.textContent||"").trim(); if(next!==prev) el.textContent=text; }
 
-    /* UI helpers */
     function getStatutHtml(statut){
       const s=(statut||'').toLowerCase();
       if(s==='présent' || s==='present') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
-      if(s==='sorti' || s==='sortie') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
-      if(s.includes('supprim')) return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
+      if(s==='sorti' || s==='sortie')   return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
+      if(s.includes('supprim'))         return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
       return statut || '';
     }
     function getStatutEvenementHTML(statut) {
@@ -380,7 +371,6 @@
         default: return statut || '';
       }
     }
-
     function renderCompetenceBadges(raw){
       if(!raw || (Array.isArray(raw) && raw.length===0)) return "<em>Aucune</em>";
       const list = Array.isArray(raw) ? raw : String(raw).split(',');
@@ -438,7 +428,6 @@
         </tr>`;
     }
 
-    /* Cache côté client */
     const rowsCache=new Map();
 
     function upsertRow(f){
@@ -474,32 +463,6 @@
         });
     }
 
-    /* === Normalisation côté client === */
-    function normalizeFiche(raw){
-      const id = raw.id ?? raw.fiche_id ?? raw.pk ?? raw.ID;
-      const numero = raw.numero ?? raw.numero_dossier ?? raw.reference ?? raw.ref ?? null;
-      const nom = raw.nom ?? raw.last_name ?? raw.nom_famille ?? raw.surname ?? '';
-      const prenom = raw.prenom ?? raw.first_name ?? raw.given_name ?? '';
-      let statut = raw.statut ?? raw.status ?? 'présent';
-      statut = String(statut || '').toLowerCase();
-      if (statut.includes('supprim')) statut = 'supprimé';
-      else if (statut.startsWith('sort')) statut = 'sorti';
-      else if (!statut) statut = 'présent';
-
-      // heure_arrivee : extrait HH:MM si présent dans une date ISO
-      let heure = '';
-      const ha = raw.heure_arrivee ?? raw.checkin ?? raw.arrivee ?? raw.created_at ?? null;
-      if (typeof ha === 'string') {
-        const m = ha.match(/(\d{2}:\d{2})/); heure = m ? m[1] : '';
-      }
-
-      let competences = raw.competences ?? raw.skills ?? raw.comps ?? '';
-      if (Array.isArray(competences)) competences = competences.filter(Boolean);
-
-      return { id, numero, nom, prenom, statut, heure_arrivee: heure, difficultes: (raw.difficultes ?? raw.notes ?? ''), competences };
-    }
-
-    /* Filtres */
     function getSelectValues(sel){ return Array.from(sel?.selectedOptions||[]).map(o=>o.value); }
 
     function rowMatchesFilters(row, f){
@@ -524,29 +487,107 @@
       rows.forEach(row=>{
         const id=Number(row.id.replace('fiche-row-',''));
         const f=rowsCache.get(id);
-        if(!f){ row.style.display=""; return; }
         row.style.display=rowMatchesFilters(row,f)? "":"none";
       });
     }
 
+    function refreshPageDynamicParts(){
+      fetch(`/evenement/{{ evenement.id }}/fiches_json`)
+        .then(res=>{ if(!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+        .then(data=>{
+          const tbody = document.getElementById("fiches-table-body");
+          if(!tbody) return;
+
+          // 👉 Accepte Array OU Objet {id: fiche}
+          const list = Array.isArray(data?.fiches) ? data.fiches : Object.values(data?.fiches || {});
+          const idsActuels = new Set();
+
+          list.forEach((f,i)=>{
+            try{
+              if (!f || f.id == null) return;
+              if (f.statut) f.statut = String(f.statut).toLowerCase();
+              idsActuels.add(Number(f.id));
+              upsertRow(f);
+            }catch(e){
+              console.error("Ligne fiche KO (ignorée): index", i, "fiche:", f, e);
+            }
+          });
+
+          // Supprimer les lignes disparues
+          Array.from(rowsCache.keys()).forEach(id => {
+            if(!idsActuels.has(Number(id))){
+              const tr = document.getElementById(`fiche-row-${id}`);
+              if(tr) tr.remove();
+              rowsCache.delete(Number(id));
+            }
+          });
+
+          // Compteurs
+          const nbp = document.getElementById("nb_present");
+          const nbt = document.getElementById("nb_total");
+          if(nbp && data?.nb_present!=null) setTextIfChanged(nbp, String(data.nb_present));
+          if(nbt && data?.nb_total!=null) setTextIfChanged(nbt, String(data.nb_total));
+
+          // Adresse / Nom / Statut évènement
+          if (data.evenement && data.evenement.adresse) {
+            const adrEl = document.getElementById("evt-adresse");
+            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
+              adrEl.textContent = data.evenement.adresse;
+            }
+          }
+          const statutSelect = document.getElementById("evt-statut-select");
+          if (statutSelect && data.evenement && data.evenement.statut) {
+            if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
+              statutSelect.value = data.evenement.statut.trim();
+            }
+          }
+          if (data.evenement && data.evenement.nom) {
+            const nomEl = document.getElementById("evt-nom");
+            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
+              nomEl.textContent = data.evenement.nom;
+            }
+            const nomInput = document.getElementById("evt-nom-input");
+            if (nomInput && nomInput.value && nomInput.value.trim() !== data.evenement.nom.trim()) {
+              nomInput.value = data.evenement.nom;
+            }
+          }
+          if (data.evenement && data.evenement.statut) {
+            const statutEl = document.getElementById("statut-lecture-seule");
+            const newHTML = getStatutEvenementHTML(data.evenement.statut);
+            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
+              statutEl.innerHTML = newHTML;
+            }
+          }
+
+          applyAllFilters();
+
+          // Si rien de visible mais nb_total>0 → reset filtres
+          const visible = Array.from(document.querySelectorAll("#fiches-table-body tr")).some(tr => tr.style.display !== "none");
+          if(!visible && (data?.nb_total||0) > 0){
+            document.getElementById("search-bar").value="";
+            Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
+            Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
+            applyAllFilters();
+          }
+        })
+        .catch(err => console.error("Erreur refresh:", err));
+    }
+
+    // Init + auto-refresh AJAX toutes les 3s
     document.addEventListener('DOMContentLoaded', ()=>{
-      /* Forcer les modals fermés au chargement */
+      // Fermer modals au chargement + listeners
       ['modal-bagage','modal-sortie'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.style.display='none';
       });
-      /* Fermer en cliquant sur l’arrière-plan */
       ['modal-bagage','modal-sortie'].forEach(id=>{
         const m=document.getElementById(id);
         if(!m) return;
         m.addEventListener('click', (e)=>{ if(e.target===m) m.style.display='none'; });
       });
-      /* Fermer via Échap */
-      document.addEventListener('keydown', (e)=>{
-        if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); }
-      });
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); }});
 
-      /* Filtres */
+      // Filtres
       document.getElementById("search-bar").addEventListener("input", applyAllFilters);
       document.getElementById("filter-statut").addEventListener("change", applyAllFilters);
       document.getElementById("filter-competences").addEventListener("change", applyAllFilters);
@@ -558,104 +599,13 @@
         applyAllFilters();
       });
 
-      /* Premier chargement */
-      refreshFiches();
+      // premier chargement
+      refreshPageDynamicParts();
+      // auto refresh AJAX
+      setInterval(refreshPageDynamicParts, 3000);
     });
 
-    /* Rafraîchissement périodique + robustesse */
-    function refreshFiches(){
-      fetch(`/evenement/{{ evenement.id }}/fiches_json`)
-        .then(res=>{
-          if(!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
-        .then(data=>{
-          const tbody = document.getElementById("fiches-table-body");
-          if(!tbody) return;
-
-          const list = Array.isArray(data?.fiches) ? data.fiches : [];
-          const normalized = list.map(normalizeFiche).filter(x=>x && x.id!=null);
-
-          const idsActuels = new Set();
-          normalized.forEach((f,i)=>{
-            try{
-              idsActuels.add(Number(f.id));
-              upsertRow(f);
-            }catch(e){
-              console.error("Ligne fiche KO (ignorée): index", i, "fiche:", f, e);
-            }
-          });
-
-          // Suppression des lignes disparues
-          Array.from(rowsCache.keys()).forEach(id => {
-            if(!idsActuels.has(Number(id))){
-              const tr = document.getElementById(`fiche-row-${id}`);
-              if(tr) tr.remove();
-              rowsCache.delete(Number(id));
-            }
-          });
-
-          // Mise à jour compteurs
-          const nbp = document.getElementById("nb_present");
-          const nbt = document.getElementById("nb_total");
-          if(nbp && data?.nb_present!=null) setTextIfChanged(nbp, String(data.nb_present));
-          if(nbt && data?.nb_total!=null) setTextIfChanged(nbt, String(data.nb_total));
-
-          // Adresse
-          if (data.evenement && data.evenement.adresse) {
-            const adrEl = document.getElementById("evt-adresse");
-            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
-              adrEl.textContent = data.evenement.adresse;
-            }
-          }
-
-          // Statut (édition)
-          const statutSelect = document.getElementById("evt-statut-select");
-          if (statutSelect && data.evenement && data.evenement.statut) {
-            if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
-              statutSelect.value = data.evenement.statut.trim();
-            }
-          }
-
-          // Nom de l'évènement
-          if (data.evenement && data.evenement.nom) {
-            const nomEl = document.getElementById("evt-nom");
-            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
-              nomEl.textContent = data.evenement.nom;
-            }
-            const nomInput = document.getElementById("evt-nom-input");
-            if (nomInput && nomInput.value.trim() !== data.evenement.nom.trim()) {
-              nomInput.value = data.evenement.nom;
-            }
-          }
-
-          // Statut lecture seule
-          if (data.evenement && data.evenement.statut) {
-            const statutEl = document.getElementById("statut-lecture-seule");
-            const newHTML = getStatutEvenementHTML(data.evenement.statut);
-            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
-              statutEl.innerHTML = newHTML;
-            }
-          }
-
-          applyAllFilters();
-
-          // Auto-reset si tout est masqué alors qu'il y a des fiches
-          const visible = Array.from(document.querySelectorAll("#fiches-table-body tr")).some(tr => tr.style.display !== "none");
-          if(!visible && (data?.nb_total||0) > 0){
-            document.getElementById("search-bar").value="";
-            Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
-            Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
-            applyAllFilters();
-          }
-        })
-        .catch(err => {
-          console.error("Erreur refreshFiches:", err);
-        });
-    }
-    setInterval(refreshFiches, 3000);
-
-    /* Popups */
+    // Popups
     function ouvrirModalBagage(ficheId, ficheNumero){
       const form=document.getElementById('form-bagage');
       form.action="/fiche/"+ficheId+"/bagages/ajouter";
