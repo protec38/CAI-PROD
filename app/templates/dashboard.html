@@ -347,7 +347,7 @@
     </div>
   </div>
 
-  <!-- === Script principal (AJAX full refresh des parties dynamiques / 3s) === -->
+  <!-- === Scripts === -->
   <script>
     const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
 
@@ -449,7 +449,7 @@
     }
 
     function majBagagesCell(ficheId){
-      fetch(`/fiche/${ficheId}/bagages_json`)
+      fetch(`/fiche/${ficheId}/bagages_json`, { credentials: 'include' })
         .then(r=>r.ok ? r.json() : { numeros: [] })
         .then(d=>{
           const cible=document.getElementById(`bagages-${ficheId}`);
@@ -491,15 +491,74 @@
       });
     }
 
+    /* ==== DEBUG PANEL + EXTRACTION ROBUSTE + REFRESH 3s ==== */
+    function showFetchDebug(msg, extra) {
+      let box = document.getElementById('fetch-debug');
+      if (!box) {
+        box = document.createElement('div');
+        box.id = 'fetch-debug';
+        box.style.position = 'fixed';
+        box.style.bottom = '10px';
+        box.style.right = '10px';
+        box.style.maxWidth = '520px';
+        box.style.background = 'rgba(0,0,0,.8)';
+        box.style.border = '1px solid #ff6f00';
+        box.style.color = '#fff';
+        box.style.padding = '10px 12px';
+        box.style.borderRadius = '10px';
+        box.style.fontSize = '12px';
+        box.style.zIndex = '9999';
+        box.style.boxShadow = '0 6px 18px rgba(0,0,0,.4)';
+        document.body.appendChild(box);
+      }
+      const now = new Date().toLocaleTimeString();
+      box.innerHTML = `<div style="font-weight:800;margin-bottom:6px;">[DEBUG AJAX ${now}]</div><div>${msg}</div>${extra ? `<pre style="white-space:pre-wrap;margin:6px 0 0">${extra}</pre>` : ''}`;
+    }
+
+    function extractFiches(data) {
+      if (!data || typeof data !== 'object') return [];
+      if (Array.isArray(data.fiches)) return data.fiches;
+      if (Array.isArray(data.rows)) return data.rows;
+      if (Array.isArray(data.items)) return data.items;
+      if (Array.isArray(data.data)) return data.data;
+      if (data.fiches && typeof data.fiches === 'object' && !Array.isArray(data.fiches)) {
+        return Object.values(data.fiches);
+      }
+      if (typeof data === 'object' && !Array.isArray(data)) {
+        const values = Object.values(data);
+        const looksLikeFiche = (o) => o && typeof o === 'object' && ('id' in o || 'nom' in o || 'prenom' in o || 'numero' in o);
+        if (values.length && values.every(looksLikeFiche)) return values;
+      }
+      return [];
+    }
+
+    function getFichesUrl() {
+      const bodyAttr = document.body.getAttribute('data-fiches-url');
+      return bodyAttr || `/evenement/{{ evenement.id }}/fiches_json`;
+    }
+
     function refreshPageDynamicParts(){
-      fetch(`/evenement/{{ evenement.id }}/fiches_json`)
-        .then(res=>{ if(!res.ok) throw new Error(`HTTP ${res.status}`); return res.json(); })
+      const url = getFichesUrl();
+      fetch(url + `?t=${Date.now()}`, { credentials: 'include' })
+        .then(async res => {
+          const ct = res.headers.get('content-type') || '';
+          if (!res.ok) {
+            const text = await res.text().catch(()=>'');
+            showFetchDebug(`Requête échouée (${res.status}).`, text.slice(0, 800));
+            throw new Error(`HTTP ${res.status}`);
+          }
+          if (!ct.includes('application/json')) {
+            const text = await res.text().catch(()=>'');
+            showFetchDebug(`Réponse non JSON (content-type: ${ct}).`, text.slice(0, 800));
+            throw new Error('Non-JSON response');
+          }
+          return res.json();
+        })
         .then(data=>{
           const tbody = document.getElementById("fiches-table-body");
           if(!tbody) return;
 
-          // 👉 Accepte Array OU Objet {id: fiche}
-          const list = Array.isArray(data?.fiches) ? data.fiches : Object.values(data?.fiches || {});
+          const list = extractFiches(data);
           const idsActuels = new Set();
 
           list.forEach((f,i)=>{
@@ -509,11 +568,11 @@
               idsActuels.add(Number(f.id));
               upsertRow(f);
             }catch(e){
+              showFetchDebug(`Erreur rendu ligne ${i}`, JSON.stringify(f, null, 2));
               console.error("Ligne fiche KO (ignorée): index", i, "fiche:", f, e);
             }
           });
 
-          // Supprimer les lignes disparues
           Array.from(rowsCache.keys()).forEach(id => {
             if(!idsActuels.has(Number(id))){
               const tr = document.getElementById(`fiche-row-${id}`);
@@ -522,46 +581,33 @@
             }
           });
 
-          // Compteurs
           const nbp = document.getElementById("nb_present");
           const nbt = document.getElementById("nb_total");
           if(nbp && data?.nb_present!=null) setTextIfChanged(nbp, String(data.nb_present));
           if(nbt && data?.nb_total!=null) setTextIfChanged(nbt, String(data.nb_total));
 
-          // Adresse / Nom / Statut évènement
           if (data.evenement && data.evenement.adresse) {
             const adrEl = document.getElementById("evt-adresse");
-            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
-              adrEl.textContent = data.evenement.adresse;
-            }
+            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) adrEl.textContent = data.evenement.adresse;
           }
           const statutSelect = document.getElementById("evt-statut-select");
           if (statutSelect && data.evenement && data.evenement.statut) {
-            if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
-              statutSelect.value = data.evenement.statut.trim();
-            }
+            if (statutSelect.value.trim() !== data.evenement.statut.trim()) statutSelect.value = data.evenement.statut.trim();
           }
           if (data.evenement && data.evenement.nom) {
             const nomEl = document.getElementById("evt-nom");
-            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
-              nomEl.textContent = data.evenement.nom;
-            }
+            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) nomEl.textContent = data.evenement.nom;
             const nomInput = document.getElementById("evt-nom-input");
-            if (nomInput && nomInput.value && nomInput.value.trim() !== data.evenement.nom.trim()) {
-              nomInput.value = data.evenement.nom;
-            }
+            if (nomInput && nomInput.value && nomInput.value.trim() !== data.evenement.nom.trim()) nomInput.value = data.evenement.nom;
           }
           if (data.evenement && data.evenement.statut) {
             const statutEl = document.getElementById("statut-lecture-seule");
             const newHTML = getStatutEvenementHTML(data.evenement.statut);
-            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
-              statutEl.innerHTML = newHTML;
-            }
+            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) statutEl.innerHTML = newHTML;
           }
 
           applyAllFilters();
 
-          // Si rien de visible mais nb_total>0 → reset filtres
           const visible = Array.from(document.querySelectorAll("#fiches-table-body tr")).some(tr => tr.style.display !== "none");
           if(!visible && (data?.nb_total||0) > 0){
             document.getElementById("search-bar").value="";
@@ -570,12 +616,12 @@
             applyAllFilters();
           }
         })
-        .catch(err => console.error("Erreur refresh:", err));
+        .catch(err => {
+          console.error("Erreur refresh:", err);
+        });
     }
 
-    // Init + auto-refresh AJAX toutes les 3s
     document.addEventListener('DOMContentLoaded', ()=>{
-      // Fermer modals au chargement + listeners
       ['modal-bagage','modal-sortie'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.style.display='none';
@@ -587,7 +633,6 @@
       });
       document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); }});
 
-      // Filtres
       document.getElementById("search-bar").addEventListener("input", applyAllFilters);
       document.getElementById("filter-statut").addEventListener("change", applyAllFilters);
       document.getElementById("filter-competences").addEventListener("change", applyAllFilters);
@@ -599,20 +644,17 @@
         applyAllFilters();
       });
 
-      // premier chargement
       refreshPageDynamicParts();
-      // auto refresh AJAX
       setInterval(refreshPageDynamicParts, 3000);
     });
 
-    // Popups
     function ouvrirModalBagage(ficheId, ficheNumero){
       const form=document.getElementById('form-bagage');
       form.action="/fiche/"+ficheId+"/bagages/ajouter";
       document.getElementById('bagage-fiche-id').value=ficheId;
       document.getElementById('bagage-fiche-numero').value=ficheNumero||("#"+ficheId);
       document.getElementById('numeros').value="";
-      fetch("/fiche/"+ficheId+"/bagages_json")
+      fetch("/fiche/"+ficheId+"/bagages_json", { credentials:'include' })
         .then(r=>r.json())
         .then(data=>{
           if(data && Array.isArray(data.numeros)){
