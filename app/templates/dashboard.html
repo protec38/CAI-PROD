@@ -8,7 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-  
 <style>
 :root{
       --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
@@ -198,7 +197,6 @@
     </div>
   </div>
 
-
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flashes">
@@ -222,8 +220,7 @@
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <i class="fa-solid fa-signal"></i>
             <select id="evt-statut-select" name="statut_evt" onchange="this.form.submit()">
               {% for option in ['En cours de gréement', 'Ouvert', 'Effectif dépassé', 'Complet', 'Fermé'] %}
@@ -245,9 +242,9 @@
               <span class="badge badge-dark"><i class="fa-solid fa-lock"></i> {{ evenement.statut }}</span>
             {% else %}
               {{ evenement.statut }}
+            {% endif %}
+          </span>
         {% endif %}
-  </span>
-{% endif %}
       </span>
     </div>
   </div>
@@ -307,8 +304,7 @@
         <button class="close" onclick="fermerModalBagage()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-bagage" method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="bagage-fiche-numero" value="" readonly />
@@ -335,8 +331,7 @@
         <button class="close" onclick="fermerModalSortie()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-sortie" method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="sortie-fiche-numero" value="" readonly />
@@ -358,6 +353,7 @@
     </div>
   </div>
 
+  <!-- === Script principal robuste === -->
   <script>
     /* === Règle d'affichage du bouton Supprimer (évaluée côté serveur) === */
     const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
@@ -368,38 +364,34 @@
 
     /* UI helpers */
     function getStatutHtml(statut){
-      if(statut==='présent') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
-      if(statut==='sorti') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
-      if(statut==='supprimé') return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
-      return statut;
+      const s=(statut||'').toLowerCase();
+      if(s==='présent' || s==='present') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
+      if(s==='sorti' || s==='sortie') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
+      if(s.includes('supprim')) return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
+      return statut || '';
     }
-    // Fonction pour générer le badge HTML côté JS
     function getStatutEvenementHTML(statut) {
       switch (statut) {
-        case "En cours de gréement":
-          return `<span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> ${statut}</span>`;
-        case "Ouvert":
-          return `<span class="badge badge-green"><i class="fa-solid fa-door-open"></i> ${statut}</span>`;
-        case "Effectif dépassé":
-          return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
-        case "Complet":
-          return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
-        case "Fermé":
-          return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
-        default:
-          return statut;
+        case "En cours de gréement": return `<span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> ${statut}</span>`;
+        case "Ouvert":               return `<span class="badge badge-green"><i class="fa-solid fa-door-open"></i> ${statut}</span>`;
+        case "Effectif dépassé":     return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
+        case "Complet":              return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
+        case "Fermé":                return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
+        default: return statut || '';
       }
     }
 
     function renderCompetenceBadges(raw){
-      if(!raw) return "<em>Aucune</em>";
+      if(!raw || (Array.isArray(raw) && raw.length===0)) return "<em>Aucune</em>";
+      const list = Array.isArray(raw) ? raw : String(raw).split(',');
       const colorMap={
         "Médecin":"#e74c3c","Infirmier":"#3498db","Sapeur-pompier":"#e67e22","SST":"#1abc9c",
         "Psychologue":"#9b59b6","Bénévole":"#34495e","Artisan":"#f39c12","Interprète":"#2ecc71",
         "Logisticien":"#16a085","Conducteur":"#d35400","Agent sécurité":"#2c3e50","Autre":"#7f8c8d"
       };
-      return raw.split(',').map(c=>{
-        const comp=c.trim(); const color=colorMap[comp]||"#999";
+      return list.map(c=>{
+        const comp=String(c||'').trim(); if(!comp) return '';
+        const color=colorMap[comp]||"#999";
         return `<span class="badge-competence" style="background:${color}">${comp}</span>`;
       }).join(" ");
     }
@@ -411,8 +403,7 @@
     function actionsHTML(f){
       const delBtn = CAN_DELETE_FICHE ? `
         <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn-action btn-red" title="Supprimer la fiche">
             <i class="fa-solid fa-trash-can"></i> <span>Supprimer</span>
           </button>
@@ -422,10 +413,10 @@
         <div class="actions">
           <a class="btn-action btn-blue" href="/fiche/${f.id}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
           <a class="btn-action btn-yellow" href="/fiche/edit/${f.id}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
-          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, '${f.numero}')">
+          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, '${f.numero||("#"+f.id)}')">
             <i class="fa-solid fa-person-walking-arrow-right"></i> <span>Sortie</span>
           </button>
-          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, '${f.numero}')">
+          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, '${f.numero||("#"+f.id)}')">
             <i class="fa-solid fa-suitcase-rolling"></i> <span>Bagage</span>
           </button>
           ${delBtn}
@@ -435,11 +426,11 @@
     function ligneFicheHTML(f){
       return `
         <tr id="fiche-row-${f.id}">
-          <td data-col="numero">${f.numero}</td>
-          <td data-col="nom">${f.nom}</td>
-          <td data-col="prenom">${f.prenom}</td>
+          <td data-col="numero">${f.numero || ("#"+f.id)}</td>
+          <td data-col="nom">${f.nom || ""}</td>
+          <td data-col="prenom">${f.prenom || ""}</td>
           <td data-col="statut">${getStatutHtml(f.statut)}</td>
-          <td data-col="heure_arrivee">${f.heure_arrivee}</td>
+          <td data-col="heure_arrivee">${f.heure_arrivee || ""}</td>
           <td data-col="difficultes">${f.difficultes || ""}</td>
           <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
           <td class="bagages-cell"><div id="bagages-${f.id}"><em>Chargement…</em></div></td>
@@ -456,35 +447,60 @@
       if(!tr){
         tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
       }else{
-        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero);
-        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom);
-        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom);
+        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero || ("#"+f.id));
+        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom || "");
+        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom || "");
         setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
-        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee);
+        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee || "");
         const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
         const c=tr.querySelector('[data-col="competences"]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
       }
-      rowsCache.set(f.id, f);
+      rowsCache.set(Number(f.id), f);
       majBagagesCell(f.id);
     }
 
     function majBagagesCell(ficheId){
       fetch(`/fiche/${ficheId}/bagages_json`)
-        .then(r=>r.json())
+        .then(r=>r.ok ? r.json() : { numeros: [] })
         .then(d=>{
           const cible=document.getElementById(`bagages-${ficheId}`);
           if(!cible) return;
-          const html=(d && Array.isArray(d.numeros))? renderBagageBadges(d.numeros) : '<em>Aucun</em>';
-          setHTMLIfChanged(cible, html);
+          const nums = (d && Array.isArray(d.numeros)) ? d.numeros : [];
+          setHTMLIfChanged(cible, renderBagageBadges(nums));
         })
         .catch(()=>{
           const cible=document.getElementById(`bagages-${ficheId}`);
-          setHTMLIfChanged(cible, '<em>—</em>');
+          if (cible) setHTMLIfChanged(cible, '<em>—</em>');
         });
     }
 
+    /* === Normalisation côté client === */
+    function normalizeFiche(raw){
+      const id = raw.id ?? raw.fiche_id ?? raw.pk ?? raw.ID;
+      const numero = raw.numero ?? raw.numero_dossier ?? raw.reference ?? raw.ref ?? null;
+      const nom = raw.nom ?? raw.last_name ?? raw.nom_famille ?? raw.surname ?? '';
+      const prenom = raw.prenom ?? raw.first_name ?? raw.given_name ?? '';
+      let statut = raw.statut ?? raw.status ?? 'présent';
+      statut = String(statut || '').toLowerCase();
+      if (statut.includes('supprim')) statut = 'supprimé';
+      else if (statut.startsWith('sort')) statut = 'sorti';
+      else if (!statut) statut = 'présent';
+
+      // heure_arrivee : extrait HH:MM si présent dans une date ISO
+      let heure = '';
+      const ha = raw.heure_arrivee ?? raw.checkin ?? raw.arrivee ?? raw.created_at ?? null;
+      if (typeof ha === 'string') {
+        const m = ha.match(/(\d{2}:\d{2})/); heure = m ? m[1] : '';
+      }
+
+      let competences = raw.competences ?? raw.skills ?? raw.comps ?? '';
+      if (Array.isArray(competences)) competences = competences.filter(Boolean);
+
+      return { id, numero, nom, prenom, statut, heure_arrivee: heure, difficultes: (raw.difficultes ?? raw.notes ?? ''), competences };
+    }
+
     /* Filtres */
-    function getSelectValues(sel){ return Array.from(sel.selectedOptions||[]).map(o=>o.value); }
+    function getSelectValues(sel){ return Array.from(sel?.selectedOptions||[]).map(o=>o.value); }
 
     function rowMatchesFilters(row, f){
       const searchTerm=(document.getElementById("search-bar").value||"").toLowerCase();
@@ -497,7 +513,7 @@
       const statusOk=selectedStatus.length===0 || selectedStatus.includes(statutTxt);
 
       const selectedComps=getSelectValues(document.getElementById('filter-competences'));
-      const ficheComps=(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const ficheComps=Array.isArray(f.competences) ? f.competences : String(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
       const compOk=selectedComps.length===0 || ficheComps.some(c=>selectedComps.includes(c));
 
       return searchOk && statusOk && compOk;
@@ -508,6 +524,7 @@
       rows.forEach(row=>{
         const id=Number(row.id.replace('fiche-row-',''));
         const f=rowsCache.get(id);
+        if(!f){ row.style.display=""; return; }
         row.style.display=rowMatchesFilters(row,f)? "":"none";
       });
     }
@@ -545,82 +562,98 @@
       refreshFiches();
     });
 
-    /* Rafraîchissement périodique */
-function refreshFiches(){
-  fetch(`/evenement/{{ evenement.id }}/fiches_json`)
-    .then(res=>res.json())
-    .then(data=>{
-      const idsActuels = new Set();
-      data.fiches.forEach(f => {
-        idsActuels.add(f.id);
-        upsertRow(f);
-      });
+    /* Rafraîchissement périodique + robustesse */
+    function refreshFiches(){
+      fetch(`/evenement/{{ evenement.id }}/fiches_json`)
+        .then(res=>{
+          if(!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then(data=>{
+          const tbody = document.getElementById("fiches-table-body");
+          if(!tbody) return;
 
-      // Suppression des lignes disparues
-      Array.from(rowsCache.keys()).forEach(id => {
-        if(!idsActuels.has(id)){
-          const tr = document.getElementById(`fiche-row-${id}`);
-          if(tr) tr.remove();
-          rowsCache.delete(id);
-        }
-      });
+          const list = Array.isArray(data?.fiches) ? data.fiches : [];
+          const normalized = list.map(normalizeFiche).filter(x=>x && x.id!=null);
 
-      // Mise à jour compteurs
-      const nbp = document.getElementById("nb_present");
-      const nbt = document.getElementById("nb_total");
-      if(nbp) setTextIfChanged(nbp, String(data.nb_present));
-      if(nbt) setTextIfChanged(nbt, String(data.nb_total));
+          const idsActuels = new Set();
+          normalized.forEach((f,i)=>{
+            try{
+              idsActuels.add(Number(f.id));
+              upsertRow(f);
+            }catch(e){
+              console.error("Ligne fiche KO (ignorée): index", i, "fiche:", f, e);
+            }
+          });
 
-      // 🔄 Mise à jour adresse de l'événement
-      if (data.evenement && data.evenement.adresse) {
-        const adrEl = document.getElementById("evt-adresse");
-        if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
-          adrEl.textContent = data.evenement.adresse;
-        }
-      }
+          // Suppression des lignes disparues
+          Array.from(rowsCache.keys()).forEach(id => {
+            if(!idsActuels.has(Number(id))){
+              const tr = document.getElementById(`fiche-row-${id}`);
+              if(tr) tr.remove();
+              rowsCache.delete(Number(id));
+            }
+          });
 
-      // 🔄 Mise à jour du statut (mode édition)
-      const statutSelect = document.getElementById("evt-statut-select");
-        if (statutSelect && data.evenement && data.evenement.statut) {
-          if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
-            statutSelect.value = data.evenement.statut.trim();
+          // Mise à jour compteurs
+          const nbp = document.getElementById("nb_present");
+          const nbt = document.getElementById("nb_total");
+          if(nbp && data?.nb_present!=null) setTextIfChanged(nbp, String(data.nb_present));
+          if(nbt && data?.nb_total!=null) setTextIfChanged(nbt, String(data.nb_total));
+
+          // Adresse
+          if (data.evenement && data.evenement.adresse) {
+            const adrEl = document.getElementById("evt-adresse");
+            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) {
+              adrEl.textContent = data.evenement.adresse;
+            }
           }
-        }
 
+          // Statut (édition)
+          const statutSelect = document.getElementById("evt-statut-select");
+          if (statutSelect && data.evenement && data.evenement.statut) {
+            if (statutSelect.value.trim() !== data.evenement.statut.trim()) {
+              statutSelect.value = data.evenement.statut.trim();
+            }
+          }
 
+          // Nom de l'évènement
+          if (data.evenement && data.evenement.nom) {
+            const nomEl = document.getElementById("evt-nom");
+            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
+              nomEl.textContent = data.evenement.nom;
+            }
+            const nomInput = document.getElementById("evt-nom-input");
+            if (nomInput && nomInput.value.trim() !== data.evenement.nom.trim()) {
+              nomInput.value = data.evenement.nom;
+            }
+          }
 
-      // 🔄 Mise à jour du nom de l'événement
-      if (data.evenement && data.evenement.nom) {
-        const nomEl = document.getElementById("evt-nom");
-        if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) {
-          nomEl.textContent = data.evenement.nom;
-        }
-        const nomInput = document.getElementById("evt-nom-input");
-        if (nomInput && nomInput.value.trim() !== data.evenement.nom.trim()) {
-          nomInput.value = data.evenement.nom;
-        }
-      }
+          // Statut lecture seule
+          if (data.evenement && data.evenement.statut) {
+            const statutEl = document.getElementById("statut-lecture-seule");
+            const newHTML = getStatutEvenementHTML(data.evenement.statut);
+            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
+              statutEl.innerHTML = newHTML;
+            }
+          }
 
+          applyAllFilters();
 
-
-      
-            // 🔄 Mise à jour statut de l'événement (lecture seule avec icône + couleur)
-      if (data.evenement && data.evenement.statut) {
-        const statutEl = document.getElementById("statut-lecture-seule");
-        const newHTML = getStatutEvenementHTML(data.evenement.statut);
-        if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) {
-          statutEl.innerHTML = newHTML;
-        }
-      }
-
-
-      applyAllFilters();
-    })
-    .catch(err => console.error("Erreur refreshFiches:", err));
-}
-setInterval(refreshFiches, 3000);
-
-
+          // Auto-reset si tout est masqué alors qu'il y a des fiches
+          const visible = Array.from(document.querySelectorAll("#fiches-table-body tr")).some(tr => tr.style.display !== "none");
+          if(!visible && (data?.nb_total||0) > 0){
+            document.getElementById("search-bar").value="";
+            Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
+            Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
+            applyAllFilters();
+          }
+        })
+        .catch(err => {
+          console.error("Erreur refreshFiches:", err);
+        });
+    }
+    setInterval(refreshFiches, 3000);
 
     /* Popups */
     function ouvrirModalBagage(ficheId, ficheNumero){
@@ -658,7 +691,7 @@ setInterval(refreshFiches, 3000);
     function fermerModalSortie(){ const m=document.getElementById('modal-sortie'); if(m) m.style.display='none'; }
   </script>
 
-  <!-- === CSRF additions === -->
+  <!-- CSRF helper -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
   <script>
     (function(){
