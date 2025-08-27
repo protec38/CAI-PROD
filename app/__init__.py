@@ -16,16 +16,39 @@ def create_app(config_name: str | None = None) -> Flask:
     cfg_cls = config_by_name.get(config_name or os.environ.get("FLASK_CONFIG", "prod"), ProductionConfig)
     app.config.from_object(cfg_cls)
 
+    # ===== CSRF (Flask-WTF) =====
+    # Seules les méthodes d'écriture sont protégées
+    app.config["WTF_CSRF_METHODS"] = ["POST", "PUT", "PATCH", "DELETE"]
+    # Autoriser le header que l'on envoie côté front (X-CSRFToken)
+    app.config["WTF_CSRF_HEADERS"] = ["X-CSRFToken", "X-CSRF-Token"]
+
     # --- Proxy / HTTPS / Sécurité ---
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+    # IMPORTANT : autoriser le JS inline (dashboard) et les CDN utilisés
     csp = {
-        'default-src': "'self'",
-        'img-src': "'self' data:",
-        'style-src': "'self' https://fonts.googleapis.com 'unsafe-inline'",
-        'font-src': "https://fonts.gstatic.com",
-        'script-src': "'self'",
+        # Par défaut on reste strict
+        "default-src": "'self'",
+        # Les fetch() AJAX (optionnel mais explicite)
+        "connect-src": "'self'",
+        # Images (logo + éventuels data/blobs)
+        "img-src": "'self' data: blob:",
+        # Feuilles de style (Google Fonts + cdnjs) + inline pour les petits ajustements
+        "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
+        # Fontes (Google Fonts) + data: au cas où
+        "font-src": "https://fonts.gstatic.com data:",
+        # SCRIPTS : autoriser l'inline sinon ton JS ne s’exécute pas → tableau vide
+        "script-src": "'self' 'unsafe-inline'",
+        # Durcir le reste
+        "object-src": "'none'",
+        "base-uri": "'self'",
+        "frame-ancestors": "'self'",
     }
-    Talisman(app, content_security_policy=csp, force_https=bool(int(os.getenv("FORCE_HTTPS", "1"))))
+    Talisman(
+        app,
+        content_security_policy=csp,
+        force_https=bool(int(os.getenv("FORCE_HTTPS", "1"))),
+    )
 
     # --- Extensions ---
     db.init_app(app)
@@ -38,7 +61,8 @@ def create_app(config_name: str | None = None) -> Flask:
     login_manager.login_message_category = "info"
 
     # --- Loader utilisateur ---
-    from .models import Utilisateur as UserModel  # ton modèle user
+    from .models import Utilisateur as UserModel
+
     @login_manager.user_loader
     def load_user(user_id: str):
         try:
@@ -46,7 +70,7 @@ def create_app(config_name: str | None = None) -> Flask:
         except Exception:
             return UserModel.query.get(user_id)
 
-    # --- Gestion CSRF ---
+    # --- Gestion CSRF (page d’erreur claire) ---
     @app.errorhandler(CSRFError)
     def handle_csrf_error(e):
         return render_template("csrf_error.html", reason=e.description), 400

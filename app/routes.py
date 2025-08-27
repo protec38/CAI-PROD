@@ -24,6 +24,14 @@ import re
 import json
 main_bp = Blueprint("main_bp", __name__)
 
+def json_nocache(payload: dict, status: int = 200):
+    """Réponse JSON avec no-store pour empêcher tout cache navigateur/proxy."""
+    resp = make_response(jsonify(payload), status)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
+
 # 🔒 Décorateur pour vérifier l’authentification
 def login_required(f):
     @wraps(f)
@@ -657,60 +665,68 @@ def update_evenement_statut(evenement_id):
 
 #############################################
 
-@main_bp.route("/evenement/<int:evenement_id>/fiches_json")
+@main_bp.route("/evenement/<int:evenement_id>/fiches_json", methods=["GET"])
 @login_required
 def fiches_json(evenement_id):
     user = get_current_user()
     evt = Evenement.query.get_or_404(evenement_id)
 
-    # 🔐 Sécurité : on vérifie l'accès à l'évènement
-    if (evt not in user.evenements) and (not user.is_admin) and (user.role != "codep"):
-        return jsonify({"error": "unauthorized"}), 403
+    # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
+    if (evt not in user.evenements) and (not getattr(user, "is_admin", False)) and (getattr(user, "role", "") != "codep"):
+        return json_nocache({"error": "unauthorized"}, 403)
 
-    fiches = FicheImplique.query.filter_by(evenement_id=evenement_id).all()
+    # Tri stable par id (asc) pour éviter les sauts d’ordre au refresh
+    fiches = (
+        FicheImplique.query
+        .filter_by(evenement_id=evenement_id)
+        .order_by(FicheImplique.id.asc())
+        .all()
+    )
 
-    # Helper pour formatter les heures locales si dispos
     def fmt(dt):
         try:
-            return dt.strftime('%d/%m/%Y %H:%M') if dt else "-"
+            return dt.strftime("%d/%m/%Y %H:%M") if dt else "-"
         except Exception:
             return "-"
 
     fiches_data = []
-    for fiche in fiches:
-        # On suppose que les propriétés *_locale existent sur le modèle
-        heure_arrivee_loc = getattr(fiche, "heure_arrivee_locale", None)
-        heure_sortie_loc = getattr(fiche, "heure_sortie_locale", None)
-
+    for f in fiches:
+        h_arr = getattr(f, "heure_arrivee_locale", None)
+        h_out = getattr(f, "heure_sortie_locale", None)
         fiches_data.append({
-            "id": fiche.id,
-            "numero": fiche.numero,
-            "nom": fiche.nom,
-            "prenom": fiche.prenom,
-            "statut": fiche.statut,
-            "heure_arrivee": fmt(heure_arrivee_loc),
-            "heure_sortie": fmt(heure_sortie_loc),
-            "destination": fiche.destination or "",
-            "difficultes": fiche.difficultes or "",
-            "competences": fiche.competences or ""
+            "id": f.id,
+            "numero": f.numero or "",
+            "nom": f.nom or "",
+            "prenom": f.prenom or "",
+            "statut": f.statut or "",
+            "heure_arrivee": fmt(h_arr),
+            "heure_sortie": fmt(h_out),
+            "destination": f.destination or "",
+            "difficultes": f.difficultes or "",
+            "competences": f.competences or "",
         })
 
-    # Event meta pour maj live (adresse + statut + date ouverture)
+    # Métadonnées évènement pour mise à jour du bandeau
     date_ouv_loc = getattr(evt, "date_ouverture_locale", None)
-    evenement_payload = {
+    evt_payload = {
         "id": evt.id,
-        "nom": evt.nom,
+        "nom": evt.nom or "",
         "adresse": evt.adresse or "",
         "statut": evt.statut or "",
-        "date_ouverture": fmt(date_ouv_loc)
+        "date_ouverture": fmt(date_ouv_loc),
     }
 
-    return jsonify({
+    # Compteurs live
+    nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
+    nb_total   = len(fiches)
+
+    return json_nocache({
         "fiches": fiches_data,
-        "nb_present": sum(1 for f in fiches if f.statut == "présent"),
-        "nb_total": len(fiches),
-        "evenement": evenement_payload
+        "nb_present": nb_present,
+        "nb_total": nb_total,
+        "evenement": evt_payload,
     })
+
 
 
 #####################################################################
@@ -1081,17 +1097,25 @@ def fiche_bagages_ajouter(fiche_id):
 
 ##################################
 
-@main_bp.route("/fiche/<int:fiche_id>/bagages_json")
+@main_bp.route("/fiche/<int:fiche_id>/bagages_json", methods=["GET"])
 @login_required
 def fiche_bagages_json(fiche_id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(fiche_id)
 
-    if fiche.evenement not in user.evenements and not user.is_admin and user.role != "codep":
-        return jsonify({"error": "unauthorized"}), 403
+    # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
+    if (fiche.evenement not in user.evenements) and (not getattr(user, "is_admin", False)) and (getattr(user, "role", "") != "codep"):
+        return json_nocache({"error": "unauthorized"}, 403)
 
-    numeros = [b.numero for b in Bagage.query.filter_by(fiche_id=fiche.id).order_by(Bagage.id.asc()).all()]
-    return jsonify({"fiche_id": fiche.id, "numero_fiche": fiche.numero, "numeros": numeros})
+    numeros = [
+        b.numero for b in Bagage.query
+        .filter_by(fiche_id=fiche.id)
+        .order_by(Bagage.id.asc())
+        .all()
+        if b.numero
+    ]
+    return json_nocache({"fiche_id": fiche.id, "numero_fiche": fiche.numero, "numeros": numeros})
+
 
 ###########################################################
 
@@ -1385,46 +1409,52 @@ def autorite_share_public(token):
     return render_template("autorite_dashboard.html", user=None, evenement=evt, links=None, manage=False, public_token=token)
 
 # JSON pour la “Vue Autorité” (stats + infos clefs)
-@main_bp.route("/evenement/<int:evenement_id>/autorite_json")
+@main_bp.route("/evenement/<int:evenement_id>/autorite_json", methods=["GET"])
 def autorite_json(evenement_id):
     token = request.args.get("token")
     evt = Evenement.query.get_or_404(evenement_id)
 
+    # — Chemin public via token —
     if token:
         import hashlib
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         link = ShareLink.query.filter_by(token_hash=token_hash, evenement_id=evenement_id).first()
         if not link or not link.is_active():
-            # 403 si invalide; côté client on reste avec '—'
-            return jsonify({"error":"forbidden"}), 403
+            return json_nocache({"error": "forbidden"}, 403)
     else:
-        # chemin connecté (dashboard opérateur)
+        # — Chemin connecté —
         if "user_id" not in session:
-            return jsonify({"error":"unauthorized"}), 401
+            return json_nocache({"error": "unauthorized"}, 401)
         user = get_current_user()
-        if (evt not in user.evenements) and not (user.is_admin or user.role in {"codep","responsable"}):
-            return jsonify({"error":"forbidden"}), 403
+        if (evt not in user.evenements) and not (getattr(user, "is_admin", False) or getattr(user, "role", "") in {"codep", "responsable"}):
+            return json_nocache({"error": "forbidden"}, 403)
 
     fiches = FicheImplique.query.filter_by(evenement_id=evenement_id).all()
-    nb_present = sum(1 for f in fiches if f.statut == "présent")
-    nb_sorti   = sum(1 for f in fiches if f.statut == "sorti")
+    nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
+    nb_sorti   = sum(1 for f in fiches if (f.statut or "").lower() == "sorti")
     nb_total   = len(fiches)
 
-    return jsonify({
+    def fmt(dt):
+        try:
+            return dt.strftime("%d/%m/%Y %H:%M") if dt else ""
+        except Exception:
+            return ""
+
+    return json_nocache({
         "evenement": {
             "id": evt.id,
             "nom": evt.nom or "",
             "adresse": evt.adresse or "",
             "statut": evt.statut or "",
-            "date_ouverture": (evt.date_ouverture_locale.strftime("%d/%m/%Y %H:%M")
-                               if getattr(evt, "date_ouverture_locale", None) else "")
+            "date_ouverture": fmt(getattr(evt, "date_ouverture_locale", None)),
         },
         "stats": {
             "nb_present": nb_present,
             "nb_sorti": nb_sorti,
-            "nb_total": nb_total
+            "nb_total": nb_total,
         }
     })
+
 
 
 
@@ -1466,29 +1496,26 @@ def tickets_board(evenement_id):
         user=user
     )
 
+############################
 
-
-@main_bp.route("/evenement/<int:evenement_id>/tickets_json")
+@main_bp.route("/evenement/<int:evenement_id>/tickets_json", methods=["GET"])
 @login_required
 def tickets_json(evenement_id):
     user = get_current_user()
     evt = Evenement.query.get_or_404(evenement_id)
 
-    # Accès lecture : toute personne ayant accès à l'évènement ou admin
-    if (evt not in user.evenements) and (not user.is_admin):
-        return jsonify({"error": "forbidden"}), 403
+    # Accès lecture : toute personne rattachée à l’évènement ou admin
+    if (evt not in user.evenements) and (not getattr(user, "is_admin", False)):
+        return json_nocache({"error": "forbidden"}, 403)
 
-    # Récup + tri (du plus récent au plus ancien)
     tickets = (
         Ticket.query
         .filter_by(evenement_id=evt.id)
         .order_by(Ticket.created_at.desc())
         .all()
     )
-
-    return jsonify({
-        "tickets": [t.to_dict() for t in tickets]
-    })
+    return json_nocache({"tickets": [t.to_dict() for t in tickets]})
+############################
 
 
 @main_bp.route("/tickets/create", methods=["POST"])
