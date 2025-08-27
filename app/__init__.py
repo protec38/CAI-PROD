@@ -29,13 +29,14 @@ def create_app(config_name: str | None = None) -> Flask:
     csp = {
     "default-src": "'self'",
     "img-src": "'self' data:",
-    # on autorise Google Fonts + cdnjs et on garde 'unsafe-inline' pour ton CSS inline
     "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
-    # Font files (woff/woff2) de Google et cdnjs (Font Awesome)
     "font-src": "'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
-    # si jamais tu ajoutes des JS cdnjs un jour
-    "script-src": "'self' https://cdnjs.cloudflare.com",
+    # ✅ autorise les <script> inline de tes templates + cdnjs si tu l’utilises
+    "script-src": "'self' https://cdnjs.cloudflare.com 'unsafe-inline'",
+    # ✅ autorise fetch/XHR vers ton backend
+    "connect-src": "'self'",
     }
+
 
     Talisman(
         app,
