@@ -1359,7 +1359,7 @@ def export_evenement_fiches_csv(evenement_id):
 def can_manage_sharing(user):
     return user.is_admin or user.role in {"codep", "responsable"}
 
-# Vue autorité (avec panneau de gestion des liens, login requis)
+# Vue autorité (gestion des liens, login requis)
 @main_bp.route("/evenement/<int:evenement_id>/autorite", methods=["GET"])
 @login_required
 def autorite_dashboard_manage(evenement_id):
@@ -1371,17 +1371,11 @@ def autorite_dashboard_manage(evenement_id):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement_id))
 
-    links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
-    return render_template("autorite_dashboard.html", user=user, evenement=evt, links=links, manage=True)
+    links = ShareLink.query.filter_by(evenement_id=evenement_id) \
+                           .order_by(ShareLink.created_at.desc()).all()
+    return render_template("autorite_dashboard.html",
+                           user=user, evenement=evt, links=links, manage=True)
 
-    token = ShareLink.new_token()
-    import hashlib
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    link = ShareLink(token_hash=token_hash, evenement_id=evt.id, created_by=user.id)
-    db.session.add(link)
-    db.session.commit()
-    flash("🔗 Lien de partage créé.", "success")
-    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evt.id))
 
 # Révocation d’un lien (login requis)
 @main_bp.route("/share/<token>/revoke", methods=["POST"])
