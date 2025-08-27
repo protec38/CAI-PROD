@@ -1378,17 +1378,22 @@ def autorite_dashboard_manage(evenement_id):
 
 
 # Révocation d’un lien (login requis)
-@main_bp.route("/share/<token>/revoke", methods=["POST"])
+# Révocation d’un lien (login requis) — via ID
+@main_bp.route("/share/<int:link_id>/revoke", methods=["POST"])
 @login_required
-def revoke_share_link(token):
+def revoke_share_link(link_id):
     user = get_current_user()
-    link = ShareLink.query.filter_by(token=token).first_or_404()
-    if not can_manage_sharing(user):
+    link = ShareLink.query.get_or_404(link_id)
+
+    # droits: admin / codep / responsable / créateur de l’évènement
+    if not (user.is_admin or user.role in {"codep", "responsable"} or link.evenement.createur_id == user.id):
         abort(403)
+
     link.revoked = True
     db.session.commit()
     flash("❌ Lien révoqué.", "info")
     return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=link.evenement_id))
+
 
 # Endpoint public (sans login) — lecture seule
 @main_bp.route("/autorite/share/<token>")
@@ -1489,6 +1494,38 @@ def tickets_board(evenement_id):
         can_manage=can_manage,
         user=user
     )
+
+################################################
+
+# ➕ Création d'un lien public (affiche le token une seule fois)
+@main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
+@login_required
+def create_share_link(evenement_id):
+    import secrets, hashlib
+    user = get_current_user()
+    evt = Evenement.query.get_or_404(evenement_id)
+
+    if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
+        abort(403)
+
+    token = secrets.token_urlsafe(24)  # le token à transmettre
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    link = ShareLink(
+        token_hash=token_hash,
+        evenement_id=evt.id,
+        created_by=user.id,
+        revoked=False,
+        expires_at=None  # pas d'expiration
+    )
+    db.session.add(link)
+    db.session.commit()
+
+    flash(f"🔗 Lien créé. Token public (à transmettre) : {token}", "success")
+    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evt.id))
+
+
+
 
 ############################
 
