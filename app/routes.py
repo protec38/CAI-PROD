@@ -1363,30 +1363,28 @@ def can_manage_sharing(user):
 @main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
 @login_required
 def create_share_link(evenement_id):
-    import secrets, hashlib
     user = get_current_user()
     evt = Evenement.query.get_or_404(evenement_id)
 
-    if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
+    if not can_manage_sharing(user):
         abort(403)
 
-    token = secrets.token_urlsafe(24)  # le jeton qu'on montrera UNE seule fois
-    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    import secrets, hashlib
+    token = secrets.token_urlsafe(24)  # clair
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
 
     link = ShareLink(
-        token_hash=token_hash,
+        token=token,                # ✅ sauvegarde du clair
+        token_hash=token_hash,      # ✅ sauvegarde du hash
         evenement_id=evt.id,
-        created_by=user.id,
-        revoked=False,
+        created_by=user.id
     )
     db.session.add(link)
     db.session.commit()
 
-    # 👉 on N'AFFICHE PAS le token via flash (facile à perdre)
-    # On redirige vers la page gestion avec ?token=..., qui l'affichera clairement.
-    return redirect(url_for("main_bp.autorite_dashboard_manage",
-                            evenement_id=evt.id,
-                            token=token))
+    flash("🔗 Lien de partage créé.", "success")
+    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evt.id))
+
 
 
 # ===== Gestion des liens : page opérateur =====

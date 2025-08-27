@@ -181,6 +181,7 @@ class Bagage(db.Model):
 class ShareLink(db.Model):
     __tablename__ = "share_links"
     id = db.Column(db.Integer, primary_key=True)
+    token = db.Column(db.String(128), unique=True, nullable=False)
     token_hash = db.Column(db.String(64), unique=True, index=True, nullable=False)  # sha256 hex
     evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
     created_by = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
