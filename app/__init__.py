@@ -27,23 +27,16 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # IMPORTANT : autoriser le JS inline (dashboard) et les CDN utilisés
     csp = {
-        # Par défaut on reste strict
-        "default-src": "'self'",
-        # Les fetch() AJAX (optionnel mais explicite)
-        "connect-src": "'self'",
-        # Images (logo + éventuels data/blobs)
-        "img-src": "'self' data: blob:",
-        # Feuilles de style (Google Fonts + cdnjs) + inline pour les petits ajustements
-        "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
-        # Fontes (Google Fonts) + data: au cas où
-        "font-src": "https://fonts.gstatic.com data:",
-        # SCRIPTS : autoriser l'inline sinon ton JS ne s’exécute pas → tableau vide
-        "script-src": "'self' 'unsafe-inline'",
-        # Durcir le reste
-        "object-src": "'none'",
-        "base-uri": "'self'",
-        "frame-ancestors": "'self'",
+    "default-src": "'self'",
+    "img-src": "'self' data:",
+    # on autorise Google Fonts + cdnjs et on garde 'unsafe-inline' pour ton CSS inline
+    "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
+    # Font files (woff/woff2) de Google et cdnjs (Font Awesome)
+    "font-src": "'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
+    # si jamais tu ajoutes des JS cdnjs un jour
+    "script-src": "'self' https://cdnjs.cloudflare.com",
     }
+
     Talisman(
         app,
         content_security_policy=csp,
