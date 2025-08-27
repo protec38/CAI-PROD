@@ -1515,14 +1515,14 @@ def create_share_link(evenement_id):
         token_hash=token_hash,
         evenement_id=evt.id,
         created_by=user.id,
-        revoked=False,
-        expires_at=None  # pas d'expiration
+        revoked=False
     )
     db.session.add(link)
     db.session.commit()
 
     flash(f"🔗 Lien créé. Token public (à transmettre) : {token}", "success")
     return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evt.id))
+
 
 
 
