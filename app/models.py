@@ -179,26 +179,31 @@ class Bagage(db.Model):
 # Lien de partage (dashboard autorités)
 # ======================
 class ShareLink(db.Model):
-    __tablename__ = "share_links"
-    id = db.Column(db.Integer, primary_key=True)
-    token = db.Column(db.String(128), unique=True, nullable=False)
-    token_hash = db.Column(db.String(64), unique=True, index=True, nullable=False)  # sha256 hex
-    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
-    created_by = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    # expires_at removed: tokens no longer expire
-    revoked = db.Column(db.Boolean, default=False, nullable=False)
+    __tablename__ = "share_link"
 
-    evenement = db.relationship("Evenement", backref="share_links")
-    auteur = db.relationship("Utilisateur")
+    id = db.Column(db.Integer, primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
+    created_by   = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
+
+    # on garde le token en clair pour l'afficher (OPERATIONNEL et pratique)
+    token       = db.Column(db.String(64), unique=True, index=True, nullable=False)
+    token_hash  = db.Column(db.String(128), unique=True, index=True, nullable=False)
+
+    created_at  = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    revoked     = db.Column(db.Boolean, default=False, nullable=False)
+
+    # si tu veux: backrefs
+    evenement   = db.relationship("Evenement", backref=db.backref("share_links", lazy="dynamic"))
+
+    def is_active(self) -> bool:
+        # pas d'expiration → juste non révoqué
+        return not self.revoked
 
     @staticmethod
-    def new_token():
-        import secrets
-        return secrets.token_urlsafe(32)
-
-    def is_active(self):
-        return not self.revoked
+    def new_token() -> tuple[str, str]:
+        token = secrets.token_urlsafe(24)  # URL-safe court mais robuste
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return token, token_hash
 # ======================
 # Tickets (logistique/technique)
 # ======================

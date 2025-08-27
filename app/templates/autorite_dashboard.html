@@ -2,146 +2,184 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Vue Autorité – {{ evenement.nom }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta charset="UTF-8" />
+  <title>Vue Autorité – {{ evenement.nom }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <!-- Icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
 
+  <!-- Reset + fonts de secours pour éviter les carrés -->
   <style>
-    :root {
-      --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
-      --bg:#f4f7fb; --card:#fff; --line:#e6eaf0;
+    :root{
+      --bleu:#002f6c; --orange:#f58220; --jaune:#ffcc00;
+      --ink:#0b1523; --line:#e9edf3; --bg:#f6f8fb;
+      --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
     }
-    body {
-      font-family:'Roboto',sans-serif;
-      margin:0; padding:0;
-      background:linear-gradient(135deg,#002f6c,#ff6f00);
-      color:#111;
-    }
-    .wrap{max-width:1100px;margin:20px auto;padding:12px;}
-    .card{
-      background:var(--card);
-      border-radius:16px;
-      border:1px solid var(--line);
-      box-shadow:0 6px 20px rgba(0,0,0,.1);
-      padding:20px;
-      margin-bottom:20px;
-    }
-    h1,h3{margin:0;}
-    .hero{
-      background:linear-gradient(135deg, rgba(0,47,108,.96), rgba(245,130,32,.92));
-      color:#fff; padding:20px; border-radius:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:20px;
-    }
-    .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
-    .chip{background:rgba(255,255,255,.15);padding:8px 14px;border-radius:999px;font-weight:700;}
-    .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px;}
-    .tile{background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);}
-    .tile .ico{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;background:#f2f6fb;color:#0b2a55;}
-    .tile .k{font-size:12px;color:#666;font-weight:900;text-transform:uppercase;}
-    .tile .v{font-size:20px;font-weight:900;color:#222;}
+    /* Police: on force des fallbacks sûrs */
+    html,body{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol"; }
 
-    .btn{
-      display:inline-flex;align-items:center;gap:8px;
-      padding:10px 14px;border-radius:10px;
-      font-weight:800;text-decoration:none;
-      border:1px solid rgba(0,0,0,.1);
-      cursor:pointer;
-    }
-    .btn-main{background:var(--jaune);color:#002;}
-    .btn-secondary{background:#f2f2f2;color:#222;}
-    .btn-danger{background:#e74c3c;color:#fff;}
-    .btn:hover{opacity:.9;transform:translateY(-1px);}
-    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+    *{ box-sizing:border-box }
+    body{ margin:0; background: linear-gradient(135deg, #002f6c, #f58220); min-height:100vh; }
+    .wrap{ max-width:1100px; margin:28px auto; padding:12px; }
 
-    .link-box{
-      padding:12px;border:1px solid var(--line);border-radius:10px;
-      background:#fafbff;margin-bottom:12px;
-    }
-    .link-box code{
-      display:block;background:#fff;border:1px solid var(--line);
-      padding:8px;border-radius:8px;font-family:monospace;word-break:break-all;
-    }
-    .muted{color:#777;font-size:13px;}
-    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;}
-    .badge-red{background:#e74c3c;color:#fff;}
-    .badge-green{background:#27ae60;color:#fff;}
+    .card{ background:#fff; border-radius:16px; border:1px solid var(--line);
+           box-shadow:0 10px 26px rgba(13,49,98,.10); padding:18px; }
+
+    .hero{ color:#fff; padding:22px; border-radius:18px;
+           background:linear-gradient(135deg, rgba(0,47,108,.96), rgba(245,130,32,.92));
+           box-shadow:0 12px 34px rgba(0,0,0,.28); margin-bottom:16px; }
+    .hero h1{ margin:0 0 10px 0; font-size:26px; letter-spacing:.2px }
+    .chips{ display:flex; gap:10px; flex-wrap:wrap; }
+    .chip{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25);
+           padding:8px 12px; border-radius:999px; font-weight:700; display:inline-flex; gap:8px; align-items:center }
+
+    .tiles{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-top:12px; }
+    @media (max-width:860px){ .tiles{ grid-template-columns:1fr; } }
+    .tile{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; align-items:center; gap:12px; }
+    .tile .ico{ width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:#f2f6fb; color:#0b2a55; font-size:18px }
+    .tile .k{ font-size:12px; color:#536276; font-weight:900; text-transform:uppercase; letter-spacing:.4px }
+    .tile .v{ font-size:22px; font-weight:900; color:var(--ink); }
+
+    .manage{ margin-top:16px; }
+    .links{ margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; }
+    .btn{ display:inline-flex; align-items:center; gap:8px; background:var(--jaune); color:#00122a; padding:10px 12px; border-radius:10px; text-decoration:none; font-weight:900; border:1px solid rgba(0,0,0,.12); cursor:pointer }
+    .btn:hover{ filter:brightness(.98) }
+    .btn-danger{ background:var(--err); color:#fff }
+    .btn-secondary{ background:#eef2f7; color:#111 }
+    code.share{ display:block; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fafcff; word-break:break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .muted{ color:#667788; font-size:13px; }
+    .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+    form.inline{ display:inline }
+    .sp{ height:8px }
   </style>
 </head>
 <body>
-<div class="wrap">
-
-  <!-- Bandeau évènement -->
-  <div class="hero">
-    <h1><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
-    <div class="chips">
-      <span class="chip"><i class="fa-solid fa-location-dot"></i> {{ evenement.adresse }}</span>
-      <span class="chip"><i class="fa-solid fa-signal"></i> {{ evenement.statut }}</span>
-      <span class="chip"><i class="fa-solid fa-clock"></i>
-        {{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}
-      </span>
-    </div>
-    <div class="tiles">
-      <div class="tile"><div class="ico"><i class="fa-solid fa-user-check"></i></div>
-        <div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div></div>
-      <div class="tile"><div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
-        <div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div></div>
-      <div class="tile"><div class="ico"><i class="fa-solid fa-people-group"></i></div>
-        <div><div class="k">Total</div><div class="v" id="stat-total">—</div></div></div>
-    </div>
-  </div>
-
-  {% if manage %}
-  <div class="card">
-    <h3><i class="fa-solid fa-share-nodes"></i> Gestion des liens publics</h3>
-
-    <form method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="row">
-        <button class="btn btn-main" type="submit"><i class="fa-solid fa-plus"></i> Créer un lien</button>
-        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour</a>
+  <div class="wrap">
+    <div class="hero">
+      <h1 id="evt-nom"><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
+      <div class="chips">
+        <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
+        <span class="chip" id="evt-statut-chip">
+          {% set st = evenement.statut or '' %}
+          {% if st == 'Ouvert' %}
+            <i class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
+          {% elif st == 'Complet' %}
+            <i class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
+          {% elif st == 'Fermé' %}
+            <i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
+          {% elif st == 'En cours de gréement' %}
+            <i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
+          {% elif st == 'Effectif dépassé' %}
+            <i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
+          {% else %}
+            <i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>
+          {% endif %}
+        </span>
+        <span class="chip"><i class="fa-solid fa-clock"></i> <span id="evt-date">{{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}</span></span>
       </div>
-    </form>
 
-    <div class="links" style="margin-top:20px">
-      {% if links %}
-        {% for l in links %}
-          {% set public_url = url_for('main_bp.autorite_share_public', token='TOKEN_PLACEHOLDER', _external=True) %}
-          <div class="link-box">
-            <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }}
-              {% if l.revoked %}
-                <span class="badge badge-red">Révoqué</span>
+      <div class="tiles">
+        <div class="tile"><div class="ico"><i class="fa-solid fa-user-check"></i></div><div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div><div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-people-group"></i></div><div><div class="k">Total</div><div class="v" id="stat-total">—</div></div></div>
+      </div>
+    </div>
+
+    {% if manage %}
+    <div class="card manage">
+      <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+      <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
+        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+      </form>
+
+      <div class="sp"></div>
+      <div class="links">
+        {% if links %}
+          {% for l in links %}
+            <div style="margin:12px 0; padding:10px; border:1px dashed var(--line); border-radius:12px;">
+              <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }} {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}</div>
+
+              {% if l.token %}
+                <div style="height:6px"></div>
+                <code class="share">{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True) }}</code>
+                <div class="row" style="margin-top:8px">
+                  <button class="btn btn-secondary" type="button"
+                          onclick="navigator.clipboard.writeText('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True) }}')">
+                    <i class="fa-regular fa-copy"></i> Copier
+                  </button>
+                  {% if not l.revoked %}
+                  <form class="inline" method="POST"
+                        action="{{ url_for('main_bp.revoke_share_link', token=l.token) }}"
+                        onsubmit="return confirm('Révoquer ce lien ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
+                  </form>
+                  {% endif %}
+                </div>
               {% else %}
-                <span class="badge badge-green">Actif</span>
+                <div style="height:6px"></div>
+                <code class="share">Lien non récupérable (token affiché à la création)</code>
               {% endif %}
             </div>
-
-            {% if not l.revoked %}
-              <!-- ❗ Ici il faut afficher le vrai token au moment de la création -->
-              <code>{{ public_url }}</code>
-              <div class="row">
-                <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('{{ public_url }}')">
-                  <i class="fa-regular fa-copy"></i> Copier
-                </button>
-                <form method="POST" action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
-                      onsubmit="return confirm('Révoquer ce lien ?');">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
-                </form>
-              </div>
-            {% else %}
-              <code class="muted">Lien désactivé</code>
-            {% endif %}
-          </div>
-        {% endfor %}
-      {% else %}
-        <p class="muted">Aucun lien pour l’instant.</p>
-      {% endif %}
+          {% endfor %}
+        {% else %}
+          <p class="muted">Aucun lien pour l’instant.</p>
+        {% endif %}
+      </div>
     </div>
+    {% endif %}
   </div>
-  {% endif %}
-</div>
+
+  <script>
+    const EVT_ID = {{ evenement.id }};
+    const PUBLIC_TOKEN = {{ (public_token | default(None)) | tojson }};
+
+    function setTxt(id, val){
+      const el = document.getElementById(id);
+      if(!el) return;
+      const next = (val === undefined || val === null || val === '') ? '—' : String(val);
+      if(el.textContent.trim() !== next.trim()){ el.textContent = next; }
+    }
+    function setStatutChip(statut){
+      const chip = document.getElementById('evt-statut-chip');
+      const lbl  = document.getElementById('evt-statut');
+      if(!chip || !lbl) return;
+      let icon = '<i class="fa-regular fa-circle"></i>';
+      if(statut==='Ouvert') icon = '<i class="fa-solid fa-circle" style="color:var(--ok)"></i>';
+      else if(statut==='Complet') icon = '<i class="fa-solid fa-circle" style="color:var(--warn)"></i>';
+      else if(statut==='Fermé') icon = '<i class="fa-solid fa-circle-xmark"></i>';
+      else if(statut==='En cours de gréement') icon = '<i class="fa-solid fa-screwdriver-wrench"></i>';
+      else if(statut==='Effectif dépassé') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      chip.innerHTML = icon + ' <span id="evt-statut"></span>';
+      document.getElementById('evt-statut').textContent = statut || '—';
+    }
+    function refreshAutorite(){
+      const qs = PUBLIC_TOKEN ? `?token=${encodeURIComponent(PUBLIC_TOKEN)}` : '';
+      fetch(`/evenement/${EVT_ID}/autorite_json${qs}`)
+        .then(r=>r.json())
+        .then(d=>{
+          if(d.evenement){
+            setTxt('evt-nom', d.evenement.nom);
+            setTxt('evt-adresse', d.evenement.adresse);
+            setTxt('evt-date', d.evenement.date_ouverture);
+            setStatutChip(d.evenement.statut);
+          }
+          if(d.stats){
+            setTxt('stat-present', d.stats.nb_present);
+            setTxt('stat-sorti', d.stats.nb_sorti);
+            setTxt('stat-total', d.stats.nb_total);
+          }
+        })
+        .catch(err=>console.warn('autorite_json error', err));
+    }
+    document.addEventListener('DOMContentLoaded', ()=>{
+      refreshAutorite();
+      setInterval(refreshAutorite, 4000);
+    });
+  </script>
 </body>
 </html>
