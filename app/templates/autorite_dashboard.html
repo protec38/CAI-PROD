@@ -1,67 +1,147 @@
-{% if manage %}
-<div class="card manage">
-  <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+{# templates/autorite_dashboard.html #}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Vue Autorité – {{ evenement.nom }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
 
-  <!-- Formulaire: créer un nouveau lien -->
-  <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <button class="btn" type="submit">
-      <i class="fa-solid fa-link"></i> Créer un lien
-    </button>
-    <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}">
-      <i class="fa-solid fa-arrow-left"></i> Retour dashboard
-    </a>
-  </form>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-  <!-- Si on vient de créer un lien, on montre le VRAI lien une seule fois -->
-  {% if one_time_token %}
-    <div class="links" style="margin-top:12px">
-      <div class="muted" style="margin-bottom:6px">
-        Nouveau lien (affiché une seule fois) :
-      </div>
-      {% set public_url = url_for('main_bp.autorite_share_public', token=one_time_token, _external=True) %}
-      <code class="share">{{ public_url }}</code>
-      <div class="row" style="margin-top:8px">
-        <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('{{ public_url }}')">
-          <i class="fa-regular fa-copy"></i> Copier
-        </button>
-      </div>
+  <style>
+    :root {
+      --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
+      --bg:#f4f7fb; --card:#fff; --line:#e6eaf0;
+    }
+    body {
+      font-family:'Roboto',sans-serif;
+      margin:0; padding:0;
+      background:linear-gradient(135deg,#002f6c,#ff6f00);
+      color:#111;
+    }
+    .wrap{max-width:1100px;margin:20px auto;padding:12px;}
+    .card{
+      background:var(--card);
+      border-radius:16px;
+      border:1px solid var(--line);
+      box-shadow:0 6px 20px rgba(0,0,0,.1);
+      padding:20px;
+      margin-bottom:20px;
+    }
+    h1,h3{margin:0;}
+    .hero{
+      background:linear-gradient(135deg, rgba(0,47,108,.96), rgba(245,130,32,.92));
+      color:#fff; padding:20px; border-radius:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25); margin-bottom:20px;
+    }
+    .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+    .chip{background:rgba(255,255,255,.15);padding:8px 14px;border-radius:999px;font-weight:700;}
+    .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px;}
+    .tile{background:#fff;border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 12px rgba(0,0,0,.08);}
+    .tile .ico{width:40px;height:40px;display:grid;place-items:center;border-radius:10px;background:#f2f6fb;color:#0b2a55;}
+    .tile .k{font-size:12px;color:#666;font-weight:900;text-transform:uppercase;}
+    .tile .v{font-size:20px;font-weight:900;color:#222;}
+
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 14px;border-radius:10px;
+      font-weight:800;text-decoration:none;
+      border:1px solid rgba(0,0,0,.1);
+      cursor:pointer;
+    }
+    .btn-main{background:var(--jaune);color:#002;}
+    .btn-secondary{background:#f2f2f2;color:#222;}
+    .btn-danger{background:#e74c3c;color:#fff;}
+    .btn:hover{opacity:.9;transform:translateY(-1px);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+
+    .link-box{
+      padding:12px;border:1px solid var(--line);border-radius:10px;
+      background:#fafbff;margin-bottom:12px;
+    }
+    .link-box code{
+      display:block;background:#fff;border:1px solid var(--line);
+      padding:8px;border-radius:8px;font-family:monospace;word-break:break-all;
+    }
+    .muted{color:#777;font-size:13px;}
+    .badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;}
+    .badge-red{background:#e74c3c;color:#fff;}
+    .badge-green{background:#27ae60;color:#fff;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Bandeau évènement -->
+  <div class="hero">
+    <h1><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
+    <div class="chips">
+      <span class="chip"><i class="fa-solid fa-location-dot"></i> {{ evenement.adresse }}</span>
+      <span class="chip"><i class="fa-solid fa-signal"></i> {{ evenement.statut }}</span>
+      <span class="chip"><i class="fa-solid fa-clock"></i>
+        {{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}
+      </span>
     </div>
-  {% endif %}
+    <div class="tiles">
+      <div class="tile"><div class="ico"><i class="fa-solid fa-user-check"></i></div>
+        <div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div></div>
+      <div class="tile"><div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
+        <div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div></div>
+      <div class="tile"><div class="ico"><i class="fa-solid fa-people-group"></i></div>
+        <div><div class="k">Total</div><div class="v" id="stat-total">—</div></div></div>
+    </div>
+  </div>
 
-  <div class="links">
-    {% if links %}
-      {% for l in links %}
-        <div style="margin:10px 0">
-          <div>
-            <strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }}
-            {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}
-          </div>
+  {% if manage %}
+  <div class="card">
+    <h3><i class="fa-solid fa-share-nodes"></i> Gestion des liens publics</h3>
 
-          <!-- On ne peut PAS reconstruire le lien sans le token original -->
-          <code class="share">Lien non récupérable (token affiché à la création)</code>
+    <form method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="row">
+        <button class="btn btn-main" type="submit"><i class="fa-solid fa-plus"></i> Créer un lien</button>
+        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour</a>
+      </div>
+    </form>
 
-          <div class="row" style="margin-top:6px">
-            <button class="btn btn-secondary" type="button"
-                    onclick="navigator.clipboard.writeText('Lien non récupérable (token affiché à la création)')">
-              <i class="fa-regular fa-copy"></i> Copier
-            </button>
+    <div class="links" style="margin-top:20px">
+      {% if links %}
+        {% for l in links %}
+          {% set public_url = url_for('main_bp.autorite_share_public', token='TOKEN_PLACEHOLDER', _external=True) %}
+          <div class="link-box">
+            <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }}
+              {% if l.revoked %}
+                <span class="badge badge-red">Révoqué</span>
+              {% else %}
+                <span class="badge badge-green">Actif</span>
+              {% endif %}
+            </div>
 
             {% if not l.revoked %}
-              <form method="POST" action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
-                    onsubmit="return confirm('Révoquer ce lien ?');">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button class="btn btn-danger" type="submit">
-                  <i class="fa-solid fa-ban"></i> Révoquer
+              <!-- ❗ Ici il faut afficher le vrai token au moment de la création -->
+              <code>{{ public_url }}</code>
+              <div class="row">
+                <button class="btn btn-secondary" type="button" onclick="navigator.clipboard.writeText('{{ public_url }}')">
+                  <i class="fa-regular fa-copy"></i> Copier
                 </button>
-              </form>
+                <form method="POST" action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
+                      onsubmit="return confirm('Révoquer ce lien ?');">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
+                </form>
+              </div>
+            {% else %}
+              <code class="muted">Lien désactivé</code>
             {% endif %}
           </div>
-        </div>
-      {% endfor %}
-    {% else %}
-      <p class="muted">Aucun lien pour l’instant.</p>
-    {% endif %}
+        {% endfor %}
+      {% else %}
+        <p class="muted">Aucun lien pour l’instant.</p>
+      {% endif %}
+    </div>
   </div>
+  {% endif %}
 </div>
-{% endif %}
+</body>
+</html>
