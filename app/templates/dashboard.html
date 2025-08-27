@@ -9,110 +9,63 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
   <style>
-    :root{
-      --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
+    :root{ --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
       --bg:#0a1324; --card:#0f1d39; --line:#193056;
-      --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a;
-    }
-    body{
-      font-family:'Roboto',sans-serif;
-      background:
-        radial-gradient(1200px 600px at 10% 0%, rgba(255,204,0,.15), transparent 60%),
-        linear-gradient(135deg,#00224d,#0b2b57 35%,#ff6f00 180%);
-      color:#fff; padding:20px;
-    }
-
-    /* Header */
+      --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a; }
+    body{ font-family:'Roboto',sans-serif;
+      background: radial-gradient(1200px 600px at 10% 0%, rgba(255,204,0,.15), transparent 60%),
+                  linear-gradient(135deg,#00224d,#0b2b57 35%,#ff6f00 180%);
+      color:#fff; padding:20px; }
     .header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
     h1{color:var(--jaune);margin:0;letter-spacing:.2px;text-shadow:0 2px 10px rgba(0,0,0,.25)}
-    .btn{
-      background:var(--jaune);color:#00122a;padding:10px 14px;text-decoration:none;border-radius:10px;
+    .btn{ background:var(--jaune);color:#00122a;padding:10px 14px;text-decoration:none;border-radius:10px;
       margin-right:10px;display:inline-flex;align-items:center;gap:8px;font-weight:800;
-      box-shadow:0 6px 20px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.15)
-    }
+      box-shadow:0 6px 20px rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.15) }
     .btn:hover{opacity:.95;transform:translateY(-1px)}
     .btn-green{background:#27ae60;color:#fff}
-
-    /* Event card */
-    .event-info{
-      background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
+    .event-info{ background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
       padding:18px;border-radius:16px;margin-top:12px;margin-bottom:16px;
       border:1px solid rgba(255,255,255,.15);
-      box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 10px 30px rgba(0,0,0,.25)
-    }
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),0 10px 30px rgba(0,0,0,.25)}
     .event-info h2{margin:0 0 6px 0}
     .event-row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
-    .event-chip{
-      display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
-      background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.16);font-weight:800
-    }
-
-    /* Filters */
+    .event-chip{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;
+      background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.16);font-weight:800}
     .filters{display:grid;gap:10px;margin:18px 0 8px;grid-template-columns:1.2fr .9fr 1.2fr auto}
     @media (max-width:900px){.filters{grid-template-columns:1fr 1fr}}
     @media (max-width:560px){.filters{grid-template-columns:1fr}}
-    .control{
-      background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;
-      padding:8px 10px;display:flex;gap:8px;align-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)
-    }
+    .control{ background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;
+      padding:8px 10px;display:flex;gap:8px;align-items:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
     .control input,.control select{all:unset;flex:1;background:transparent;color:#fff;font-size:15px}
-    .control .tag{
-      font-size:12px;font-weight:900;color:#fff;opacity:.9;display:inline-flex;align-items:center;gap:6px;
-      padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15)
-    }
+    .control .tag{ font-size:12px;font-weight:900;color:#fff;opacity:.9;display:inline-flex;align-items:center;gap:6px;
+      padding:4px 8px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.15)}
     .btn-small{padding:8px 12px;border-radius:10px;background:var(--orange);color:#fff;border:1px solid rgba(0,0,0,.2);font-weight:800}
-
-    /* Multi-select tailles */
-    #filter-competences{min-height:unset;max-height:140px;overflow:auto}
+    #filter-competences{max-height:140px;overflow:auto}
     #filter-statut{max-height:96px;overflow:auto}
     #filter-competences[multiple]{height:140px}
     #filter-statut[multiple]{height:96px}
-
-    /* Badges statut */
     .badge{padding:5px 10px;border-radius:999px;font-weight:900;display:inline-flex;align-items:center;gap:6px}
     .badge.present{background:#2ecc71;color:#fff}
     .badge.sorti{background:#e67e22;color:#fff}
     .badge.supprime{background:#c0392b;color:#fff}
-    .badge-orange { background: #e67e22; }
-    .badge-green { background: #27ae60; }
-    .badge-red { background: #c0392b; }
-    .badge-blue { background: #2980b9; }
-    .badge-dark { background: #2c3e50; }
-
-    /* Bagages */
-    .badge-bagage{
-      display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;
-      background:#0c2a52;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.25)
-    }
+    .badge-orange{background:#e67e22}.badge-green{background:#27ae60}.badge-red{background:#c0392b}.badge-blue{background:#2980b9}.badge-dark{background:#2c3e50}
+    .badge-bagage{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;background:#0c2a52;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.25)}
     .bagages-cell{min-width:160px}
-
-    /* Table */
-    .table-wrap{
-      background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
-      border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3)
-    }
+    .table-wrap{ background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
+      border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3) }
     table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(12,26,52,.65);color:#eaf2ff}
-    thead th{
-      position:sticky;top:0;z-index:1;
-      background:linear-gradient(90deg,var(--theadGrad1),var(--theadGrad2));
+    thead th{ position:sticky;top:0;z-index:1;background:linear-gradient(90deg,var(--theadGrad1),var(--theadGrad2));
       color:#0a152a;font-weight:900;text-transform:uppercase;letter-spacing:.35px;
-      padding:14px 12px;border-bottom:2px solid rgba(0,0,0,.25);
-      box-shadow:inset 0 -1px 0 rgba(255,255,255,.35);
-    }
+      padding:14px 12px;border-bottom:2px solid rgba(0,0,0,.25);box-shadow:inset 0 -1px 0 rgba(255,255,255,.35)}
     thead th .th-label{display:flex;align-items:center;gap:8px}
     thead th .th-label i{opacity:.85}
     tbody td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
     tbody tr:nth-child(odd){background:rgba(255,255,255,.04)}
     tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     tbody tr:hover{background:rgba(255,255,255,.08)}
-
     .actions{display:flex;gap:8px;flex-wrap:wrap}
-    .btn-action{
-      display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;font-weight:800;
-      text-decoration:none;border:1px solid rgba(255,255,255,.14);cursor:pointer;
-      transition:transform .05s ease,opacity .15s ease;font-size:14px;line-height:1;
-      background:rgba(255,255,255,.08);color:#fff
-    }
+    .btn-action{ display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;font-weight:800;
+      text-decoration:none;border:1px solid rgba(255,255,255,.14);cursor:pointer;transition:transform .05s ease,opacity .15s ease;font-size:14px;line-height:1;background:rgba(255,255,255,.08);color:#fff}
     .btn-action:active{transform:translateY(1px)}
     .btn-blue{background:linear-gradient(180deg,#2e7bd8,#195aa7)}
     .btn-yellow{background:linear-gradient(180deg,#ffd34d,#f4b400);color:#1a1300}
@@ -121,15 +74,8 @@
     .actions a{color:inherit;font-weight:inherit;text-decoration:none}
     .actions form{display:inline-block;margin:0}
     .actions form button{all:unset;display:inline-flex}
-
     select[name="statut_evt"]{padding:6px 8px;font-weight:900;background:#fff;color:#00122a;border-radius:8px;border:none}
-
-    .badge-competence{
-      display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
-      color:#fff;font-size:12px;font-weight:800;margin:2px
-    }
-
-    /* Mobile */
+    .badge-competence{ display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:800;margin:2px }
     @media (max-width:640px){
       .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
       table{ min-width:720px; }
@@ -140,16 +86,9 @@
       thead th:nth-child(4), tbody td:nth-child(4),
       thead th:nth-child(9), tbody td:nth-child(9) { display:table-cell; }
     }
-
-    /* Modal */
-    .modal{
-      position:fixed; inset:0; background:rgba(0,0,0,.55);
-      display:none; align-items:center; justify-content:center; z-index:1000;
-    }
-    .modal-content{
-      background:#f3f6fb; color:#000; width:min(520px,92vw); border-radius:14px;
-      box-shadow:0 20px 40px rgba(0,0,0,.45); overflow:hidden; margin:0;
-    }
+    .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:1000; }
+    .modal-content{ background:#f3f6fb; color:#000; width:min(520px,92vw); border-radius:14px;
+      box-shadow:0 20px 40px rgba(0,0,0,.45); overflow:hidden; margin:0; }
     .modal-header,.modal-footer{padding:12px 16px;background:#fff;border-bottom:1px solid #e6e6e6}
     .modal-header{display:flex;align-items:center;justify-content:space-between}
     .modal-header h3{margin:0;font-size:18px}
@@ -160,6 +99,10 @@
     .modal small.hint{display:block;color:#444;margin-top:4px}
     .modal .close{background:transparent;border:0;font-size:22px;cursor:pointer;color:#333}
     .modal-footer{display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e6e6e6}
+    /* debug box */
+    #fetch-debug{position:fixed;bottom:10px;right:10px;max-width:560px;background:rgba(0,0,0,.85);
+      border:1px solid #ff6f00;color:#fff;padding:10px 12px;border-radius:10px;font-size:12px;z-index:9999;
+      box-shadow:0 6px 18px rgba(0,0,0,.4);white-space:pre-wrap}
   </style>
 </head>
 
@@ -347,8 +290,8 @@
     </div>
   </div>
 
-  <!-- === Scripts === -->
   <script>
+    /* ===== Helpers UI ===== */
     const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
 
     function setHTMLIfChanged(el, html){ if(!el) return; const next=(html||"").trim(); const prev=(el.innerHTML||"").trim(); if(next!==prev) el.innerHTML=html; }
@@ -380,7 +323,7 @@
         "Logisticien":"#16a085","Conducteur":"#d35400","Agent sécurité":"#2c3e50","Autre":"#7f8c8d"
       };
       return list.map(c=>{
-        const comp=String(c||'').trim(); if(!comp) return '';
+        const comp=String(c).trim(); if(!comp) return '';
         const color=colorMap[comp]||"#999";
         return `<span class="badge-competence" style="background:${color}">${comp}</span>`;
       }).join(" ");
@@ -391,8 +334,10 @@
     }
 
     function actionsHTML(f){
+      const idSafe = f.id ?? '';
+      const numSafe = (f.numero||'').replace(/'/g,"&#39;");
       const delBtn = CAN_DELETE_FICHE ? `
-        <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
+        <form method="POST" action="/fiche/delete/${idSafe}" onsubmit="return confirm('Confirmer la suppression ?');">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="btn-action btn-red" title="Supprimer la fiche">
             <i class="fa-solid fa-trash-can"></i> <span>Supprimer</span>
@@ -401,65 +346,67 @@
 
       return `
         <div class="actions">
-          <a class="btn-action btn-blue" href="/fiche/${f.id}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
-          <a class="btn-action btn-yellow" href="/fiche/edit/${f.id}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
-          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, '${f.numero||("#"+f.id)}')">
+          <a class="btn-action btn-blue" href="/fiche/${idSafe}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
+          <a class="btn-action btn-yellow" href="/fiche/edit/${idSafe}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
+          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie('${idSafe}', '${numSafe}')">
             <i class="fa-solid fa-person-walking-arrow-right"></i> <span>Sortie</span>
           </button>
-          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, '${f.numero||("#"+f.id)}')">
+          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage('${idSafe}', '${numSafe}')">
             <i class="fa-solid fa-suitcase-rolling"></i> <span>Bagage</span>
           </button>
           ${delBtn}
         </div>`;
     }
 
-    function ligneFicheHTML(f){
+    function ligneFicheHTML(f, rowId){
       return `
-        <tr id="fiche-row-${f.id}">
-          <td data-col="numero">${f.numero || ("#"+f.id)}</td>
-          <td data-col="nom">${f.nom || ""}</td>
-          <td data-col="prenom">${f.prenom || ""}</td>
+        <tr id="fiche-row-${rowId}">
+          <td data-col="numero">${f.numero||''}</td>
+          <td data-col="nom">${f.nom||''}</td>
+          <td data-col="prenom">${f.prenom||''}</td>
           <td data-col="statut">${getStatutHtml(f.statut)}</td>
-          <td data-col="heure_arrivee">${f.heure_arrivee || ""}</td>
-          <td data-col="difficultes">${f.difficultes || ""}</td>
+          <td data-col="heure_arrivee">${f.heure_arrivee||''}</td>
+          <td data-col="difficultes">${f.difficultes||''}</td>
           <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
-          <td class="bagages-cell"><div id="bagages-${f.id}"><em>Chargement…</em></div></td>
+          <td class="bagages-cell"><div id="bagages-${rowId}"><em>Chargement…</em></div></td>
           <td data-col="actions">${actionsHTML(f)}</td>
         </tr>`;
     }
 
     const rowsCache=new Map();
 
-    function upsertRow(f){
+    function upsertRow(f, rowId){
       const tbody=document.getElementById("fiches-table-body");
-      let tr=document.getElementById(`fiche-row-${f.id}`);
+      let tr=document.getElementById(`fiche-row-${rowId}`);
       if(!tr){
-        tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
+        tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f, rowId));
       }else{
-        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero || ("#"+f.id));
-        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom || "");
-        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom || "");
+        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero||'');
+        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom||'');
+        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom||'');
         setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
-        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee || "");
+        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee||'');
         const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
         const c=tr.querySelector('[data-col="competences"]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
       }
-      rowsCache.set(Number(f.id), f);
-      majBagagesCell(f.id);
+      rowsCache.set(rowId, f);
+      majBagagesCell(rowId, f.id);
     }
 
-    function majBagagesCell(ficheId){
-      fetch(`/fiche/${ficheId}/bagages_json`, { credentials: 'include' })
-        .then(r=>r.ok ? r.json() : { numeros: [] })
+    function majBagagesCell(rowId, ficheId){
+      const cibleId = `bagages-${rowId}`;
+      if(!ficheId){ document.getElementById(cibleId)?.replaceChildren(); return; }
+      fetch(`/fiche/${ficheId}/bagages_json`, { credentials:'include' })
+        .then(r=>r.json())
         .then(d=>{
-          const cible=document.getElementById(`bagages-${ficheId}`);
+          const cible=document.getElementById(cibleId);
           if(!cible) return;
-          const nums = (d && Array.isArray(d.numeros)) ? d.numeros : [];
-          setHTMLIfChanged(cible, renderBagageBadges(nums));
+          const html=(d && Array.isArray(d.numeros))? renderBagageBadges(d.numeros) : '<em>Aucun</em>';
+          setHTMLIfChanged(cible, html);
         })
         .catch(()=>{
-          const cible=document.getElementById(`bagages-${ficheId}`);
-          if (cible) setHTMLIfChanged(cible, '<em>—</em>');
+          const cible=document.getElementById(cibleId);
+          if(cible) setHTMLIfChanged(cible, '<em>—</em>');
         });
     }
 
@@ -472,11 +419,11 @@
       const searchOk=!searchTerm || nom.includes(searchTerm) || prenom.includes(searchTerm);
 
       const selectedStatus=getSelectValues(document.getElementById('filter-statut'));
-      const statutTxt=(f.statut||'').toLowerCase();
+      const statutTxt=String(f.statut||'').toLowerCase();
       const statusOk=selectedStatus.length===0 || selectedStatus.includes(statutTxt);
 
       const selectedComps=getSelectValues(document.getElementById('filter-competences'));
-      const ficheComps=Array.isArray(f.competences) ? f.competences : String(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const ficheComps=String(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
       const compOk=selectedComps.length===0 || ficheComps.some(c=>selectedComps.includes(c));
 
       return searchOk && statusOk && compOk;
@@ -485,154 +432,139 @@
     function applyAllFilters(){
       const rows=document.querySelectorAll("#fiches-table-body tr");
       rows.forEach(row=>{
-        const id=Number(row.id.replace('fiche-row-',''));
-        const f=rowsCache.get(id);
+        const rowId=row.id.replace('fiche-row-','');
+        const f=rowsCache.get(rowId);
         row.style.display=rowMatchesFilters(row,f)? "":"none";
       });
     }
 
-    /* ==== DEBUG PANEL + EXTRACTION ROBUSTE + REFRESH 3s ==== */
+    /* ===== DEBUG & fetch robustes ===== */
     function showFetchDebug(msg, extra) {
-      let box = document.getElementById('fetch-debug');
-      if (!box) {
-        box = document.createElement('div');
-        box.id = 'fetch-debug';
-        box.style.position = 'fixed';
-        box.style.bottom = '10px';
-        box.style.right = '10px';
-        box.style.maxWidth = '520px';
-        box.style.background = 'rgba(0,0,0,.8)';
-        box.style.border = '1px solid #ff6f00';
-        box.style.color = '#fff';
-        box.style.padding = '10px 12px';
-        box.style.borderRadius = '10px';
-        box.style.fontSize = '12px';
-        box.style.zIndex = '9999';
-        box.style.boxShadow = '0 6px 18px rgba(0,0,0,.4)';
-        document.body.appendChild(box);
-      }
+      const box = document.getElementById('fetch-debug') || (()=>{
+        const b = document.createElement('div'); b.id='fetch-debug'; document.body.appendChild(b); return b;
+      })();
       const now = new Date().toLocaleTimeString();
       box.innerHTML = `<div style="font-weight:800;margin-bottom:6px;">[DEBUG AJAX ${now}]</div><div>${msg}</div>${extra ? `<pre style="white-space:pre-wrap;margin:6px 0 0">${extra}</pre>` : ''}`;
     }
-
+    function candidateUrls() {
+      const id = {{ evenement.id }};
+      const base = [
+        `/evenement/${id}/fiches_json`,
+        `/evenement/${id}/fiches.json`,
+        `/api/evenement/${id}/fiches`,
+        `/api/evenements/${id}/fiches`
+      ];
+      const override = document.body.getAttribute('data-fiches-url');
+      if (override) base.unshift(override);
+      return base.map(u => `${u}?t=${Date.now()}`);
+    }
     function extractFiches(data) {
       if (!data || typeof data !== 'object') return [];
       if (Array.isArray(data.fiches)) return data.fiches;
-      if (Array.isArray(data.rows)) return data.rows;
-      if (Array.isArray(data.items)) return data.items;
-      if (Array.isArray(data.data)) return data.data;
-      if (data.fiches && typeof data.fiches === 'object' && !Array.isArray(data.fiches)) {
-        return Object.values(data.fiches);
-      }
-      if (typeof data === 'object' && !Array.isArray(data)) {
-        const values = Object.values(data);
-        const looksLikeFiche = (o) => o && typeof o === 'object' && ('id' in o || 'nom' in o || 'prenom' in o || 'numero' in o);
-        if (values.length && values.every(looksLikeFiche)) return values;
-      }
+      if (Array.isArray(data.rows))   return data.rows;
+      if (Array.isArray(data.items))  return data.items;
+      if (Array.isArray(data.data))   return data.data;
+      if (data.fiches && typeof data.fiches === 'object') return Object.values(data.fiches);
+      const vals = Object.values(data);
+      const looks = v => v && typeof v === 'object' && ('id' in v || 'numero' in v || 'nom' in v || 'prenom' in v);
+      if (vals.length && vals.every(looks)) return vals;
       return [];
     }
-
-    function getFichesUrl() {
-      const bodyAttr = document.body.getAttribute('data-fiches-url');
-      return bodyAttr || `/evenement/{{ evenement.id }}/fiches_json`;
-    }
-
-    function refreshPageDynamicParts(){
-      const url = getFichesUrl();
-      fetch(url + `?t=${Date.now()}`, { credentials: 'include' })
-        .then(async res => {
+    async function fetchFirstWorkingJson(urls){
+      const headers = { 'Accept':'application/json','X-Requested-With':'XMLHttpRequest' };
+      for (const url of urls){
+        try{
+          const res = await fetch(url, { credentials:'include', headers });
           const ct = res.headers.get('content-type') || '';
           if (!res.ok) {
-            const text = await res.text().catch(()=>'');
-            showFetchDebug(`Requête échouée (${res.status}).`, text.slice(0, 800));
-            throw new Error(`HTTP ${res.status}`);
+            const txt = await res.text().catch(()=> '');
+            showFetchDebug(`HTTP ${res.status} sur ${url}`, txt.slice(0,800));
+            continue;
           }
           if (!ct.includes('application/json')) {
-            const text = await res.text().catch(()=>'');
-            showFetchDebug(`Réponse non JSON (content-type: ${ct}).`, text.slice(0, 800));
-            throw new Error('Non-JSON response');
+            const txt = await res.text().catch(()=> '');
+            showFetchDebug(`Réponse non JSON sur ${url} (content-type=${ct})`, txt.slice(0,800));
+            continue;
           }
-          return res.json();
-        })
-        .then(data=>{
-          const tbody = document.getElementById("fiches-table-body");
-          if(!tbody) return;
+          const json = await res.json();
+          const fiches = extractFiches(json);
+          return { json, url, fiches };
+        }catch(e){
+          showFetchDebug(`Erreur fetch sur ${url}`, String(e));
+        }
+      }
+      return null;
+    }
 
-          const list = extractFiches(data);
-          const idsActuels = new Set();
+    async function refreshPage(){
+      const attempt = await fetchFirstWorkingJson(candidateUrls());
+      if (!attempt){
+        showFetchDebug('Aucune URL n’a renvoyé de JSON exploitable.');
+        return;
+      }
+      const { json, url, fiches } = attempt;
 
-          list.forEach((f,i)=>{
-            try{
-              if (!f || f.id == null) return;
-              if (f.statut) f.statut = String(f.statut).toLowerCase();
-              idsActuels.add(Number(f.id));
-              upsertRow(f);
-            }catch(e){
-              showFetchDebug(`Erreur rendu ligne ${i}`, JSON.stringify(f, null, 2));
-              console.error("Ligne fiche KO (ignorée): index", i, "fiche:", f, e);
-            }
-          });
+      const tbody = document.getElementById("fiches-table-body");
+      if(!tbody) return;
 
-          Array.from(rowsCache.keys()).forEach(id => {
-            if(!idsActuels.has(Number(id))){
-              const tr = document.getElementById(`fiche-row-${id}`);
-              if(tr) tr.remove();
-              rowsCache.delete(Number(id));
-            }
-          });
+      const idsActuels = new Set();
+      (fiches || []).forEach((f,i)=>{
+        const rowId = (f && (f.id!=null ? String(f.id) :
+                             f.numero ? `N-${f.numero}` :
+                             `idx-${i}`));
+        if(!rowId) return;
+        const fiche = Object.assign({}, f);
+        if (fiche.statut) fiche.statut = String(fiche.statut).toLowerCase();
+        idsActuels.add(rowId);
+        upsertRow(fiche, rowId);
+      });
 
-          const nbp = document.getElementById("nb_present");
-          const nbt = document.getElementById("nb_total");
-          if(nbp && data?.nb_present!=null) setTextIfChanged(nbp, String(data.nb_present));
-          if(nbt && data?.nb_total!=null) setTextIfChanged(nbt, String(data.nb_total));
+      Array.from(rowsCache.keys()).forEach(rowId => {
+        if(!idsActuels.has(rowId)){
+          document.getElementById(`fiche-row-${rowId}`)?.remove();
+          rowsCache.delete(rowId);
+        }
+      });
 
-          if (data.evenement && data.evenement.adresse) {
-            const adrEl = document.getElementById("evt-adresse");
-            if (adrEl && adrEl.textContent.trim() !== data.evenement.adresse.trim()) adrEl.textContent = data.evenement.adresse;
-          }
-          const statutSelect = document.getElementById("evt-statut-select");
-          if (statutSelect && data.evenement && data.evenement.statut) {
-            if (statutSelect.value.trim() !== data.evenement.statut.trim()) statutSelect.value = data.evenement.statut.trim();
-          }
-          if (data.evenement && data.evenement.nom) {
-            const nomEl = document.getElementById("evt-nom");
-            if (nomEl && nomEl.textContent.trim() !== data.evenement.nom.trim()) nomEl.textContent = data.evenement.nom;
-            const nomInput = document.getElementById("evt-nom-input");
-            if (nomInput && nomInput.value && nomInput.value.trim() !== data.evenement.nom.trim()) nomInput.value = data.evenement.nom;
-          }
-          if (data.evenement && data.evenement.statut) {
-            const statutEl = document.getElementById("statut-lecture-seule");
-            const newHTML = getStatutEvenementHTML(data.evenement.statut);
-            if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) statutEl.innerHTML = newHTML;
-          }
+      // compteurs / infos evt
+      const nbp = document.getElementById("nb_present");
+      const nbt = document.getElementById("nb_total");
+      if(nbp && json?.nb_present!=null) setTextIfChanged(nbp, String(json.nb_present));
+      if(nbt && json?.nb_total!=null) setTextIfChanged(nbt, String(json.nb_total));
+      if (json.evenement && json.evenement.adresse) {
+        const adrEl = document.getElementById("evt-adresse");
+        if (adrEl && adrEl.textContent.trim() !== json.evenement.adresse.trim()) adrEl.textContent = json.evenement.adresse;
+      }
+      const statutSelect = document.getElementById("evt-statut-select");
+      if (statutSelect && json.evenement && json.evenement.statut) {
+        if (statutSelect.value.trim() !== json.evenement.statut.trim()) statutSelect.value = json.evenement.statut.trim();
+      }
+      if (json.evenement && json.evenement.nom) {
+        const nomEl = document.getElementById("evt-nom");
+        if (nomEl && nomEl.textContent.trim() !== json.evenement.nom.trim()) nomEl.textContent = json.evenement.nom;
+      }
+      if (json.evenement && json.evenement.statut) {
+        const statutEl = document.getElementById("statut-lecture-seule");
+        if (statutEl) {
+          const html = getStatutEvenementHTML(json.evenement.statut);
+          if (statutEl.innerHTML.trim() !== html.trim()) statutEl.innerHTML = html;
+        }
+      }
 
-          applyAllFilters();
-
-          const visible = Array.from(document.querySelectorAll("#fiches-table-body tr")).some(tr => tr.style.display !== "none");
-          if(!visible && (data?.nb_total||0) > 0){
-            document.getElementById("search-bar").value="";
-            Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
-            Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
-            applyAllFilters();
-          }
-        })
-        .catch(err => {
-          console.error("Erreur refresh:", err);
-        });
+      applyAllFilters();
+      showFetchDebug(`URL utilisée: ${url}\nFiches reçues: ${(fiches||[]).length}\nLignes affichées: ${idsActuels.size}`);
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
+      // modals
+      ['modal-bagage','modal-sortie'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
       ['modal-bagage','modal-sortie'].forEach(id=>{
-        const el=document.getElementById(id);
-        if(el) el.style.display='none';
-      });
-      ['modal-bagage','modal-sortie'].forEach(id=>{
-        const m=document.getElementById(id);
-        if(!m) return;
+        const m=document.getElementById(id); if(!m) return;
         m.addEventListener('click', (e)=>{ if(e.target===m) m.style.display='none'; });
       });
-      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); }});
+      document.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ fermerModalBagage(); fermerModalSortie(); } });
 
+      // filtres
       document.getElementById("search-bar").addEventListener("input", applyAllFilters);
       document.getElementById("filter-statut").addEventListener("change", applyAllFilters);
       document.getElementById("filter-competences").addEventListener("change", applyAllFilters);
@@ -644,8 +576,8 @@
         applyAllFilters();
       });
 
-      refreshPageDynamicParts();
-      setInterval(refreshPageDynamicParts, 3000);
+      refreshPage();
+      setInterval(refreshPage, 3000);
     });
 
     function ouvrirModalBagage(ficheId, ficheNumero){
