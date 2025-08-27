@@ -1359,33 +1359,66 @@ def export_evenement_fiches_csv(evenement_id):
 def can_manage_sharing(user):
     return user.is_admin or user.role in {"codep", "responsable"}
 
-# Vue autorité (gestion des liens, login requis)
+# ===== Création d’un lien de partage (affiche le token UNE fois) =====
+@main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
+@login_required
+def create_share_link(evenement_id):
+    import secrets, hashlib
+    user = get_current_user()
+    evt = Evenement.query.get_or_404(evenement_id)
+
+    if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
+        abort(403)
+
+    token = secrets.token_urlsafe(24)  # le jeton qu'on montrera UNE seule fois
+    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    link = ShareLink(
+        token_hash=token_hash,
+        evenement_id=evt.id,
+        created_by=user.id,
+        revoked=False,
+    )
+    db.session.add(link)
+    db.session.commit()
+
+    # 👉 on N'AFFICHE PAS le token via flash (facile à perdre)
+    # On redirige vers la page gestion avec ?token=..., qui l'affichera clairement.
+    return redirect(url_for("main_bp.autorite_dashboard_manage",
+                            evenement_id=evt.id,
+                            token=token))
+
+
+# ===== Gestion des liens : page opérateur =====
 @main_bp.route("/evenement/<int:evenement_id>/autorite", methods=["GET"])
 @login_required
 def autorite_dashboard_manage(evenement_id):
     user = get_current_user()
     evt = Evenement.query.get_or_404(evenement_id)
 
-    # accès : admin/codep/responsable ou créateur
     if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement_id))
 
-    links = ShareLink.query.filter_by(evenement_id=evenement_id) \
-                           .order_by(ShareLink.created_at.desc()).all()
+    links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
+
+    # 🔐 si on vient de créer un lien, on reçoit ?token=... pour l'afficher une seule fois
+    one_time_token = request.args.get("token")
     return render_template("autorite_dashboard.html",
-                           user=user, evenement=evt, links=links, manage=True)
+                           user=user,
+                           evenement=evt,
+                           links=links,
+                           manage=True,
+                           one_time_token=one_time_token)
 
 
-# Révocation d’un lien (login requis)
-# Révocation d’un lien (login requis) — via ID
+# ===== Révocation par ID (pas par token qu’on ne stocke pas) =====
 @main_bp.route("/share/<int:link_id>/revoke", methods=["POST"])
 @login_required
 def revoke_share_link(link_id):
     user = get_current_user()
     link = ShareLink.query.get_or_404(link_id)
 
-    # droits: admin / codep / responsable / créateur de l’évènement
     if not (user.is_admin or user.role in {"codep", "responsable"} or link.evenement.createur_id == user.id):
         abort(403)
 
@@ -1395,51 +1428,35 @@ def revoke_share_link(link_id):
     return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=link.evenement_id))
 
 
-# Endpoint public (sans login) — lecture seule
-@main_bp.route("/autorite/share/<token>")
-def autorite_share_public(token):
-    import hashlib
-    token_hash = hashlib.sha256(token.encode()).hexdigest()
-    link = ShareLink.query.filter_by(token_hash=token_hash).first()
-    if not link or not link.is_active():
-        return render_template("autorite_share_invalid.html"), 410  # expiré/révoqué
-
-    evt = Evenement.query.get_or_404(link.evenement_id)
-    return render_template("autorite_dashboard.html", user=None, evenement=evt, links=None, manage=False, public_token=token)
-
-# JSON pour la “Vue Autorité” (stats + infos clefs)
+# ===== JSON public/privé (inchangé si tu as déjà la version qui marche) =====
 @main_bp.route("/evenement/<int:evenement_id>/autorite_json", methods=["GET"])
 def autorite_json(evenement_id):
     token = request.args.get("token")
     evt = Evenement.query.get_or_404(evenement_id)
 
-    # — Chemin public via token —
     if token:
         import hashlib
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         link = ShareLink.query.filter_by(token_hash=token_hash, evenement_id=evenement_id).first()
         if not link or not link.is_active():
-            return json_nocache({"error": "forbidden"}, 403)
+            return jsonify({"error": "forbidden"}), 403
     else:
-        # — Chemin connecté —
         if "user_id" not in session:
-            return json_nocache({"error": "unauthorized"}, 401)
+            return jsonify({"error":"unauthorized"}), 401
         user = get_current_user()
-        if (evt not in user.evenements) and not (getattr(user, "is_admin", False) or getattr(user, "role", "") in {"codep", "responsable"}):
-            return json_nocache({"error": "forbidden"}, 403)
+        if (evt not in user.evenements) and not (user.is_admin or user.role in {"codep","responsable"}):
+            return jsonify({"error":"forbidden"}), 403
 
     fiches = FicheImplique.query.filter_by(evenement_id=evenement_id).all()
     nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
     nb_sorti   = sum(1 for f in fiches if (f.statut or "").lower() == "sorti")
     nb_total   = len(fiches)
 
-    def fmt(dt):
-        try:
-            return dt.strftime("%d/%m/%Y %H:%M") if dt else ""
-        except Exception:
-            return ""
+    def fmt(dt): 
+        try: return dt.strftime("%d/%m/%Y %H:%M") if dt else ""
+        except: return ""
 
-    return json_nocache({
+    return jsonify({
         "evenement": {
             "id": evt.id,
             "nom": evt.nom or "",
@@ -1447,12 +1464,9 @@ def autorite_json(evenement_id):
             "statut": evt.statut or "",
             "date_ouverture": fmt(getattr(evt, "date_ouverture_locale", None)),
         },
-        "stats": {
-            "nb_present": nb_present,
-            "nb_sorti": nb_sorti,
-            "nb_total": nb_total,
-        }
+        "stats": {"nb_present": nb_present, "nb_sorti": nb_sorti, "nb_total": nb_total}
     })
+
 
 
 
@@ -1496,34 +1510,6 @@ def tickets_board(evenement_id):
     )
 
 ################################################
-
-# ➕ Création d'un lien public (affiche le token une seule fois)
-@main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
-@login_required
-def create_share_link(evenement_id):
-    import secrets, hashlib
-    user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
-
-    if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
-        abort(403)
-
-    token = secrets.token_urlsafe(24)  # le token à transmettre
-    token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-    link = ShareLink(
-        token_hash=token_hash,
-        evenement_id=evt.id,
-        created_by=user.id,
-        revoked=False
-    )
-    db.session.add(link)
-    db.session.commit()
-
-    flash(f"🔗 Lien créé. Token public (à transmettre) : {token}", "success")
-    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evt.id))
-
-
 
 
 
