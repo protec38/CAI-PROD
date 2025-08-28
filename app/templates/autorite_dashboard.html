@@ -105,10 +105,10 @@
 
               {% if l.token %}
                 <div style="height:6px"></div>
-                <code class="share">{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True) }}</code>
+                <code class="share">{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}</code>
                 <div class="row" style="margin-top:8px">
                   <button class="btn btn-secondary" type="button"
-                          onclick="navigator.clipboard.writeText('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True) }}')">
+                          onclick="navigator.clipboard.writeText('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}')">
                     <i class="fa-regular fa-copy"></i> Copier
                   </button>
                   {% if not l.revoked %}
