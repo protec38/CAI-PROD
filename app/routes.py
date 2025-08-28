@@ -523,7 +523,29 @@ def fiche_edit(id):
     ]
 
     if request.method == "POST":
-        # Champs de base
+        # ====== Snapshot avant modifications (pour diff) ======
+        def _val(v):  # normalise None -> ""
+            return "" if v is None else str(v)
+        before = {
+            "nom": _val(fiche.nom),
+            "prenom": _val(fiche.prenom),
+            "statut": _val(fiche.statut),
+            "difficulte": _val(fiche.difficultes),
+            "telephone": _val(fiche.telephone),
+            "adresse": _val(fiche.adresse),
+            "recherche_personne": _val(fiche.recherche_personne),
+            "destination": _val(fiche.destination),
+            "moyen_transport": _val(fiche.moyen_transport),
+            "personne_a_prevenir": _val(fiche.personne_a_prevenir),
+            "numero_pec": _val(getattr(fiche, "numero_pec", "")),
+            "tel_personne_a_prevenir": _val(fiche.tel_personne_a_prevenir),
+            "code_sinus": _val(getattr(fiche, "code_sinus", "")),
+            "competences": _val(fiche.competences),
+            "autres_informations": _val(fiche.autres_informations),
+            "date_naissance": fiche.date_naissance.strftime("%Y-%m-%d") if fiche.date_naissance else "",
+        }
+
+        # ====== Application des modifications ======
         fiche.nom = request.form.get("nom")
         fiche.prenom = request.form.get("prenom")
         fiche.statut = request.form.get("statut")
@@ -536,10 +558,6 @@ def fiche_edit(id):
         fiche.personne_a_prevenir = request.form.get("personne_a_prevenir")
         fiche.numero_pec = request.form.get("numero_pec")
         fiche.tel_personne_a_prevenir = request.form.get("tel_personne_a_prevenir")
-
-        # 🚫 nationalité / effets personnels supprimés (on ne lit plus, on ne modifie plus)
-        # fiche.nationalite = ...
-        # fiche.effets_perso = ...
 
         # 🆕 Code Sinus (30 max)
         code_sinus = (request.form.get("code_sinus") or "").strip()
@@ -559,7 +577,6 @@ def fiche_edit(id):
             if len(autre_txt) > 20:
                 flash("La compétence 'Autre' ne doit pas dépasser 20 caractères.", "danger")
                 return redirect(request.url)
-            # remplace 'Autre' par le texte saisi (si non présent)
             selected_comps = [c for c in selected_comps if c != "Autre"]
             if autre_txt not in selected_comps:
                 selected_comps.append(autre_txt)
@@ -586,7 +603,71 @@ def fiche_edit(id):
         else:
             fiche.date_naissance = None
 
+        # ====== 1er commit : on valide la mise à jour ======
         db.session.commit()
+
+        # ====== Diff après modifications ======
+        after = {
+            "nom": _val(fiche.nom),
+            "prenom": _val(fiche.prenom),
+            "statut": _val(fiche.statut),
+            "difficulte": _val(fiche.difficultes),
+            "telephone": _val(fiche.telephone),
+            "adresse": _val(fiche.adresse),
+            "recherche_personne": _val(fiche.recherche_personne),
+            "destination": _val(fiche.destination),
+            "moyen_transport": _val(fiche.moyen_transport),
+            "personne_a_prevenir": _val(fiche.personne_a_prevenir),
+            "numero_pec": _val(getattr(fiche, "numero_pec", "")),
+            "tel_personne_a_prevenir": _val(fiche.tel_personne_a_prevenir),
+            "code_sinus": _val(getattr(fiche, "code_sinus", "")),
+            "competences": _val(fiche.competences),
+            "autres_informations": _val(fiche.autres_informations),
+            "date_naissance": fiche.date_naissance.strftime("%Y-%m-%d") if fiche.date_naissance else "",
+        }
+
+        # Champs lisibles pour la timeline (clé → libellé)
+        labels = {
+            "nom": "nom",
+            "prenom": "prénom",
+            "statut": "statut",
+            "difficulte": "difficultés",
+            "telephone": "téléphone",
+            "adresse": "adresse",
+            "recherche_personne": "recherche personne",
+            "destination": "destination",
+            "moyen_transport": "moyen transport",
+            "personne_a_prevenir": "personne à prévenir",
+            "numero_pec": "n° PEC",
+            "tel_personne_a_prevenir": "tél. à prévenir",
+            "code_sinus": "code sinus",
+            "competences": "compétences",
+            "autres_informations": "autres informations",
+            "date_naissance": "date de naissance",
+        }
+
+        changes = []
+        for k, lib in labels.items():
+            if before.get(k, "") != after.get(k, ""):
+                old = before.get(k, "")
+                new = after.get(k, "")
+                # On compacte un peu les très longues valeurs
+                def short(s):
+                    s = s or ""
+                    return (s[:60] + "…") if len(s) > 60 else s
+                changes.append(f"{lib}: «{short(old)}» → «{short(new)}»")
+
+        # Ajout timeline si au moins 1 champ a changé
+        if changes:
+            try:
+                content = "Modification fiche — " + "; ".join(changes[:6])  # on limite à 6 changements pour rester lisible
+                if len(changes) > 6:
+                    content += f" (+{len(changes)-6} autres)"
+                add_timeline(fiche.id, user.id, content, "update")
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
         flash("✅ Fiche mise à jour avec succès.", "success")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement.id))
 
@@ -596,6 +677,7 @@ def fiche_edit(id):
         user=user,
         competences_list=COMPETENCES_CAI
     )
+
 
 
 
