@@ -1463,22 +1463,23 @@ def autorite_json(evenement_id):
     token = request.args.get("token")
 
     if token:
-        # Accès public : on valide le token pour CET événement
         link = ShareLink.query.filter_by(
             token=token, revoked=False, evenement_id=evenement_id
         ).first()
         if not link:
-            return jsonify({"error": "invalid_or_revoked_token"}), 403
+            # ✅ lien invalide/révoqué -> code non-200 + no-store
+            return jsonify({"error": "invalid_or_revoked_token"}), 410, {
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            }
         ev = Evenement.query.get_or_404(evenement_id)
     else:
-        # Accès interne : il faut être connecté et autorisé
         if not current_user.is_authenticated:
             abort(401)
         ev = Evenement.query.get_or_404(evenement_id)
-        # (option) tu peux vérifier ici que current_user a bien accès à ev
 
-    # Stats simples (ajuste si tes statuts diffèrent)
-    nb_total  = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id).count()
+    nb_total   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id).count()
     nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
     nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
 
@@ -1497,7 +1498,12 @@ def autorite_json(evenement_id):
             "nb_present": nb_present,
             "nb_sorti": nb_sorti,
         }
-    })
+    }), 200, {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
 
 
 
