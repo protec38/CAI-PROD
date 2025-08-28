@@ -1,11 +1,83 @@
 {% extends "base.html" %}
 {% block content %}
 
+<!-- ===== Fix overlap header / responsive tweaks (local styles) ===== -->
+<style>
+  :root { --nav-h: 64px; }
+  /* espace sous navbar fixe */
+  .nav-offset { height: var(--nav-h); }
+  /* marge de sécurité si base.html met déjà du padding-top */
+  .fd-wrap { margin-top: 8px; }
+
+  /* Layouts */
+  .fd-hero { background: #f7f9fc; border-radius: 16px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .fd-hero h2 { margin: 0 0 8px 0; }
+  .meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+  .chip { display:inline-flex; align-items:center; gap:6px; background:#eef3ff; color:#003b71; border-radius:999px; padding:6px 10px; font-weight:500; }
+
+  .fd-tiles { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin-top:14px; }
+  .tile { display:flex; gap:10px; background:white; border:1px solid #e7edf5; border-radius:12px; padding:12px; align-items:center; }
+  .tile .k { font-size:.85rem; color:#4a5568; }
+  .tile .v { font-weight:600; }
+
+  .timeline { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:14px; }
+  .timeline .dot { width:36px; height:36px; border-radius:50%; background:#ffefe3; color:#f58220; display:inline-flex; align-items:center; justify-content:center; }
+  .timeline .lbl { font-size:.8rem; color:#6b7280; }
+  .timeline .val { font-weight:600; }
+  .timeline .sep { flex:1; height:2px; background:linear-gradient(90deg, #ffe1c9, #e7edf5); border-radius:8px; }
+
+  .fd-grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-top:16px; }
+  .fd-card { background:white; border:1px solid #e7edf5; border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+  .fd-section { padding:14px; }
+  .fd-section h4 { margin:0 0 10px; display:flex; gap:8px; align-items:center; }
+
+  .fd-list { display:grid; grid-template-columns: 1fr 1fr; column-gap:16px; row-gap:10px; }
+  .fd-item { display:grid; grid-template-columns: 180px 1fr; gap:10px; align-items:flex-start; }
+  .fd-item .lbl { color:#6b7280; font-weight:500; }
+  .fd-item .val { font-weight:600; }
+
+  .fd-badges { display:flex; flex-wrap:wrap; gap:8px; }
+  .badge-competence, .badge-bagage {
+    display:inline-flex; gap:6px; align-items:center; padding:6px 10px; border-radius:999px;
+    background:#f1f5f9; border:1px solid #e7edf5; font-weight:600;
+  }
+  .statut-pill { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; font-weight:700; }
+  .statut-present { background:#e8f6ef; color:#16794d; border:1px solid #c9ecd9; }
+  .statut-sorti { background:#fff3d6; color:#8a6100; border:1px solid #ffe7ad; }
+  .statut-supprime { background:#fde2e2; color:#b42318; border:1px solid #f9c6c6; }
+
+  .fd-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:16px; }
+  .btn-soft { display:inline-flex; align-items:center; gap:8px; border-radius:10px; padding:8px 12px; text-decoration:none; font-weight:600; border:1px solid transparent; }
+  .btn-secondary { background:#eef3ff; color:#003b71; border-color:#dbe6ff; }
+  .btn-warning { background:#fff1e6; color:#b35100; border-color:#ffd8bd; }
+
+  /* Timeline (commentaires) */
+  section.card { background:white; border:1px solid #e7edf5; border-radius:16px; padding:14px; }
+  .timeline-list { margin-top:12px; }
+  .timeline-ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px; }
+  .timeline-item { border:1px dashed #e7edf5; border-radius:12px; padding:10px; background:#fcfdff; }
+  .timeline-time { font-size:.85rem; color:#6b7280; }
+  .timeline-content { margin-top:6px; white-space:pre-wrap; }
+  .timeline-meta { margin-top:6px; font-size:.85rem; color:#6b7280; }
+
+  /* Mobile */
+  @media (max-width: 1024px) {
+    .fd-tiles { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .fd-grid { grid-template-columns: 1fr; }
+    .fd-item { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    :root { --nav-h: 72px; } /* nav un peu plus haute sur mobile */
+  }
+</style>
+
+<!-- ===== spacer sous navbar fixe ===== -->
+<div class="nav-offset" aria-hidden="true"></div>
 
 <div class="fd-wrap">
 
   <!-- ===== HERO ===== -->
-  <div class="fd-hero">
+  <div class="fd-hero" id="top">
     <h2>Détail de la fiche impliqué</h2>
     <div class="meta">
       <span class="chip"><i class="fa-solid fa-hashtag"></i> {{ fiche.numero }}</span>
@@ -56,14 +128,14 @@
         <span class="dot"><i class="fa-solid fa-arrow-down"></i></span>
         <div>
           <div class="lbl">Arrivée</div>
-          <div class="val">{{ fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') if fiche.heure_arrivee_locale else '—' }}</div>
+          <div class="val">{{ fiche.heure_arrivee_locale|default('', true)|length and fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') or '—' }}</div>
         </div>
       </div>
       <div class="sep"></div>
       <div style="display:flex; align-items:center; gap:10px;">
         <div style="text-align:right">
           <div class="lbl">Sortie</div>
-          <div class="val">{{ fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') if fiche.heure_sortie_locale else '—' }}</div>
+          <div class="val">{{ fiche.heure_sortie_locale|default('', true)|length and fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') or '—' }}</div>
         </div>
         <span class="dot"><i class="fa-solid fa-arrow-up"></i></span>
       </div>
@@ -94,7 +166,6 @@
           <span class="val">{{ fiche.code_sinus or 'Non renseigné' }}</span>
         </div>
 
-        <!-- 🆕 N° prise en charge (Argos/AEP) -->
         <div class="fd-item">
           <span class="lbl">N° prise en charge (Argos/AEP)</span>
           <span class="val">{{ fiche.numero_pec or 'Non renseigné' }}</span>
@@ -223,24 +294,24 @@
   </div>
 </div>
 
-<section id="timeline" class="card" style="margin-top:16px;">
+<section id="timeline" class="card" style="margin-top:16px; scroll-margin-top: var(--nav-h);">
   <h2>Suivi / Timeline</h2>
-  <form method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}" class="row">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-    <textarea name="comment" rows="3" placeholder="Ajouter un commentaire de suivi..." style="flex:1; width:100%;"></textarea>
-    <button class="btn" type="submit">Ajouter</button>
+  <!-- ⚠️ aligne le nom du champ avec ton modèle Entry (content) -->
+  <form method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}" class="row" style="display:flex; gap:8px; align-items:flex-start;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="content" rows="3" placeholder="Ajouter un commentaire de suivi..." style="flex:1; width:100%;"></textarea>
+    <button class="btn-soft btn-secondary" type="submit"><i class="fa-solid fa-plus"></i> Ajouter</button>
   </form>
+
   <div class="timeline-list">
-    
     {% if not entries %}
       <p class="muted">Aucun commentaire pour l'instant.</p>
     {% else %}
       <ul class="timeline-ul">
         {% for e in entries %}
-          <li class="timeline-item">
+          <li class="timeline-item" id="entry-{{ e.id }}" style="scroll-margin-top: calc(var(--nav-h) + 8px);">
             <div class="timeline-time">{{ e.created_at|fr_datetime }}</div>
-            <div class="timeline-content">{{ e.content|e }}</div>
+            <div class="timeline-content">{{ (e.content or e.message)|e }}</div>
             <div class="timeline-meta">par #{{ e.user_id }}</div>
           </li>
         {% endfor %}
