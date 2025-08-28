@@ -83,6 +83,9 @@
   tbody tr:nth-child(odd){ background:#fbfdff; }
   tbody tr:hover{ background:#f4f8ff; }
 
+  .u-login{ font-weight:900; }
+  .u-id{ color: var(--muted); font-size:.9rem; margin-left:.25rem; }
+
   /* Pagination */
   .pagination{
     margin: 14px 0 0; display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap;
@@ -151,7 +154,16 @@
             {% for e in logs.items %}
               <tr>
                 <td data-label="Quand">{{ e.created_at|fr_datetime }}</td>
-                <td data-label="Utilisateur">{% if e.user_id %}#{{ e.user_id }}{% else %}—{% endif %}</td>
+                <td data-label="Utilisateur">
+                  {% if e.user %}
+                    <span class="u-login">{{ e.user.nom_utilisateur }}</span>
+                    <span class="u-id">#{{ e.user_id }}</span>
+                  {% elif e.user_id %}
+                    <span class="u-login">#{{ e.user_id }}</span>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
                 <td data-label="Action">{{ e.action }}</td>
                 <td data-label="Objet">{{ e.entity_type or "—" }}</td>
                 <td data-label="ID">{{ e.entity_id or "—" }}</td>
