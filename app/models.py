@@ -256,6 +256,7 @@ class AuditLog(db.Model):
     entity_id = db.Column(db.Integer, nullable=True)
     ip = db.Column(db.String(64), nullable=True)
     extra = db.Column(db.Text, nullable=True)
+    user = db.relationship("Utilisateur", backref="audit_logs", lazy="joined")
 
 
 # ======================
