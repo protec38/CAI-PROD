@@ -113,7 +113,7 @@
                   </button>
                   {% if not l.revoked %}
                   <form class="inline" method="POST"
-                        action="{{ url_for('main_bp.revoke_share_link', token=l.token) }}"
+                        action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
                         onsubmit="return confirm('Révoquer ce lien ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
