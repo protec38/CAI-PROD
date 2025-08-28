@@ -284,3 +284,26 @@ class TimelineEntry(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
     kind = db.Column(db.String(20), default="comment", nullable=False)  # comment/status/etc.
     content = db.Column(db.Text, nullable=False)
+
+
+
+############################
+
+class EventNews(db.Model):
+    __tablename__ = "event_news"
+    id = db.Column(db.Integer, primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False, index=True)
+    created_by   = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
+    created_at   = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # contenu
+    message      = db.Column(db.Text, nullable=False)
+    # priorité: 1=Urgent, 2=Important, 3=Info (plus petit = plus prioritaire)
+    priority     = db.Column(db.Integer, default=3, nullable=False)
+    # symbole (classe FontAwesome ex: "fa-triangle-exclamation", "fa-bullhorn", "fa-circle-info")
+    icon         = db.Column(db.String(64), nullable=False, default="fa-circle-info")
+
+    # affichage
+    is_active    = db.Column(db.Boolean, nullable=False, default=True)
+
+    evenement    = db.relationship("Evenement", backref=db.backref("news", lazy="dynamic"))

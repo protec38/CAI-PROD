@@ -19,83 +19,50 @@
     *{box-sizing:border-box}
     html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;color:var(--ink);background:linear-gradient(180deg,#0b2240 0%,#0b2240 24%,#f6f8fc 24%)}
     a{text-decoration:none}
-    /* Header */
-    .topbar{
-      position:sticky; top:0; z-index:50;
-      background:linear-gradient(90deg,var(--pc-blue),#012e5a);
-      color:#fff; border-bottom:3px solid var(--pc-orange);
-      padding:10px 14px;
-      box-shadow:0 8px 20px rgba(0,0,0,.18);
-    }
+    .topbar{position:sticky; top:0; z-index:50;background:linear-gradient(90deg,var(--pc-blue),#012e5a);
+      color:#fff; border-bottom:3px solid var(--pc-orange);padding:10px 14px;box-shadow:0 8px 20px rgba(0,0,0,.18);}
     .tb-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:12px}
-    .logo{
-      width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--pc-orange),#ff9f49);
-      display:grid;place-items:center;color:#112944;font-weight:900;box-shadow:inset 0 2px 8px rgba(0,0,0,.2)
-    }
+    .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--pc-orange),#ff9f49);
+      display:grid;place-items:center;color:#112944;font-weight:900;box-shadow:inset 0 2px 8px rgba(0,0,0,.2)}
     .tb-title{font-weight:900;letter-spacing:.2px}
     .live{display:inline-flex;align-items:center;gap:8px;margin-left:auto;font-weight:800}
     .pulse{width:10px;height:10px;border-radius:999px;background:#2dde66;position:relative}
     .pulse::after{content:"";position:absolute;inset:-4px;border-radius:999px;border:2px solid rgba(45,222,102,.5);animation:pulse 1.2s infinite}
     @keyframes pulse{0%{transform:scale(.7);opacity:1}100%{transform:scale(1.4);opacity:0}}
-    /* Layout */
     .wrap{max-width:1100px;margin:20px auto;padding:12px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
-    .hero{
-      color:#fff;padding:22px;border-radius:18px;margin-bottom:16px;overflow:hidden;position:relative;
-      background:linear-gradient(135deg,rgba(0,47,108,.96),rgba(245,130,32,.92));
-    }
-    .hero::after{
-      content:"";position:absolute;right:-80px;top:-80px;width:220px;height:220px;border-radius:50%;
-      background:radial-gradient(closest-side,rgba(255,255,255,.18),rgba(255,255,255,0));
-      filter:blur(3px)
-    }
+    .hero{color:#fff;padding:22px;border-radius:18px;margin-bottom:16px;overflow:hidden;position:relative;
+      background:linear-gradient(135deg,rgba(0,47,108,.96),rgba(245,130,32,.92));}
+    .hero::after{content:"";position:absolute;right:-80px;top:-80px;width:220px;height:220px;border-radius:50%;
+      background:radial-gradient(closest-side,rgba(255,255,255,.18),rgba(255,255,255,0));filter:blur(3px)}
     .hero h1{margin:0 0 12px 0;font-size:26px;letter-spacing:.2px}
     .chips{display:flex;gap:10px;flex-wrap:wrap}
-    .chip{
-      background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
-      padding:8px 12px;border-radius:999px;font-weight:800;display:inline-flex;gap:8px;align-items:center
-    }
+    .chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);padding:8px 12px;border-radius:999px;font-weight:800;display:inline-flex;gap:8px;align-items:center}
     .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
     @media (max-width:860px){.tiles{grid-template-columns:1fr}}
-    .tile{
-      background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;
-      box-shadow:0 8px 18px rgba(17,29,56,.08)
-    }
+    .tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 18px rgba(17,29,56,.08)}
     .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#f2f6fb;color:#0b2a55;font-size:18px}
     .k{font-size:12px;color:#536276;font-weight:900;text-transform:uppercase;letter-spacing:.4px}
     .v{font-size:28px;font-weight:900;color:var(--ink);min-height:34px}
-    /* Manage block */
     .manage{margin-top:16px}
     .links{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
-    .btn{
-      display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;
-      padding:10px 12px;border-radius:10px;font-weight:900;cursor:pointer
-    }
+    .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;padding:10px 12px;border-radius:10px;font-weight:900;cursor:pointer}
     .btn-primary{background:var(--pc-yellow);color:#00122a;border-color:rgba(0,0,0,.12)}
     .btn-secondary{background:#eef2f7;color:#111;border-color:#dfe7f1}
     .btn-danger{background:var(--err);color:#fff;border-color:#e44e59}
     .btn:hover{filter:brightness(.98)}
-    code.share{
-      display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fafcff;
-      word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace
-    }
+    code.share{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fafcff;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
     .muted{color:var(--muted);font-size:13px}
     .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
     form.inline{display:inline}
     .sp{height:8px}
-    /* Toast */
-    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;
-           padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
-    .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
-    /* Skeleton (chargement) */
-    .sk{background:linear-gradient(90deg,#eef2f7 25%,#f7f9fc 37%,#eef2f7 63%);background-size:400% 100%;animation:sh 1.2s ease-in-out infinite;border-radius:8px}
-    .sk.small{height:16px;width:80px}
-    .sk.mid{height:28px;width:120px}
-    @keyframes sh{0%{background-position:100% 0}100%{background-position:-100% 0}}
+    /* Bloc actus */
+    #news-ticker{margin-top:16px;display:none}
+    #news-list div{padding:8px 10px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    #news-list .chip{background:#eef5ff;color:#0b2a55;border:1px solid #d9e6ff}
   </style>
 </head>
 <body>
-  <!-- Topbar -->
   <header class="topbar">
     <div class="tb-inner">
       <div class="logo">PC</div>
@@ -105,44 +72,33 @@
   </header>
 
   <div class="wrap">
-    <!-- HERO -->
-    <div class="hero card" role="banner" aria-label="En-tête de l'évènement">
+    <div class="hero card">
       <h1 id="evt-nom"><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
       <div class="chips">
         <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
-        <span class="chip" id="evt-statut-chip">
-          {% set st = evenement.statut or '' %}
+        <span class="chip" id="evt-statut-chip">{% set st = evenement.statut or '' %}
           {% if st == 'Ouvert' %}<i class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
           {% elif st == 'Complet' %}<i class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
           {% elif st == 'Fermé' %}<i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
           {% elif st == 'En cours de gréement' %}<i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
           {% elif st == 'Effectif dépassé' %}<i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
-          {% else %}<i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>
-          {% endif %}
+          {% else %}<i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>{% endif %}
         </span>
         <span class="chip"><i class="fa-solid fa-clock"></i> <span id="evt-date">{{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}</span></span>
       </div>
-
-      <div class="tiles" aria-live="polite">
-        <div class="tile">
-          <div class="ico"><i class="fa-solid fa-user-check"></i></div>
-          <div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div>
-        </div>
-        <div class="tile">
-          <div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
-          <div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div>
-        </div>
-        <div class="tile">
-          <div class="ico"><i class="fa-solid fa-people-group"></i></div>
-          <div><div class="k">Total</div><div class="v" id="stat-total">—</div></div>
-        </div>
+      <div class="tiles">
+        <div class="tile"><div class="ico"><i class="fa-solid fa-user-check"></i></div><div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div><div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div></div>
+        <div class="tile"><div class="ico"><i class="fa-solid fa-people-group"></i></div><div><div class="k">Total</div><div class="v" id="stat-total">—</div></div></div>
       </div>
     </div>
 
+    <!-- Ruban Actus -->
+    <div id="news-ticker" class="card"><h3><i class="fa-solid fa-bullhorn"></i> Actualités</h3><div id="news-list"></div></div>
+
     {% if manage %}
-    <!-- GESTION PARTAGE -->
     <div class="card manage">
-      <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+      <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn btn-primary" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
@@ -154,31 +110,20 @@
         {% if links %}
           {% for l in links %}
             <div style="margin:12px 0; padding:12px; border:1px dashed var(--line); border-radius:12px;">
-              <div>
-                <strong>Créé :</strong>
-                {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}
-                {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}
-              </div>
-
+              <div><strong>Créé :</strong> {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}{% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}</div>
               {% if l.token %}
                 <div style="height:6px"></div>
                 <code class="share">{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}</code>
                 <div class="row" style="margin-top:8px">
-                  <button class="btn btn-secondary" type="button"
-                          onclick="copyShare('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}')">
-                    <i class="fa-regular fa-copy"></i> Copier
-                  </button>
+                  <button class="btn btn-secondary" type="button" onclick="copyShare('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}')"><i class="fa-regular fa-copy"></i> Copier</button>
                   {% if not l.revoked %}
-                  <form class="inline" method="POST"
-                        action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
-                        onsubmit="return confirm('Révoquer ce lien ?');">
+                  <form class="inline" method="POST" action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}" onsubmit="return confirm('Révoquer ce lien ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
                   </form>
                   {% endif %}
                 </div>
               {% else %}
-                <div style="height:6px"></div>
                 <code class="share">Lien non récupérable (token affiché à la création)</code>
               {% endif %}
             </div>
@@ -191,90 +136,20 @@
     {% endif %}
   </div>
 
-  <div id="toast" class="toast" role="status" aria-live="polite">Lien copié dans le presse-papiers</div>
+  <div id="toast" class="toast">Lien copié dans le presse-papiers</div>
 
   <script>
     const EVT_ID = {{ evenement.id }};
     const PUBLIC_TOKEN = {{ (public_token | default(None)) | tojson }};
     const INVALID_URL_TMPL = "{{ url_for('main_bp.autorite_share_public', token='__TOKEN__') }}";
 
-    function toast(msg){
-      const t = document.getElementById('toast');
-      if(!t) return;
-      t.textContent = msg || 'Action effectuée';
-      t.classList.add('show');
-      setTimeout(()=>t.classList.remove('show'), 1600);
-    }
-    function copyShare(text){
-      navigator.clipboard.writeText(text).then(()=>toast('Lien copié'));
-    }
-
-    function setTxt(id, val){
-      const el = document.getElementById(id);
-      if(!el) return;
-      const next = (val === undefined || val === null || val === '') ? '—' : String(val);
-      if(el.textContent.trim() !== next.trim()){ el.textContent = next; }
-    }
-    function setStatutChip(statut){
-      const chip = document.getElementById('evt-statut-chip');
-      if(!chip) return;
-      let icon = '<i class="fa-regular fa-circle"></i>';
-      if(statut==='Ouvert') icon = '<i class="fa-solid fa-circle" style="color:var(--ok)"></i>';
-      else if(statut==='Complet') icon = '<i class="fa-solid fa-circle" style="color:var(--warn)"></i>';
-      else if(statut==='Fermé') icon = '<i class="fa-solid fa-circle-xmark"></i>';
-      else if(statut==='En cours de gréement') icon = '<i class="fa-solid fa-screwdriver-wrench"></i>';
-      else if(statut==='Effectif dépassé') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
-      chip.innerHTML = icon + ' <span id="evt-statut"></span>';
-      document.getElementById('evt-statut').textContent = statut || '—';
-    }
-
-    function refreshAutorite(){
-      const qs = PUBLIC_TOKEN ? `?token=${encodeURIComponent(PUBLIC_TOKEN)}` : '';
-      // Skeleton rapide sur premier chargement
-      if(!document._hydrated){
-        setTxt('stat-present',''); setTxt('stat-sorti',''); setTxt('stat-total','');
-        ['stat-present','stat-sorti','stat-total'].forEach(id=>{
-          const el = document.getElementById(id);
-          if(el && !el.dataset.sk){ el.dataset.sk=1; el.classList.add('sk','mid'); }
-        });
-      }
-      fetch(`/evenement/${EVT_ID}/autorite_json${qs}`, { cache:'no-store' })
-        .then(r=>{
-          if(!r.ok){
-            if(PUBLIC_TOKEN){
-              const url = INVALID_URL_TMPL.replace('__TOKEN__', PUBLIC_TOKEN);
-              window.location.replace(url);
-            }
-            throw new Error("HTTP "+r.status);
-          }
-          return r.json();
-        })
-        .then(d=>{
-          document._hydrated = true;
-          ['stat-present','stat-sorti','stat-total'].forEach(id=>{
-            const el = document.getElementById(id);
-            if(el){ el.classList.remove('sk','mid'); delete el.dataset.sk; }
-          });
-
-          if(d.evenement){
-            setTxt('evt-nom', d.evenement.nom);
-            setTxt('evt-adresse', d.evenement.adresse);
-            setTxt('evt-date', d.evenement.date_ouverture);
-            setStatutChip(d.evenement.statut);
-          }
-          if(d.stats){
-            setTxt('stat-present', d.stats.nb_present);
-            setTxt('stat-sorti', d.stats.nb_sorti);
-            setTxt('stat-total', d.stats.nb_total);
-          }
-        })
-        .catch(err=>console.warn('autorite_json error', err));
-    }
-
-    document.addEventListener('DOMContentLoaded', ()=>{
-      refreshAutorite();
-      setInterval(refreshAutorite, 4000);
-    });
+    function toast(msg){const t=document.getElementById('toast');if(!t)return;t.textContent=msg||'Action effectuée';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600);}
+    function copyShare(text){navigator.clipboard.writeText(text).then(()=>toast('Lien copié'));}
+    function setTxt(id,val){const el=document.getElementById(id);if(!el)return;const next=(val===undefined||val===null||val==='')?'—':String(val);if(el.textContent.trim()!==next.trim()){el.textContent=next;}}
+    function setStatutChip(statut){const chip=document.getElementById('evt-statut-chip');if(!chip)return;let icon='<i class="fa-regular fa-circle"></i>';if(statut==='Ouvert')icon='<i class="fa-solid fa-circle" style="color:var(--ok)"></i>';else if(statut==='Complet')icon='<i class="fa-solid fa-circle" style="color:var(--warn)"></i>';else if(statut==='Fermé')icon='<i class="fa-solid fa-circle-xmark"></i>';else if(statut==='En cours de gréement')icon='<i class="fa-solid fa-screwdriver-wrench"></i>';else if(statut==='Effectif dépassé')icon='<i class="fa-solid fa-triangle-exclamation"></i>';chip.innerHTML=icon+' <span id="evt-statut"></span>';document.getElementById('evt-statut').textContent=statut||'—';}
+    function renderNews(items){const box=document.getElementById('news-ticker');const list=document.getElementById('news-list');if(!box||!list)return;list.innerHTML='';if(!items||!items.length){box.style.display='none';return;}items.forEach(n=>{const line=document.createElement('div');const chip=document.createElement('span');chip.className='chip';chip.innerHTML=`<i class="fa-solid ${n.icon||'fa-circle-info'}"></i> ${n.priority==1?'Urgent':(n.priority==2?'Important':'Info')}`;const txt=document.createElement('span');txt.textContent=n.message;line.appendChild(chip);line.appendChild(txt);list.appendChild(line);});box.style.display='';}
+    function refreshAutorite(){const qs=PUBLIC_TOKEN?`?token=${encodeURIComponent(PUBLIC_TOKEN)}`:'';fetch(`/evenement/${EVT_ID}/autorite_json${qs}`,{cache:'no-store'}).then(r=>{if(!r.ok){if(PUBLIC_TOKEN){const url=INVALID_URL_TMPL.replace('__TOKEN__',PUBLIC_TOKEN);window.location.replace(url);}throw new Error("HTTP "+r.status);}return r.json();}).then(d=>{if(d.evenement){setTxt('evt-nom',d.evenement.nom);setTxt('evt-adresse',d.evenement.adresse);setTxt('evt-date',d.evenement.date_ouverture);setStatutChip(d.evenement.statut);}if(d.stats){setTxt('stat-present',d.stats.nb_present);setTxt('stat-sorti',d.stats.nb_sorti);setTxt('stat-total',d.stats.nb_total);}if(Array.isArray(d.news)){renderNews(d.news);}}).catch(err=>console.warn('autorite_json error',err));}
+    document.addEventListener('DOMContentLoaded',()=>{refreshAutorite();setInterval(refreshAutorite,4000);});
   </script>
 </body>
 </html>

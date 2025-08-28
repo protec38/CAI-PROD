@@ -1463,11 +1463,8 @@ def autorite_json(evenement_id):
     token = request.args.get("token")
 
     if token:
-        link = ShareLink.query.filter_by(
-            token=token, revoked=False, evenement_id=evenement_id
-        ).first()
+        link = ShareLink.query.filter_by(token=token, revoked=False, evenement_id=evenement_id).first()
         if not link:
-            # ✅ lien invalide/révoqué -> code non-200 + no-store
             return jsonify({"error": "invalid_or_revoked_token"}), 410, {
                 "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
                 "Pragma": "no-cache",
@@ -1483,6 +1480,17 @@ def autorite_json(evenement_id):
     nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
     nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
 
+    # 🔥 ACTUS actives, triées par priorité puis date
+    news_q = (EventNews.query
+              .filter_by(evenement_id=evenement_id, is_active=True)
+              .order_by(EventNews.priority.asc(), EventNews.created_at.desc()))
+    news_items = [{
+        "id": n.id,
+        "message": n.message,
+        "priority": n.priority,
+        "icon": n.icon,
+    } for n in news_q.limit(12).all()]  # limite raisonnable
+
     date_str = ev.date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture_locale", None) else ""
 
     return jsonify({
@@ -1497,7 +1505,8 @@ def autorite_json(evenement_id):
             "nb_total": nb_total,
             "nb_present": nb_present,
             "nb_sorti": nb_sorti,
-        }
+        },
+        "news": news_items
     }), 200, {
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
         "Pragma": "no-cache",
@@ -1549,7 +1558,53 @@ def tickets_board(evenement_id):
 
 ################################################
 
+# --- Création d'une actu depuis la page de gestion ---
+@main_bp.route("/evenement/<int:evenement_id>/news", methods=["POST"])
+@login_required
+def create_event_news(evenement_id):
+    ev = Evenement.query.get_or_404(evenement_id)
 
+    msg = (request.form.get("message") or "").strip()
+    priority = int(request.form.get("priority") or 3)
+    icon = (request.form.get("icon") or "fa-circle-info").strip()  # classe fa-... sans le 'fa-solid' devant
+
+    if not msg:
+        flash("Le message est obligatoire.", "danger")
+        return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evenement_id))
+
+    news = EventNews(
+        evenement_id=ev.id,
+        created_by=(current_user.id if current_user.is_authenticated else None),
+        message=msg,
+        priority=max(1, min(priority, 3)),
+        icon=icon,
+        is_active=True,
+    )
+    db.session.add(news)
+    db.session.commit()
+    flash("Actualité ajoutée.", "success")
+    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=evenement_id))
+
+# --- Basculer actif/inactif ---
+@main_bp.route("/news/<int:news_id>/toggle", methods=["POST"])
+@login_required
+def toggle_event_news(news_id):
+    news = EventNews.query.get_or_404(news_id)
+    news.is_active = not news.is_active
+    db.session.commit()
+    flash("Actualité mise à jour.", "success")
+    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=news.evenement_id))
+
+# --- Supprimer ---
+@main_bp.route("/news/<int:news_id>/delete", methods=["POST"])
+@login_required
+def delete_event_news(news_id):
+    news = EventNews.query.get_or_404(news_id)
+    eid = news.evenement_id
+    db.session.delete(news)
+    db.session.commit()
+    flash("Actualité supprimée.", "success")
+    return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=eid))
 
 ############################
 
