@@ -1,115 +1,109 @@
+<!-- templates/tickets_board.html -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Tickets — {{ evenement.nom }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" />
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tickets – {{ evenement.nom }}</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 
   <style>
     :root{
-      --ink:#0b1523; --muted:#6b778b; --line:#e9eef6;
-      --card:#ffffff; --bg:#f4f7fb; --shadow:0 16px 40px rgba(17, 29, 56, .10);
-      --blue:#003b71; --blue-2:#0a2e55; --orange:#f58220; --green:#22c55e; --red:#ef4444; --yellow:#ffcc00;
-      --radius:16px;
+      --pc-blue:#003b71; --pc-blue-2:#0a2e55;
+      --pc-orange:#f58220; --pc-yellow:#ffcc00;
+      --bg:#0b2240; --bg2:#f6f8fc; --ink:#0b1523; --muted:#6b778b; --line:#e7edf5;
+      --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+      --card:#ffffff; --radius:16px; --shadow:0 14px 36px rgba(17,29,56,.12);
     }
     *{box-sizing:border-box}
-    html,body{height:100%;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;color:var(--ink);background:linear-gradient(180deg,#0b2240 0%,#0b2240 20%,#f6f8fc 20%)}
+    html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;background:linear-gradient(180deg,var(--bg) 0%,var(--bg) 24%,var(--bg2) 24%);color:var(--ink);min-height:100dvh}
 
     /* Topbar */
-    .topbar{
-      position:sticky; top:0; z-index:50;
-      background:linear-gradient(90deg,var(--blue),#012e5a); color:#fff;
-      border-bottom:3px solid var(--orange); box-shadow:0 10px 26px rgba(0,0,0,.18);
-    }
-    .tb-inner{max-width:1400px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 18px}
-    .logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--orange),#ff9f49);display:grid;place-items:center;color:#112944;font-weight:900;box-shadow:inset 0 2px 8px rgba(0,0,0,.2)}
+    .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(90deg,var(--pc-blue),#012e5a);color:#fff;border-bottom:3px solid var(--pc-orange);padding:12px 16px;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+    .tb-inner{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--pc-orange),#ff9f49);display:grid;place-items:center;color:#112944;font-weight:900;box-shadow:inset 0 2px 8px rgba(0,0,0,.2)}
     .tb-title{font-weight:900;letter-spacing:.2px}
-    .tb-actions{margin-left:auto;display:flex;gap:10px}
-    .btn, .btn-soft{
-      display:inline-flex;align-items:center;gap:8px;cursor:pointer;border-radius:12px;padding:10px 12px;font-weight:800;border:1px solid transparent;transition:filter .15s ease, transform .04s ease;
-      user-select:none;text-decoration:none
-    }
-    .btn:active,.btn-soft:active{transform:translateY(1px)}
-    .btn{background:var(--yellow);color:#00122a;border-color:rgba(0,0,0,.08)}
-    .btn-soft{background:#eef3fb;color:#0b2240;border:1px solid #d9e6ff}
-    .btn-danger{background:var(--red);color:#fff;border-color:#e44e59}
-    .btn:hover,.btn-soft:hover{filter:brightness(.98)}
+    .right{margin-left:auto;display:flex;gap:10px}
+    .btn-top{display:inline-flex;align-items:center;gap:8px;background:#ffeb8a;color:#00122a;border:1px solid rgba(0,0,0,.12);padding:10px 12px;border-radius:10px;font-weight:900}
 
     /* Layout */
-    .wrap{max-width:1400px;margin:18px auto;padding:0 18px}
-    .board{display:grid;grid-template-columns:420px 1fr;gap:16px}
-    @media (max-width:1200px){.board{grid-template-columns:1fr}}
+    .wrap{max-width:1200px;margin:18px auto;padding:14px}
+    .hero{background:linear-gradient(135deg,rgba(0,47,108,.96),rgba(245,130,32,.92));color:#fff;border-radius:18px;padding:20px 18px;box-shadow:var(--shadow)}
+    .hero h2{margin:0 0 6px 0}
+    .hero .muted{color:#f1f5f9}
+
+    .board{display:grid;grid-template-columns:360px 1fr;gap:16px;margin-top:14px}
+    @media (max-width:1000px){.board{grid-template-columns:1fr}}
 
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#013764,#0a2e55);color:#fff}
-    .card-content{padding:16px}
+    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);background:#f8fbff;font-weight:900}
+    .card-content{padding:14px 16px}
 
-    /* Form */
-    .field{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
-    .field label{font-size:13px;color:#415165;font-weight:800}
-    .field input[type="text"], .field textarea, .field select{
-      padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fbfdff;outline:none
-    }
-    .field textarea{resize:vertical}
+    /* Forms */
+    .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+    .field label{font-weight:800;font-size:14px}
+    .field input[type="text"],
+    .field textarea,
+    .field select{border:1px solid #d8dee9;border-radius:12px;padding:10px 12px;font-size:14px;background:#fff}
+    .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;padding:10px 12px;border-radius:10px;font-weight:900;cursor:pointer;background:var(--pc-yellow);color:#00122a;border-color:rgba(0,0,0,.12)}
+    .btn:hover{filter:brightness(.98)}
+    .btn-soft{display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe7f1;background:#eef2f7;color:#111;padding:8px 10px;border-radius:10px;font-weight:800;cursor:pointer}
+    .btn-danger{background:var(--err);border-color:#e44e59;color:#fff}
 
     /* Filters */
-    .filters{
-      display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;background:#f7faff;border:1px solid var(--line);
-      padding:10px;border-radius:12px
-    }
-    .filters select,.filters input{padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+    .filters select,.filters input{border:1px solid #d8dee9;border-radius:10px;padding:10px;min-width:160px}
 
-    /* List */
+    /* Tickets list */
     .tickets{display:grid;gap:12px}
-    .ticket{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;box-shadow:0 8px 22px rgba(17,29,56,.07)}
-    .title{font-weight:900;font-size:18px;display:flex;align-items:center;gap:8px}
-    .desc{color:#2b3850}
-    .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
-    .chip{
-      display:inline-flex;gap:8px;align-items:center;border-radius:999px;padding:6px 10px;
-      border:1px solid #dfe7f5;background:#f3f7ff;color:#0b2a55;font-weight:800;font-size:13px
-    }
-    .status-badge{
-      display:inline-flex;align-items:center;gap:8px;font-weight:900;border-radius:999px;padding:6px 10px;border:1px solid transparent
-    }
-    .st-ouvert{background:#eef8ff;border-color:#d5eaff;color:#0b2a55}
-    .st-encours{background:#fff7e6;border-color:#ffe1b3;color:#7b4f00}
-    .st-termine{background:#effaf4;border-color:#d7f5e6;color:#0a5c35}
-    .st-archive{background:#f2f2f5;border-color:#e5e7eb;color:#4b5563}
+    .ticket{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;box-shadow:0 10px 20px rgba(17,29,56,.06)}
+    .title{font-weight:900;font-size:16px;display:flex;gap:8px;align-items:center}
+    .desc{color:#1f2937}
+    .meta{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+    .chip{display:inline-flex;align-items:center;gap:6px;background:#f2f6fb;border:1px solid #dbe6f6;border-radius:999px;padding:6px 9px;font-weight:800;font-size:13px}
 
-    .prio-basse{background:#eef9ff;border:1px solid #d4f0ff}
-    .prio-normal{background:#eef5ff;border:1px solid #d9e6ff}
-    .prio-haute{background:#ffefef;border:1px solid #ffd6d6}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;font-weight:900}
+    .st-ouvert{background:#eef5ff;border:1px solid #cfe0ff;color:#0b2a55}
+    .st-encours{background:#fff7e6;border:1px solid #ffe2b3;color:#8a4a00}
+    .st-termine{background:#eaf9f0;border:1px solid #c8efd7;color:#0f6848}
+    .st-archive{background:#f3f4f6;border:1px solid #e5e7eb;color:#374151}
+
+    .prio-haute{background:#ffefef;border-color:#ffd6d6;color:#8d0f0f}
+    .prio-normal{background:#eef7ff;border-color:#d9e6ff;color:#0b2a55}
+    .prio-basse{background:#ecfff2;border-color:#cbf7db;color:#0b5d2b}
 
     /* Toast */
-    .toast{
-      position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#0f172a;color:#fff;
-      padding:10px 14px;border-radius:10px;display:none;z-index:9999
-    }
-
-    /* Footer small line */
-    .foot{margin:24px 0 14px;color:var(--muted);font-size:12px;text-align:center}
+    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;
+           padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
   </style>
 </head>
 <body>
-  <!-- TOPBAR -->
+  <!-- Topbar -->
   <header class="topbar">
     <div class="tb-inner">
       <div class="logo">PC</div>
-      <div class="tb-title">Tickets — {{ evenement.nom }}</div>
-      <div class="tb-actions">
-        <a class="btn-soft" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+      <div class="tb-title"><i class="fa-solid fa-ticket"></i>&nbsp; Tickets – {{ evenement.nom }}</div>
+      <div class="right">
+        <a class="btn-top" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
       </div>
     </div>
   </header>
 
-  <!-- CONTENT -->
-  <main class="wrap">
+  <!-- Bandeau -->
+  <div class="wrap">
+    <div class="hero" role="banner">
+      <h2 style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        <i class="fa-solid fa-clipboard-list"></i>
+        Gestion des tickets de l’évènement
+      </h2>
+      <div class="muted">Créez, assignez et suivez les demandes en temps réel. Filtrez par statut, priorité, catégorie ou personne assignée.</div>
+    </div>
+
     <div class="board">
-      <!-- Colonne gauche : création -->
-      <section class="card">
+      <!-- Colonne création -->
+      <div class="card">
         <h3><i class="fa-solid fa-plus"></i> Nouveau ticket</h3>
         <div class="card-content">
           {% if can_manage %}
@@ -121,12 +115,10 @@
               <label>Titre *</label>
               <input type="text" name="title" maxlength="120" required placeholder="Ex : Apporter de l’eau zone C">
             </div>
-
             <div class="field">
               <label>Description</label>
               <textarea name="description" rows="3" maxlength="500" placeholder="Détails utiles…"></textarea>
             </div>
-
             <div class="field">
               <label>Catégorie</label>
               <select name="category">
@@ -136,7 +128,6 @@
                 <option>Autre</option>
               </select>
             </div>
-
             <div class="field">
               <label>Priorité</label>
               <select name="priority">
@@ -145,7 +136,6 @@
                 <option>Basse</option>
               </select>
             </div>
-
             <div class="field">
               <label>Assigner à</label>
               <select name="assigned_to_id">
@@ -155,7 +145,6 @@
                 {% endfor %}
               </select>
             </div>
-
             <div class="field">
               <label>Statut initial</label>
               <select name="status">
@@ -172,12 +161,13 @@
             <p style="margin:0">Vous n’avez pas les droits pour créer des tickets.</p>
           {% endif %}
         </div>
-      </section>
+      </div>
 
-      <!-- Colonne droite : liste -->
-      <section class="card">
+      <!-- Colonne liste -->
+      <div class="card">
         <h3><i class="fa-solid fa-list-check"></i> Tous les tickets</h3>
         <div class="card-content">
+
           <!-- Filtres -->
           <div class="filters">
             <input id="f-search" type="text" placeholder="Recherche (titre/description)…">
@@ -209,20 +199,17 @@
             </select>
           </div>
 
-          <!-- Liste -->
           <div id="tickets" class="tickets"><!-- injecté par JS --></div>
         </div>
-      </section>
+      </div>
     </div>
+  </div>
 
-    <div class="foot">Protection Civile — Gestion des tickets de l’évènement</div>
-  </main>
-
-  <!-- TOAST -->
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite">Action effectuée</div>
 
   <script>
-    /* ===== Données serveur ===== */
+    /* ===== Données passées par le serveur ===== */
     const CAN_MANAGE = {{ 'true' if can_manage else 'false' }};
     const EVT_ID = {{ evenement.id }};
     const CURRENT_USER_ID = {{ user.id }};
@@ -232,13 +219,14 @@
       {% endfor %}
     ];
 
-    /* ===== Helpers UI ===== */
-    function showToast(msg){
+    /* ===== Helpers ===== */
+    function toast(msg){
       const t=document.getElementById('toast');
-      t.textContent=msg; t.style.display='block';
-      setTimeout(()=>{ t.style.display='none'; }, 1600);
+      if(!t) return;
+      t.textContent = msg || 'Action effectuée';
+      t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'), 1500);
     }
-
     function statusBadge(status){
       const s=(status||"").toLowerCase();
       if(s==="ouvert") return `<span class="status-badge st-ouvert"><i class="fa-regular fa-circle"></i> Ouvert</span>`;
@@ -249,26 +237,33 @@
     }
     function prioClass(priority){
       const p=(priority||"").toLowerCase();
-      if(p==="haute") return "chip prio-haute";
-      if(p==="basse") return "chip prio-basse";
-      return "chip prio-normal";
+      if(p==="haute") return "prio-haute";
+      if(p==="basse") return "prio-basse";
+      return "prio-normal";
     }
-    function fmtDateLocal(iso){
+    function fmtDateIsoLocalPlus2(iso){
       if(!iso) return "—";
-      try{ return new Date(iso).toLocaleString(); }catch{ return "—"; }
+      try{
+        const d = new Date(iso);
+        const adjusted = new Date(d.getTime() + 120*60*1000); // heuristique +2h si besoin
+        return adjusted.toLocaleString();
+      }catch{ return "—"; }
+    }
+    function assigneeNameById(id){
+      const u = USERS.find(x=>String(x.id)===String(id));
+      return u ? `${u.nom} (${u.role})` : "—";
     }
 
-    /* ===== Rendu d'une carte ===== */
+    /* ===== Carte ticket ===== */
     function ticketCardHTML(t){
-      const prChip = `<span class="${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
-      const meIcon = (String(t.assigned_to_id) === String(CURRENT_USER_ID))
-        ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
-      const assigneeLabel = t.assigned_to || "—";
-      const requester = t.created_by || "—";
+      const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
+      const meIcon = (String(t.assigned_to_id) === String(CURRENT_USER_ID)) ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
+      const assigneeLabel = t.assigned_to || assigneeNameById(t.assigned_to_id);
 
       const managePart = CAN_MANAGE ? `
         <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <form onsubmit="return updateTicket(${t.id}, this);" style="display:flex; gap:8px; flex-wrap:wrap">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="status">
               ${["Ouvert","En cours","Terminé","Archivé"].map(s=>`<option ${s===t.status?"selected":""}>${s}</option>`).join("")}
             </select>
@@ -292,18 +287,41 @@
 
       return `
         <div class="ticket" id="ticket-${t.id}">
-          <div class="title">${meIcon}${t.title||"—"}</div>
+          <div class="title">${meIcon}${t.title}</div>
           <div class="meta">
-            <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${requester}</span>
-            <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel}</span>
+            <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${t.created_by||"—"}</span>
+            <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel||"—"}</span>
             ${prChip}
             <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
-            <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateLocal(t.created_at)}</span>
+            <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
             ${statusBadge(t.status)}
           </div>
           ${t.description ? `<div class="desc" style="margin-top:6px">${t.description}</div>`:``}
           ${managePart}
         </div>`;
+    }
+
+    /* ===== AJAX update (CSRF inclus) ===== */
+    async function updateTicket(id, form){
+      const fd = new FormData(form);
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+      if(csrf) fd.set('csrf_token', csrf);
+
+      try{
+        const res = await fetch(`/tickets/${id}/update`, { method:"POST", body: fd, cache:"no-store" });
+        if(res.ok){
+          toast("✅ Ticket mis à jour");
+          refreshTickets();
+        }else{
+          const txt = await res.text();
+          toast(`⚠️ Erreur (${res.status})`);
+          console.error("Update ticket failed:", res.status, txt);
+        }
+      }catch(e){
+        toast("⚠️ Erreur réseau");
+        console.error(e);
+      }
+      return false; // empêcher la soumission classique
     }
 
     /* ===== Filtres ===== */
@@ -330,24 +348,13 @@
       wrap.innerHTML = list.map(ticketCardHTML).join("");
     }
 
-    /* ===== Update AJAX ===== */
-    async function updateTicket(id, form){
-      const fd = new FormData(form);
-      try{
-        const res = await fetch(`/tickets/${id}/update`, { method:"POST", body: fd });
-        if(res.ok){ showToast("✅ Ticket mis à jour"); refreshTickets(); }
-        else { showToast("⚠️ Erreur mise à jour"); }
-      }catch(e){ showToast("⚠️ Erreur réseau"); }
-      return false;
-    }
-
     /* ===== Polling ===== */
     let lastHash = "";
     const hash = (obj)=> JSON.stringify(obj);
 
     async function refreshTickets(){
       try{
-        const res = await fetch(`/evenement/${EVT_ID}/tickets_json`, { cache: "no-store" });
+        const res = await fetch(`/evenement/${EVT_ID}/tickets_json`, {cache:"no-store"});
         if(!res.ok){ console.error("tickets_json status", res.status); return; }
         const data = await res.json();
         const list = Array.isArray(data.tickets) ? data.tickets : [];
@@ -355,7 +362,7 @@
         const h = hash(filtered);
         if(h !== lastHash){
           renderTickets(filtered);
-          if(lastHash) showToast("🔔 Tickets actualisés");
+          if(lastHash) toast("🔔 Tickets actualisés");
           lastHash = h;
         }
       }catch(e){ console.error("Erreur fetch tickets :", e); }
@@ -364,9 +371,8 @@
     document.addEventListener("DOMContentLoaded", ()=>{
       ['f-search','f-status','f-priority','f-category','f-assignee'].forEach(id=>{
         const el=document.getElementById(id);
-        if(!el) return;
-        const evt = (el.tagName==='SELECT') ? 'change' : 'input';
-        el.addEventListener(evt, refreshTickets);
+        if(el) el.addEventListener('input', refreshTickets);
+        if(el && el.tagName==='SELECT') el.addEventListener('change', refreshTickets);
       });
       refreshTickets();
       setInterval(refreshTickets, 3000);
