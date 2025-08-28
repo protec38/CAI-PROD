@@ -1742,3 +1742,10 @@ def add_timeline_comment(fiche_id):
     log_action("timeline_add", "FicheImplique", fiche.id, extra=content[:200])
     flash("Commentaire ajouté.", "success")
     return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
+
+
+@main_bp.route("/autorite/share/<token>")
+def autorite_share_public(token):
+    link = ShareLink.query.filter_by(token=token, revoked=False).first_or_404()
+    return render_template("autorite_share_public.html", link=link)
+
