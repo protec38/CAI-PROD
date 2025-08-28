@@ -1,119 +1,245 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta charset="UTF-8">
-    <title>Gestion des utilisateurs</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
+<meta charset="UTF-8" />
+<title>👥 Gestion des utilisateurs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="csrf-token" content="{{ csrf_token() }}" />
+
 <style>
-body {
-            font-family: 'Roboto', sans-serif;
-            background: linear-gradient(to right, #002f6c, #ff6f00);
-            color: #fff;
-            padding: 20px;
-        }
+  :root{
+    --pc-blue:#003b71;
+    --pc-orange:#f58220;
+    --bg:#f6f8fc;
+    --card:#ffffff;
+    --line:#e6edf5;
+    --ink:#0f172a;
+    --muted:#667085;
+    --radius:16px;
+    --shadow:0 10px 24px rgba(16,24,40,.06);
+  }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-        }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans;
+    color: var(--ink); background: var(--bg);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
 
-        h1 {
-            color: #ffcc00;
-        }
+  /* Header */
+  .header{
+    background: linear-gradient(180deg, var(--pc-blue), #002b52);
+    color:#fff; text-align:center; padding:18px 12px;
+    border-bottom: 4px solid var(--pc-orange);
+  }
+  .header .brand{
+    display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .logo{
+    width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    background: linear-gradient(135deg, var(--pc-orange), #ff9f49); color:#112944; font-weight:900;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.15);
+  }
+  .header h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.3px; }
 
-        .btn {
-            background-color: #ffcc00;
-            color: #000;
-            padding: 10px 15px;
-            text-decoration: none;
-            border-radius: 5px;
-            margin: 5px;
-        }
+  /* Container */
+  .container{
+    width: min(1100px, 94vw);
+    margin: 24px auto 30px;
+  }
 
-        table {
-            width: 100%;
-            margin-top: 30px;
-            border-collapse: collapse;
-            background: white;
-            color: black;
-        }
+  /* Toolbar (boutons + recherche) */
+  .toolbar{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .left-actions, .right-actions{ display:flex; gap:10px; flex-wrap:wrap; }
 
-        table th, table td {
-            padding: 10px;
-            border: 1px solid #ccc;
-        }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:10px 14px; border-radius:12px; font-weight:900; text-decoration:none;
+    border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
+    cursor:pointer; transition: transform .04s ease, filter .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn.primary{ background:#fff1e6; color:#9b4600; border-color:#ffd8bd; }
+  .btn.dark{ background:#0b2a55; color:#fff; border-color:#0b2a55; }
 
-        .actions a {
-            margin-right: 10px;
-            text-decoration: none;
-            color: #003b71;
-            font-weight: bold;
-        }
+  .search{
+    display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:8px 10px;
+  }
+  .search input{
+    border:none; outline:none; background:transparent; font:inherit; min-width:220px;
+  }
 
-        .actions a:hover {
-            text-decoration: underline;
-        }
+  /* Card/table shell */
+  .card{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card .hd{
+    padding: 14px 16px; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg,#fff,#f8fbff);
+    color: var(--pc-blue); font-weight:900; letter-spacing:.2px;
+  }
+  .card .bd{ padding: 0; }
+
+  /* Table */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse: collapse; min-width:860px; }
+  thead th{
+    padding: 12px; text-align:left; color:#fff; font-weight:800; letter-spacing:.02em;
+    background: var(--pc-blue);
+  }
+  tbody td{ padding:12px; border-top:1px solid #eef2f7; vertical-align: top; }
+  tbody tr:nth-child(odd){ background:#fbfdff; }
+  tbody tr:hover{ background:#f4f8ff; }
+
+  /* Badges */
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+    font-weight:800; border:1px solid var(--line); background:#f3f6fb;
+  }
+  .r-admin{ color:#7a1a00; background:#fff0e5; border-color:#ffd8bd; }
+  .r-codep{ color:#0b3d77; background:#eaf2ff; border-color:#d6e7ff; }
+  .r-user{ color:#0b6b3a; background:#e9f7ef; border-color:#cfeede; }
+
+  /* Actions table */
+  .table-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
+  .btn.del{ background:#ffe3e6; border-color:#ffcbd2; color:#9a1a2a; }
+
+  /* Responsive → cartes */
+  @media (max-width: 760px){
+    thead{ display:none; }
+    table, tbody, tr, td{ display:block; width:100%; }
+    tbody tr{ margin: 10px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+    tbody td{
+      border-top:none !important;
+      padding:10px 12px;
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap: 12px;
+    }
+    tbody td::before{
+      content: attr(data-label);
+      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.8rem; letter-spacing:.03em;
+    }
+    .table-actions{ justify-content:flex-end; }
+  }
 </style>
 </head>
 <body>
-    <div class="header">
-        <h1><i class="fas fa-users-cog"></i> Gestion des utilisateurs</h1>
-        <div>
-            <a href="{{ url_for('main_bp.evenement_new') }}" class="btn btn-secondary mb-3">← Retour à la création d'évènement</a>
-            <a href="{{ url_for('main_bp.utilisateur_create') }}" class="btn"><i class="fas fa-user-plus"></i> Créer un utilisateur</a>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">PC</div>
+      <h1>👥 Gestion des utilisateurs</h1>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div class="left-actions">
+        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn">← Retour à la création d'évènement</a>
+        <a href="{{ url_for('main_bp.utilisateur_create') }}" class="btn primary">➕ Créer un utilisateur</a>
         {% if user.is_admin %}
-          <a class="btn" style="background:#0b2a55;color:#fff"
-             href="{{ url_for('main_bp.admin_backup_restore_page') }}">
-             <i class="fa-solid fa-database"></i> Sauvegarde & restauration
-          </a>
+          <a class="btn dark" href="{{ url_for('main_bp.admin_backup_restore_page') }}">🗄️ Sauvegarde & restauration</a>
         {% endif %}
+      </div>
 
-
+      <div class="right-actions">
+        <div class="search" role="search">
+          <span>🔎</span>
+          <input id="filter" type="search" placeholder="Rechercher (nom, login, rôle, type, évènement)…">
         </div>
+      </div>
     </div>
 
-    {% if utilisateurs %}
-    <table>
-    <thead>
-        <tr>
-            <th>Nom</th>
-            <th>Nom d'utilisateur</th>
-            <th>Rôle</th>
-            <th>Type</th>
-            <th>Évènements associés</th>
-            <th>Actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for u in utilisateurs %}
-        <tr>
-            <td>{{ u.nom }}</td>
-            <td>{{ u.nom_utilisateur }}</td>
-            <td>{{ u.role | capitalize }}</td>
-            <td>{{ u.type_utilisateur | capitalize }}</td>
-            <td>
-                {% for evt in u.evenements %}
-                    <div>{{ evt.nom }} ({{ evt.numero }})</div>
+    <!-- Table -->
+    <section class="card">
+      <div class="hd">Liste des utilisateurs</div>
+      <div class="bd table-wrap">
+        {% if utilisateurs %}
+        <table id="user-table">
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Nom d'utilisateur</th>
+              <th>Rôle</th>
+              <th>Type</th>
+              <th>Évènements associés</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in utilisateurs %}
+            <tr>
+              <td data-label="Nom">{{ u.nom }}</td>
+              <td data-label="Nom d'utilisateur">{{ u.nom_utilisateur }}</td>
+              <td data-label="Rôle">
+                {% set r = (u.role or '')|lower %}
+                {% if r == 'admin' %}
+                  <span class="badge r-admin">Admin</span>
+                {% elif r == 'codep' %}
+                  <span class="badge r-codep">Codep</span>
                 {% else %}
-                    <em>—</em>
+                  <span class="badge r-user">{{ u.role|capitalize }}</span>
+                {% endif %}
+              </td>
+              <td data-label="Type">{{ u.type_utilisateur | capitalize }}</td>
+              <td data-label="Évènements associés">
+                {% for evt in u.evenements %}
+                  <div>{{ evt.nom }} ({{ evt.numero }})</div>
+                {% else %}
+                  <em>—</em>
                 {% endfor %}
-            </td>
-            <td class="actions">
-                <a href="{{ url_for('main_bp.utilisateur_edit', id=u.id) }}"><i class="fas fa-edit"></i> Modifier</a>
-                <a href="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}" onclick="return confirm('Supprimer cet utilisateur ?')"><i class="fas fa-trash"></i> Supprimer</a>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-    {% else %}
-    <p>Aucun utilisateur enregistré .</p>
-    {% endif %}
+              </td>
+              <td data-label="Actions">
+                <div class="table-actions">
+                  <a href="{{ url_for('main_bp.utilisateur_edit', id=u.id) }}" class="btn edit">📝 Modifier</a>
+                  <!-- Conserve la méthode GET comme dans ton snippet (confirmation JS) -->
+                  <a href="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}"
+                     class="btn del"
+                     onclick="return confirm('Supprimer cet utilisateur ?')">🗑 Supprimer</a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <div style="padding:16px;">Aucun utilisateur enregistré.</div>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Filtre client-side simple (pas d'impact backend)
+    (function(){
+      const input = document.getElementById('filter');
+      const table = document.getElementById('user-table');
+      if(!input || !table) return;
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      const normalize = s => (s || '').toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+      input.addEventListener('input', () => {
+        const q = normalize(input.value.trim());
+        rows.forEach(tr => {
+          const text = normalize(tr.innerText);
+          tr.style.display = text.includes(q) ? '' : 'none';
+        });
+      });
+    })();
+  </script>
+
+  <!-- helper global si présent côté app -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>
