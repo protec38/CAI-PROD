@@ -1,148 +1,233 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta charset="UTF-8">
-    <title>{{ 'Créer' if mode == 'create' else 'Modifier' }} un utilisateur</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    
-<style>
-body {
-            font-family: 'Roboto', sans-serif;
-            background: linear-gradient(to right, #002f6c, #ff6f00);
-            color: #fff;
-            padding: 20px;
-        }
+  <meta charset="UTF-8" />
+  <title>{{ 'Créer' if mode == 'create' else 'Modifier' }} un utilisateur</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
 
-        .container {
-            max-width: 700px;
-            margin: 40px auto;
-            background: white;
-            color: black;
-            padding: 30px;
-            border-radius: 10px;
-            border-top: 6px solid #f58220;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-        }
+  <style>
+    :root{
+      --pc-blue:#003b71;
+      --pc-orange:#f58220;
+      --bg:#f6f8fc;
+      --card:#ffffff;
+      --line:#e6edf5;
+      --ink:#0f172a;
+      --muted:#667085;
+      --radius:16px;
+      --shadow:0 10px 24px rgba(16,24,40,.06);
+    }
 
-        h1 {
-            text-align: center;
-            color: #003b71;
-            margin-bottom: 30px;
-        }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans;
+      color: var(--ink); background: var(--bg);
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
 
-        label {
-            font-weight: 600;
-            display: block;
-            margin-top: 15px;
-        }
+    /* Header */
+    .header{
+      background: linear-gradient(180deg, var(--pc-blue), #002b52);
+      color:#fff; text-align:center; padding:18px 12px;
+      border-bottom: 4px solid var(--pc-orange);
+    }
+    .header .brand{
+      display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+    }
+    .logo{
+      width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+      background: linear-gradient(135deg, var(--pc-orange), #ff9f49); color:#112944; font-weight:900;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,.15);
+    }
+    .header h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.3px; }
 
-        input, select {
-            width: 100%;
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
+    /* Wrapper */
+    .wrapper{ width:min(760px, 94vw); margin: 24px auto 30px; }
 
-        button {
-            margin-top: 30px;
-            width: 100%;
-            background-color: #f58220;
-            color: white;
-            padding: 12px;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            cursor: pointer;
-        }
+    /* Card */
+    .card{
+      background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+    .card .hd{
+      padding: 14px 16px; border-bottom:1px solid var(--line);
+      background: linear-gradient(180deg,#fff,#f8fbff);
+      color: var(--pc-blue); font-weight:900; letter-spacing:.2px;
+    }
+    .card .bd{ padding: 18px; }
 
-        button:hover {
-            background-color: #e36d00;
-        }
+    /* Form */
+    form{ display:grid; gap:14px; }
+    .field{ display:grid; gap:6px; }
+    label{
+      font-weight:800; color:var(--muted);
+      text-transform:uppercase; font-size:.85rem; letter-spacing:.04em;
+    }
+    input[type="text"], input[type="password"], select{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+      font:inherit; background:#fff;
+    }
 
-        .event-checkboxes {
-            margin-top: 10px;
-            padding: 10px;
-            background-color: #f9f9f9;
-            border-radius: 6px;
-            border: 1px solid #ccc;
-        }
+    /* Password row */
+    .pw-row{ display:flex; gap:10px; align-items:stretch; }
+    .pw-row input{ flex:1; }
+    .pw-toggle{
+      border:1px solid var(--line); background:#eef3ff; color:var(--pc-blue);
+      border-radius:12px; padding:0 12px; font-weight:900; cursor:pointer;
+      display:inline-flex; align-items:center;
+    }
 
-        .event-checkboxes label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: normal;
-        }
+    /* Events */
+    .events-box{
+      border:1px solid var(--line); background:#fff; border-radius:12px; padding:12px;
+    }
+    .events-actions{ display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+    .mini-btn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:8px 10px; border-radius:10px; font-weight:800; text-decoration:none;
+      border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue); cursor:pointer;
+    }
+    .ev-grid{
+      display:grid; gap:8px; grid-template-columns: 1fr 1fr;
+    }
+    .ev-grid label{ text-transform:none; font-weight:600; letter-spacing:0; color:var(--ink); }
+    .ev-grid input{ transform: translateY(1px); }
 
-        a.btn-back {
-            display: inline-block;
-            margin-top: 20px;
-            color: #003b71;
-            text-decoration: none;
-        }
+    /* Actions */
+    .actions{
+      display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap; margin-top:8px;
+    }
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:12px 16px; border-radius:12px; font-weight:900; text-decoration:none;
+      border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
+      cursor:pointer; transition: transform .04s ease, filter .15s ease;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{ background: var(--pc-orange); color:#fff; border-color:#ffcfad; }
+    .btn.secondary{ background:#f2f4f7; color:#111827; border-color:#e5e7eb; }
 
+    /* Back link */
+    .back{ display:inline-block; margin-top:14px; text-decoration:none; font-weight:800; color:var(--pc-blue); }
 
-/* Timeline styles */
-.timeline-ul{ list-style:none; margin:0; padding:0; }
-.timeline-item{ padding:12px 8px; border-left:3px solid var(--line, #e9edf3); margin-left:8px; position:relative; }
-.timeline-item::before{ content:''; width:10px; height:10px; background: var(--orange, #ff6f00); border-radius:50%; position:absolute; left:-6px; top:18px; }
-.timeline-time{ font-size:12px; color:#667788; margin-bottom:4px; }
-.timeline-content{ font-size:14px; }
-.timeline-meta{ font-size:12px; color:#99a3af; }
-</style>
+    @media (max-width: 560px){
+      .pw-row{ flex-direction:column; }
+      .ev-grid{ grid-template-columns: 1fr; }
+      .actions{ flex-direction:column; }
+      .actions .btn{ width:100%; justify-content:center; }
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-    <h1>{{ 'Créer' if mode == 'create' else 'Modifier' }} un utilisateur</h1>
 
-    <form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">PC</div>
+      <h1>{{ 'Créer' if mode == 'create' else 'Modifier' }} un utilisateur</h1>
+    </div>
+  </header>
 
-        <label for="nom">Nom complet</label>
-        <input type="text" id="nom" name="nom" required value="{{ utilisateur.nom if utilisateur else '' }}">
+  <main class="wrapper">
 
-        <label for="nom_utilisateur">Nom d’utilisateur</label>
-        <input type="text" id="nom_utilisateur" name="nom_utilisateur" required value="{{ utilisateur.nom_utilisateur if utilisateur else '' }}">
+    <section class="card">
+      <div class="hd">Formulaire</div>
+      <div class="bd">
+        <form method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <label for="role">Rôle</label>
-        <select id="role" name="role" required>
-            <option value="">-- Choisir un rôle --</option>
-            <option value="technicien"   {% if utilisateur and utilisateur.role=='technicien' %}selected{% endif %}>Technicien</option>
-            <option value="secouriste" {% if utilisateur and utilisateur.role == 'secouriste' %}selected{% endif %}>Secouriste</option>
-            <option value="aep" {% if utilisateur and utilisateur.role == 'aep' %}selected{% endif %}>AEP</option>
-            <option value="logisticien" {% if utilisateur and utilisateur.role == 'logisticien' %}selected{% endif %}>Logisticien</option>
-            <option value="responsable" {% if utilisateur and utilisateur.role == 'responsable' %}selected{% endif %}>Responsable</option>
-            <option value="codep" {% if utilisateur and utilisateur.role == 'codep' %}selected{% endif %}>CODEP</option>
-        </select>
+          <div class="field">
+            <label for="nom">Nom complet</label>
+            <input type="text" id="nom" name="nom" required value="{{ utilisateur.nom if utilisateur else '' }}">
+          </div>
 
-        <label for="type_utilisateur">Type d'utilisateur</label>
-        <select id="type_utilisateur" name="type_utilisateur" required>
-            <option value="">-- Choisir un type --</option>
-            <option value="permanent" {% if utilisateur and utilisateur.type_utilisateur == 'permanent' %}selected{% endif %}>Permanent</option>
-            <option value="provisoire" {% if utilisateur and utilisateur.type_utilisateur == 'provisoire' %}selected{% endif %}>Provisoire</option>
-        </select>
+          <div class="field">
+            <label for="nom_utilisateur">Nom d’utilisateur</label>
+            <input type="text" id="nom_utilisateur" name="nom_utilisateur" required value="{{ utilisateur.nom_utilisateur if utilisateur else '' }}">
+          </div>
 
-        <label for="password">Mot de passe {% if mode == 'edit' %}(laisser vide pour ne pas changer){% endif %}</label>
-        <input type="password" id="password" name="password" {% if mode == 'create' %}required{% endif %}>
+          <div class="field">
+            <label for="role">Rôle</label>
+            <select id="role" name="role" required>
+              <option value="">-- Choisir un rôle --</option>
+              <option value="technicien"  {% if utilisateur and utilisateur.role == 'technicien' %}selected{% endif %}>Technicien</option>
+              <option value="secouriste"  {% if utilisateur and utilisateur.role == 'secouriste' %}selected{% endif %}>Secouriste</option>
+              <option value="aep"         {% if utilisateur and utilisateur.role == 'aep' %}selected{% endif %}>AEP</option>
+              <option value="logisticien" {% if utilisateur and utilisateur.role == 'logisticien' %}selected{% endif %}>Logisticien</option>
+              <option value="responsable" {% if utilisateur and utilisateur.role == 'responsable' %}selected{% endif %}>Responsable</option>
+              <option value="codep"       {% if utilisateur and utilisateur.role == 'codep' %}selected{% endif %}>CODEP</option>
+            </select>
+          </div>
 
-        <label>Associer aux évènements :</label>
-        <div class="event-checkboxes">
-            {% for evt in all_evenements %}
-                <label>
+          <div class="field">
+            <label for="type_utilisateur">Type d'utilisateur</label>
+            <select id="type_utilisateur" name="type_utilisateur" required>
+              <option value="">-- Choisir un type --</option>
+              <option value="permanent"  {% if utilisateur and utilisateur.type_utilisateur == 'permanent' %}selected{% endif %}>Permanent</option>
+              <option value="provisoire" {% if utilisateur and utilisateur.type_utilisateur == 'provisoire' %}selected{% endif %}>Provisoire</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="password">Mot de passe {% if mode == 'edit' %}(laisser vide pour ne pas changer){% endif %}</label>
+            <div class="pw-row">
+              <input type="password" id="password" name="password" {% if mode == 'create' %}required{% endif %}>
+              <button type="button" class="pw-toggle" onclick="togglePw()">Afficher</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Associer aux évènements :</label>
+            <div class="events-box">
+              <div class="events-actions">
+                <button type="button" class="mini-btn" onclick="checkAll(true)">Tout cocher</button>
+                <button type="button" class="mini-btn" onclick="checkAll(false)">Tout décocher</button>
+              </div>
+              <div class="ev-grid" id="ev-grid">
+                {% for evt in all_evenements %}
+                  <label>
                     <input type="checkbox" name="evenements" value="{{ evt.id }}"
                            {% if utilisateur and evt in utilisateur.evenements %}checked{% endif %}>
                     {{ evt.nom }} ({{ evt.numero }})
-                </label>
-            {% endfor %}
-        </div>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
 
-        <button type="submit">{{ 'Créer' if mode == 'create' else 'Mettre à jour' }}</button>
-    </form>
+          <div class="actions">
+            <a href="{{ url_for('main_bp.admin_utilisateurs') }}" class="btn secondary">← Annuler</a>
+            <button type="submit" class="btn primary">{{ 'Créer' if mode == 'create' else 'Mettre à jour' }}</button>
+          </div>
+        </form>
 
-    <a href="{{ url_for('main_bp.admin_utilisateurs') }}" class="btn-back">← Retour à la liste des utilisateurs</a>
-</div>
+        <a href="{{ url_for('main_bp.admin_utilisateurs') }}" class="back">← Retour à la liste des utilisateurs</a>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Afficher / masquer le mot de passe (UI only)
+    function togglePw(){
+      const input = document.getElementById('password');
+      const btn = document.querySelector('.pw-toggle');
+      if(!input || !btn) return;
+      if(input.type === 'password'){ input.type = 'text'; btn.textContent = 'Masquer'; }
+      else { input.type = 'password'; btn.textContent = 'Afficher'; }
+    }
+
+    // Tout cocher / décocher (n'affecte pas les name/values)
+    function checkAll(state){
+      const box = document.getElementById('ev-grid');
+      if(!box) return;
+      box.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = !!state; });
+    }
+  </script>
+
+  <!-- Helper CSRF si présent côté app -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>

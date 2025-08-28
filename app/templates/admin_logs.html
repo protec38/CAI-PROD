@@ -1,29 +1,199 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>🗒️ Journal d'audit</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-{% extends "base.html" %}
-{% block title %}Journal d'audit{% endblock %}
-{% block content %}
-<h1>Journal d'audit</h1>
-<p class="muted">Actions récentes (50 par page)</p>
-<table class="table">
-  <thead><tr><th>Quand</th><th>Utilisateur</th><th>Action</th><th>Objet</th><th>ID</th><th>IP</th></tr></thead>
-  <tbody>
-  {% for e in logs.items %}
-    <tr>
-      <td>{{ e.created_at|fr_datetime }}</td>
-      <td>{% if e.user_id %}#{{ e.user_id }}{% else %}—{% endif %}</td>
-      <td>{{ e.action }}</td>
-      <td>{{ e.entity_type or "—" }}</td>
-      <td>{{ e.entity_id or "—" }}</td>
-      <td>{{ e.ip or "—" }}</td>
-    </tr>
-  {% else %}
-    <tr><td colspan="6" class="muted">Aucune entrée</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
-<div class="pagination">
-  {% if logs.has_prev %}<a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.prev_num) }}">&laquo; Précédent</a>{% endif %}
-  <span class="muted">Page {{ logs.page }} / {{ logs.pages }}</span>
-  {% if logs.has_next %}<a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.next_num) }}">Suivant &raquo;</a>{% endif %}
-</div>
-{% endblock %}
+<style>
+  :root{
+    --pc-blue:#003b71;
+    --pc-orange:#f58220;
+    --bg:#f6f8fc;
+    --card:#ffffff;
+    --line:#e6edf5;
+    --ink:#0f172a;
+    --muted:#667085;
+    --radius:16px;
+    --shadow:0 10px 24px rgba(16,24,40,.06);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans;
+    color: var(--ink); background: var(--bg);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* Header */
+  .header{
+    background: linear-gradient(180deg, var(--pc-blue), #002b52);
+    color:#fff; text-align:center; padding:18px 12px;
+    border-bottom: 4px solid var(--pc-orange);
+  }
+  .header .brand{
+    display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .logo{
+    width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    background: linear-gradient(135deg, var(--pc-orange), #ff9f49); color:#112944; font-weight:900;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.15);
+  }
+  .header h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.3px; }
+  .sub{ opacity:.95; margin-top:4px; font-weight:600; }
+
+  /* Container */
+  .container{ width: min(1100px, 95vw); margin: 22px auto 30px; }
+
+  /* Toolbar */
+  .toolbar{
+    display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .muted{ color: var(--muted); }
+
+  .search{
+    display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line);
+    border-radius:12px; padding:8px 10px;
+  }
+  .search input{
+    border:none; outline:none; background:transparent; font:inherit; min-width:220px;
+  }
+
+  /* Card/Table */
+  .card{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .card .hd{
+    padding: 14px 16px; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg,#fff,#f8fbff);
+    color: var(--pc-blue); font-weight:900; letter-spacing:.2px; display:flex; justify-content:space-between; align-items:center;
+  }
+  .card .bd{ padding: 0; }
+
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse: collapse; min-width:900px; }
+  thead th{
+    padding: 12px; text-align:left; color:#fff; font-weight:800; letter-spacing:.02em;
+    background: var(--pc-blue);
+  }
+  tbody td{ padding:12px; border-top:1px solid #eef2f7; vertical-align: top; }
+  tbody tr:nth-child(odd){ background:#fbfdff; }
+  tbody tr:hover{ background:#f4f8ff; }
+
+  /* Pagination */
+  .pagination{
+    margin: 14px 0 0; display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:10px 14px; border-radius:12px; font-weight:900; text-decoration:none;
+    border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
+  }
+
+  /* Mobile cards */
+  @media (max-width: 760px){
+    thead{ display:none; }
+    table, tbody, tr, td{ display:block; width:100%; }
+    tbody tr{ margin: 10px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+    tbody td{
+      border-top:none !important;
+      padding:10px 12px;
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap: 12px;
+    }
+    tbody td::before{
+      content: attr(data-label);
+      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.8rem; letter-spacing:.03em;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">PC</div>
+      <div>
+        <h1>🗒️ Journal d'audit</h1>
+        <div class="sub">Actions récentes (50 par page)</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <div class="hd">
+        <span>Historique</span>
+        <div class="search" role="search">
+          <span>🔎</span>
+          <input id="filter" type="search" placeholder="Rechercher (date, utilisateur, action, IP, etc.)…">
+        </div>
+      </div>
+
+      <div class="bd table-wrap">
+        <table id="log-table">
+          <thead>
+            <tr>
+              <th>Quand</th>
+              <th>Utilisateur</th>
+              <th>Action</th>
+              <th>Objet</th>
+              <th>ID</th>
+              <th>IP</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in logs.items %}
+              <tr>
+                <td data-label="Quand">{{ e.created_at|fr_datetime }}</td>
+                <td data-label="Utilisateur">{% if e.user_id %}#{{ e.user_id }}{% else %}—{% endif %}</td>
+                <td data-label="Action">{{ e.action }}</td>
+                <td data-label="Objet">{{ e.entity_type or "—" }}</td>
+                <td data-label="ID">{{ e.entity_id or "—" }}</td>
+                <td data-label="IP">{{ e.ip or "—" }}</td>
+              </tr>
+            {% else %}
+              <tr><td data-label="Info" colspan="6" class="muted">Aucune entrée</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        {% if logs.has_prev %}
+          <a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.prev_num) }}">&laquo; Précédent</a>
+        {% endif %}
+        <span class="muted">Page {{ logs.page }} / {{ logs.pages }}</span>
+        {% if logs.has_next %}
+          <a class="btn" href="{{ url_for('main_bp.admin_logs', page=logs.next_num) }}">Suivant &raquo;</a>
+        {% endif %}
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Filtre client-side simple (ne modifie pas le backend)
+    (function(){
+      const input = document.getElementById('filter');
+      const table = document.getElementById('log-table');
+      if(!input || !table) return;
+      const rows = Array.from(table.querySelectorAll('tbody tr'));
+      const normalize = s => (s || '').toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+      input.addEventListener('input', () => {
+        const q = normalize(input.value.trim());
+        rows.forEach(tr => {
+          const text = normalize(tr.innerText);
+          tr.style.display = text.includes(q) ? '' : 'none';
+        });
+      });
+    })();
+  </script>
+
+</body>
+</html>
