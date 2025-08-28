@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort
-from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, AuditLog, TimelineEntry, utilisateur_evenement
+from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, AuditLog, TimelineEntry, utilisateur_evenement, EventNews
 from .extensions import db, limiter
 from werkzeug.security import check_password_hash
 from functools import wraps
