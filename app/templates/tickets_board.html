@@ -1,33 +1,103 @@
 {% extends "base.html" %}
 {% block content %}
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
 
+<style>
+  :root{
+    --ink:#0b1523; --muted:#6b778b; --line:#e9eef6;
+    --card:#ffffff; --bg:#f5f7fb; --shadow:0 10px 30px rgba(17, 29, 56, .10);
+    --blue:#003b71; --orange:#f58220; --green:#30c47e; --red:#e44747; --yellow:#ffcc00;
+    --radius:16px;
+  }
+  body{background:linear-gradient(180deg,#0b2240 0%,#0b2240 22%,#f6f8fc 22%)}
+  .tb-wrap{max-width:1200px;margin:18px auto;padding:0 14px}
+  .tb-header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px;color:#fff}
+  .tb-header h2{margin:0;font-weight:900;letter-spacing:.2px}
+  .btn, .btn-soft{
+    display:inline-flex;align-items:center;gap:8px;cursor:pointer;border-radius:12px;
+    padding:10px 12px;font-weight:800;border:1px solid transparent;transition:filter .15s ease
+  }
+  .btn{background:var(--yellow);color:#00122a;border-color:rgba(0,0,0,.08)}
+  .btn:hover,.btn-soft:hover{filter:brightness(.98)}
+  .btn-soft{background:#eef3fb;color:#0b2240;border:1px solid #d9e6ff}
+  .btn-danger{background:var(--red);color:#fff;border-color:#db5656}
 
+  .board{display:grid;grid-template-columns:380px 1fr;gap:14px}
+  @media (max-width:1024px){.board{grid-template-columns:1fr}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  .card h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);background:linear-gradient(90deg,#013764,#0a2e55);color:#fff}
+  .card-content{padding:16px}
+
+  .field{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+  .field label{font-size:13px;color:#415165;font-weight:800}
+  .field input[type="text"], .field textarea, .field select{
+    padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:#fbfdff;outline:none
+  }
+  .field textarea{resize:vertical}
+
+  .filters{
+    display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;background:#f7faff;border:1px solid var(--line);
+    padding:10px;border-radius:12px
+  }
+  .filters select,.filters input{padding:10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+
+  .tickets{display:grid;gap:12px}
+  .ticket{
+    border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;box-shadow:0 6px 18px rgba(17,29,56,.07)
+  }
+  .title{font-weight:900;font-size:18px;display:flex;align-items:center;gap:8px}
+  .desc{color:#2b3850}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+  .chip{
+    display:inline-flex;gap:8px;align-items:center;border-radius:999px;padding:6px 10px;
+    border:1px solid #dfe7f5;background:#f3f7ff;color:#0b2a55;font-weight:800;font-size:13px
+  }
+  .chip i{opacity:.9}
+  .status-badge{
+    display:inline-flex;align-items:center;gap:8px;font-weight:900;border-radius:999px;padding:6px 10px;border:1px solid transparent
+  }
+  .st-ouvert{background:#eef8ff;border-color:#d5eaff;color:#0b2a55}
+  .st-encours{background:#fff7e6;border-color:#ffe1b3;color:#7b4f00}
+  .st-termine{background:#effaf4;border-color:#d7f5e6;color:#0a5c35}
+  .st-archive{background:#f2f2f5;border-color:#e5e7eb;color:#4b5563}
+
+  .prio-basse{background:#eef9ff;border:1px solid #d4f0ff}
+  .prio-normal{background:#eef5ff;border:1px solid #d9e6ff}
+  .prio-haute{background:#ffefef;border:1px solid #ffd6d6}
+
+  .toast{
+    position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#0f172a;color:#fff;
+    padding:10px 14px;border-radius:10px;display:none;z-index:9999
+  }
+</style>
 
 <div class="tb-wrap">
   <div class="tb-header">
-    <h2><i class="fa-solid fa-ticket"></i> Tickets – {{ evenement.nom }}</h2>
+    <h2><i class="fa-solid fa-ticket"></i> Tickets — {{ evenement.nom }}</h2>
     <a class="btn" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
   </div>
 
   <div class="board">
-    <!-- Colonne création -->
+    <!-- Colonne gauche : création -->
     <div class="card">
       <h3><i class="fa-solid fa-plus"></i> Nouveau ticket</h3>
       <div class="card-content">
         {% if can_manage %}
         <form method="POST" action="{{ url_for('main_bp.ticket_create') }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
+
           <div class="field">
             <label>Titre *</label>
             <input type="text" name="title" maxlength="120" required placeholder="Ex : Apporter de l’eau zone C">
           </div>
+
           <div class="field">
             <label>Description</label>
             <textarea name="description" rows="3" maxlength="500" placeholder="Détails utiles…"></textarea>
           </div>
+
           <div class="field">
             <label>Catégorie</label>
             <select name="category">
@@ -37,6 +107,7 @@
               <option>Autre</option>
             </select>
           </div>
+
           <div class="field">
             <label>Priorité</label>
             <select name="priority">
@@ -45,6 +116,7 @@
               <option>Basse</option>
             </select>
           </div>
+
           <div class="field">
             <label>Assigner à</label>
             <select name="assigned_to_id">
@@ -54,6 +126,7 @@
               {% endfor %}
             </select>
           </div>
+
           <div class="field">
             <label>Statut initial</label>
             <select name="status">
@@ -63,6 +136,7 @@
               <option>Archivé</option>
             </select>
           </div>
+
           <button class="btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Créer</button>
         </form>
         {% else %}
@@ -71,52 +145,53 @@
       </div>
     </div>
 
-    <!-- Colonne liste -->
+    <!-- Colonne droite : liste -->
     <div class="card">
       <h3><i class="fa-solid fa-list-check"></i> Tous les tickets</h3>
       <div class="card-content">
 
         <!-- Filtres -->
         <div class="filters">
-          <input id="f-search" type="text" placeholder="Recherche (titre/description)…" class="field-input" style="padding:10px;border:1px solid #d8dee9;border-radius:10px;">
+          <input id="f-search" type="text" placeholder="Recherche (titre/description)…">
           <select id="f-status">
-            <option value="">(Tous)</option>
+            <option value="">(Tous statuts)</option>
             <option value="Ouvert">Ouvert</option>
             <option value="En cours">En cours</option>
             <option value="Terminé">Terminé</option>
             <option value="Archivé">Archivé</option>
           </select>
           <select id="f-priority">
-            <option value="">(Toutes)</option>
+            <option value="">(Toutes priorités)</option>
             <option value="Basse">Basse</option>
             <option value="Normal">Normal</option>
             <option value="Haute">Haute</option>
           </select>
           <select id="f-category">
-            <option value="">(Toutes)</option>
+            <option value="">(Toutes catégories)</option>
             <option value="Logistique">Logistique</option>
             <option value="Technique">Technique</option>
             <option value="Secours">Secours</option>
             <option value="Autre">Autre</option>
           </select>
           <select id="f-assignee">
-            <option value="">(Tous)</option>
+            <option value="">(Tous assignés)</option>
             {% for u in users %}
               <option value="{{ u.id }}">{{ u.nom }}</option>
             {% endfor %}
           </select>
         </div>
 
+        <!-- Liste -->
         <div id="tickets" class="tickets"><!-- injecté par JS --></div>
       </div>
     </div>
   </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script>
-  /* ===== Données côté serveur ===== */
+  /* ===== Données serveur ===== */
   const CAN_MANAGE = {{ 'true' if can_manage else 'false' }};
   const EVT_ID = {{ evenement.id }};
   const CURRENT_USER_ID = {{ user.id }};
@@ -126,12 +201,13 @@
     {% endfor %}
   ];
 
-  /* ===== Helpers ===== */
+  /* ===== Helpers UI ===== */
   function showToast(msg){
     const t=document.getElementById('toast');
     t.textContent=msg; t.style.display='block';
-    setTimeout(()=>{ t.style.display='none'; }, 1800);
+    setTimeout(()=>{ t.style.display='none'; }, 1600);
   }
+
   function statusBadge(status){
     const s=(status||"").toLowerCase();
     if(s==="ouvert") return `<span class="status-badge st-ouvert"><i class="fa-regular fa-circle"></i> Ouvert</span>`;
@@ -142,26 +218,25 @@
   }
   function prioClass(priority){
     const p=(priority||"").toLowerCase();
-    if(p==="haute") return "prio-haute";
-    if(p==="basse") return "prio-basse";
-    return "prio-normal";
+    if(p==="haute") return "chip prio-haute";
+    if(p==="basse") return "chip prio-basse";
+    return "chip prio-normal";
   }
-  function fmtDateIsoLocalPlus2(iso){
-    // Si le backend renvoie déjà +2, on laisse. Sinon on ajoute +2 en fallback.
+  function fmtDateLocal(iso){
     if(!iso) return "—";
     try{
-      const d = new Date(iso);
-      // Fallback +120min si l'heure parait UTC (heuristique simple)
-      const adjusted = new Date(d.getTime() + 120*60*1000);
-      return adjusted.toLocaleString();
+      // On affiche en locale du navigateur ; si ton backend renvoie de l'UTC, ajuste côté API si besoin
+      return new Date(iso).toLocaleString();
     }catch{ return "—"; }
   }
 
-  /* ===== Rendu carte ticket ===== */
+  /* ===== Rendu d'une carte ===== */
   function ticketCardHTML(t){
-    const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
-    const meIcon = (t.assigned_to_id === CURRENT_USER_ID) ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
+    const prChip = `<span class="${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
+    const meIcon = (String(t.assigned_to_id) === String(CURRENT_USER_ID))
+      ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
     const assigneeLabel = t.assigned_to || "—";
+    const requester = t.created_by || "—";
 
     const managePart = CAN_MANAGE ? `
       <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
@@ -177,40 +252,30 @@
           </select>
           <select name="assigned_to_id">
             <option value="">— Non assigné —</option>
-            ${USERS.map(u=>`<option value="${u.id}" ${t.assigned_to_id===u.id?"selected":""}>${u.nom} (${u.role})</option>`).join("")}
+            ${USERS.map(u=>`<option value="${u.id}" ${String(t.assigned_to_id)===String(u.id)?"selected":""}>${u.nom} (${u.role})</option>`).join("")}
           </select>
           <button class="btn-soft" type="submit"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
         </form>
         <form method="POST" action="/tickets/${t.id}/delete" onsubmit="return confirm('Supprimer ce ticket ?')">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button class="btn-soft btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> Supprimer</button>
         </form>
       </div>` : ``;
 
     return `
       <div class="ticket" id="ticket-${t.id}">
-        <div class="title">${meIcon}${t.title}</div>
+        <div class="title">${meIcon}${t.title||"—"}</div>
         <div class="meta">
-          <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${t.created_by||"—"}</span>
+          <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${requester}</span>
           <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel}</span>
           ${prChip}
           <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
-          <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
+          <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateLocal(t.created_at)}</span>
           ${statusBadge(t.status)}
         </div>
         ${t.description ? `<div class="desc" style="margin-top:6px">${t.description}</div>`:``}
         ${managePart}
       </div>`;
-  }
-
-  /* ===== AJAX update ===== */
-  async function updateTicket(id, form){
-    const fd = new FormData(form);
-    const res = await fetch(`/tickets/${id}/update`, { method:"POST", body: fd });
-    if(res.ok){ showToast("✅ Ticket mis à jour"); refreshTickets(); }
-    else { showToast("⚠️ Erreur mise à jour"); }
-    return false;
   }
 
   /* ===== Filtres ===== */
@@ -237,13 +302,22 @@
     wrap.innerHTML = list.map(ticketCardHTML).join("");
   }
 
+  /* ===== Update AJAX ===== */
+  async function updateTicket(id, form){
+    const fd = new FormData(form);
+    const res = await fetch(`/tickets/${id}/update`, { method:"POST", body: fd });
+    if(res.ok){ showToast("✅ Ticket mis à jour"); refreshTickets(); }
+    else { showToast("⚠️ Erreur mise à jour"); }
+    return false;
+  }
+
   /* ===== Polling ===== */
   let lastHash = "";
   const hash = (obj)=> JSON.stringify(obj);
 
   async function refreshTickets(){
     try{
-      const res = await fetch(`/evenement/${EVT_ID}/tickets_json`);
+      const res = await fetch(`/evenement/${EVT_ID}/tickets_json`, { cache: "no-store" });
       if(!res.ok){ console.error("tickets_json status", res.status); return; }
       const data = await res.json();
       const list = Array.isArray(data.tickets) ? data.tickets : [];
@@ -260,8 +334,9 @@
   document.addEventListener("DOMContentLoaded", ()=>{
     ['f-search','f-status','f-priority','f-category','f-assignee'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.addEventListener('input', refreshTickets);
-      if(el && el.tagName==='SELECT') el.addEventListener('change', refreshTickets);
+      if(!el) return;
+      const evt = (el.tagName==='SELECT') ? 'change' : 'input';
+      el.addEventListener(evt, refreshTickets);
     });
     refreshTickets();
     setInterval(refreshTickets, 3000);
