@@ -1,230 +1,209 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- ===== Styles locaux (Protection Civile) ===== -->
+<!-- ===== Style full-screen Protection Civile ===== -->
 <style>
   :root{
-    --pc-blue:#003b71;        /* bleu Protection Civile */
-    --pc-blue-2:#002f6c;
-    --pc-orange:#f58220;      /* orange Protection Civile */
-    --pc-yellow:#ffcc00;
-    --bg:#f6f8fb;
-    --card:#ffffff;
+    --pc-blue:#003b71;
+    --pc-orange:#f58220;
     --ink:#0f172a;
-    --muted:#64748b;
-    --line:#e6edf5;
+    --muted:#5b6b82;
+    --bg:#f4f7fb;
+    --card:#ffffff;
+    --line:#e6ecf3;
     --radius:16px;
-    --gap:16px;
   }
 
-  /* Layout global + lisibilité */
-  .page {
-    padding: clamp(12px, 2.2vw, 24px);
-    background: var(--bg);
-  }
+  /* conteneur plein écran, grandes largeurs */
+  .page { background: var(--bg); }
   .wrap {
-    max-width: 1100px;
-    margin: 0 auto;
+    width: min(1500px, 95vw);   /* prend tout l'écran jusqu’à 1500px */
+    margin: 18px auto 28px;
   }
 
-  /* En-tête */
+  /* Héro */
   .hero {
-    background: linear-gradient(180deg, #fff, #f7f9fe);
+    background: linear-gradient(180deg, #fff, #f9fbff);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 18px;
-    box-shadow: 0 4px 18px rgba(0,0,0,.04);
+    padding: 20px 22px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.04);
   }
-  .hero-top{
-    display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
-  }
-  .title {
-    display:flex; align-items:center; gap:10px; color: var(--pc-blue); 
-  }
+  .hero-top{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .title{ display:flex; align-items:center; gap:12px; color:var(--pc-blue); }
   .title h1{
-    font-size: clamp(18px, 2.6vw, 26px);
-    line-height: 1.2; margin:0;
+    margin:0;
+    font-size: clamp(22px, 2.2vw, 34px);
+    line-height:1.15;
+    letter-spacing:.2px;
   }
-  .chips{ display:flex; gap:8px; flex-wrap: wrap; }
+  .chips{ display:flex; flex-wrap:wrap; gap:10px; }
   .chip{
-    background:#eef3ff; color: var(--pc-blue);
-    border:1px solid #dbe6ff;
-    padding:6px 10px; border-radius:999px; font-weight:600; display:inline-flex; align-items:center; gap:8px;
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 12px; border-radius:999px; font-weight:700;
+    background:#eef3ff; color:var(--pc-blue); border:1px solid #dbe6ff;
   }
-  .badges{ display:flex; gap:6px; flex-wrap: wrap; }
+
+  /* Tuiles récap – 4 colonnes larges qui s’adaptent */
+  .tiles{
+    display:grid; gap:14px; margin-top:14px;
+    grid-template-columns: repeat(4, minmax(260px, 1fr));
+  }
+  .tile{
+    background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .tile .ico{ font-size:20px; color:var(--pc-orange); }
+  .tile .k{ font-size:.9rem; color:var(--muted); }
+  .tile .v{ font-weight:800; font-size:1.05rem; color:var(--ink); }
+
+  /* mini timeline arrivée/sortie */
+  .mini-tl{
+    display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:14px; margin-top:14px;
+  }
+  .mini-tl .bar{ height:3px; background:linear-gradient(90deg,#ffd7bd,#e1eaf8); border-radius:4px; width:100%; }
+  .mini-tl .lbl{ color:var(--muted); font-size:.9rem; margin-bottom:3px; }
+  .mini-tl .val{ font-weight:800; color:var(--ink); }
+
+  /* grille principale – colonnes larges */
+  .grid{
+    display:grid; gap:18px; margin-top:18px;
+    grid-template-columns: minmax(620px, 1fr) minmax(620px, 1fr);
+  }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 6px 24px rgba(0,0,0,.035); }
+  .card .hd{
+    display:flex; align-items:center; gap:10px; padding:14px 18px;
+    border-bottom:1px solid var(--line); background:#f9fbff; color:var(--pc-blue); font-weight:900; letter-spacing:.2px;
+  }
+  .card .bd{ padding:18px; }
+
+  /* liste champs: deux colonnes “cartes” qui s’auto-dimensionnent
+     chaque champ est en ligne: libellé à gauche, valeur très large à droite */
+  .field-grid{
+    display:grid; gap:12px;
+    grid-template-columns: repeat(2, minmax(480px, 1fr));
+  }
+  .field{
+    display:flex; gap:16px; align-items:flex-start;
+    padding:14px 16px; border:1px solid var(--line); border-radius:12px; background:#fff;
+    min-height:64px;
+  }
+  .label{
+    min-width: 230px; max-width: 260px;
+    color:var(--muted); font-weight:800; text-transform:uppercase; letter-spacing:.03em; font-size:.9rem;
+    padding-top:2px;
+  }
+  .value{
+    flex:1; color:var(--ink); font-weight:800; font-size:1.05rem; line-height:1.35;
+    word-break:break-word; white-space:normal;
+  }
+
+  .badges-line{ display:flex; flex-wrap:wrap; gap:10px; }
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:8px 12px; border-radius:999px;
+    border:1px solid var(--line); background:#f1f5f9; font-weight:700;
+  }
+
   .pill{
-    display:inline-flex; align-items:center; gap:8px; border-radius:999px; padding:6px 10px; font-weight:700;
-    border:1px solid;
+    display:inline-flex; align-items:center; gap:10px; padding:8px 12px; border-radius:999px; font-weight:900; border:1px solid;
   }
   .pill.present{ background:#e8f6ef; color:#16794d; border-color:#c9ecd9; }
   .pill.sorti{ background:#fff3d6; color:#8a6100; border-color:#ffe7ad; }
   .pill.supprime{ background:#fde2e2; color:#b42318; border-color:#f9c6c6; }
 
-  /* tuiles */
-  .tiles{
-    display:grid; gap:12px; margin-top:12px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .tile{
-    background: var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; gap:10px; align-items:center;
-  }
-  .tile .k{ font-size:.85rem; color: var(--muted); }
-  .tile .v{ font-weight:700; color: var(--ink); }
-
-  /* Arrivée / Sortie mini timeline */
-  .mini-tl{ display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:12px; margin-top:12px;}
-  .mini-tl .dot{
-    width:36px; height:36px; border-radius:50%; display:grid; place-items:center; 
-    background:#fff1e6; color:var(--pc-orange);
-    border:1px solid #ffd9c0;
-  }
-  .mini-tl .bar{ height:2px; background:linear-gradient(90deg, #ffd9c0, #dfe8f6); border-radius:2px; }
-  .mini-tl .lbl{ font-size:.8rem; color:var(--muted); margin-bottom:2px;}
-  .mini-tl .val{ font-weight:700; }
-
-  /* Grille de contenu */
-  .grid{
-    display:grid; gap: var(--gap); margin-top: var(--gap);
-    grid-template-columns: 1fr 1fr;
-  }
-  .card{
-    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
-    box-shadow: 0 4px 18px rgba(0,0,0,.03);
-    overflow: hidden;
-  }
-  .card .hd{
-    display:flex; align-items:center; gap:8px; padding:12px 14px;
-    border-bottom:1px solid var(--line); background:#f9fbff; color:var(--pc-blue-2); font-weight:800;
-  }
-  .card .bd{ padding:14px; }
-
-  /* Liste libellé/valeur */
-  .dl{
-    display:grid; gap:10px; 
-    grid-template-columns: 1fr 1fr;
-  }
-  .row{
-    display:grid; gap:10px; 
-    grid-template-columns: 180px 1fr;
-    align-items:start;
-    background:#fff;
-    border:1px dashed var(--line);
-    border-radius:12px; padding:10px;
-  }
-  .lbl{ color: var(--muted); font-weight:600; text-transform: uppercase; letter-spacing:.02em; font-size:.8rem; }
-  .val{ color:var(--ink); font-weight:700; word-break: break-word; }
-
-  .badges-line{ display:flex; flex-wrap:wrap; gap:8px; }
-  .badge{
-    display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px;
-    border:1px solid var(--line); background:#f1f5f9; font-weight:600;
-  }
-
-  /* Actions */
-  .actions{ display:flex; gap:10px; flex-wrap:wrap; margin-top: var(--gap); }
+  /* actions */
+  .actions{ display:flex; gap:12px; flex-wrap:wrap; margin-top:18px; }
   .btn{
-    display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:10px; text-decoration:none; font-weight:800;
-    border:1px solid transparent; transition: transform .05s ease;
+    display:inline-flex; align-items:center; gap:10px; padding:12px 16px; border-radius:12px; font-weight:900; text-decoration:none;
+    border:1px solid transparent;
   }
-  .btn:active{ transform: translateY(1px); }
   .btn-secondary{ background:#eef3ff; color:var(--pc-blue); border-color:#dbe6ff; }
   .btn-warning{ background:#fff1e6; color:#9b4600; border-color:#ffd8bd; }
 
-  /* Timeline complète */
-  .timeline-card .bd{ display:grid; gap:12px; }
-  .timeline-form{ display:flex; gap:10px; align-items:flex-start; }
+  /* timeline */
+  .timeline-card .bd{ display:grid; gap:14px; }
+  .timeline-form{ display:flex; gap:12px; align-items:flex-start; }
   .timeline-form textarea{
-    flex:1; width:100%; min-height:86px; resize:vertical;
-    border:1px solid var(--line); border-radius:12px; padding:10px; font: inherit; background:#fff;
+    flex:1; width:100%; min-height:110px; resize:vertical; font:inherit;
+    border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff;
   }
   .timeline-list{ display:flex; flex-direction:column; gap:12px; }
-  .tl-item{
-    border:1px solid var(--line); border-radius:12px; padding:12px; background:#fcfdff;
-  }
-  .tl-time{ font-size:.85rem; color:var(--muted); margin-bottom:6px; }
-  .tl-content{ white-space: pre-wrap; color: var(--ink); }
-  .tl-meta{ margin-top:6px; font-size:.85rem; color:var(--muted); }
+  .tl-item{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:#fcfdff; }
+  .tl-time{ font-size:.95rem; color:var(--muted); margin-bottom:6px; }
+  .tl-content{ white-space:pre-wrap; color:var(--ink); font-weight:700; }
+  .tl-meta{ margin-top:6px; font-size:.9rem; color:var(--muted); }
 
-  /* Responsif */
-  @media (max-width: 1024px){
-    .tiles{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+  /* responsive : on descend progressivement sans écraser le texte */
+  @media (max-width: 1400px){
+    .grid{ grid-template-columns: 1fr 1fr; }
+    .field-grid{ grid-template-columns: repeat(2, minmax(420px, 1fr)); }
+    .label{ min-width:210px; }
+  }
+  @media (max-width: 1100px){
+    .tiles{ grid-template-columns: repeat(2, minmax(260px, 1fr)); }
     .grid{ grid-template-columns: 1fr; }
-    .dl{ grid-template-columns: 1fr; }
-    .row{ grid-template-columns: 1fr; }
+    .field-grid{ grid-template-columns: 1fr; }
+    .label{ min-width:180px; max-width:220px; }
+  }
+  @media (max-width: 560px){
+    .hero{ padding:16px; }
+    .label{ min-width: 140px; max-width: 180px; font-size:.85rem; }
+    .value{ font-size:1rem; }
   }
 </style>
 
 <div class="page">
   <div class="wrap">
 
-    <!-- ===== HERO ===== -->
+    <!-- ===== HEADER ===== -->
     <section class="hero">
       <div class="hero-top">
         <div class="title">
-          <i class="fa-solid fa-id-card-clip" style="font-size:22px;color:var(--pc-orange)"></i>
-          <h1>Détail de la fiche impliqué</h1>
+          <i class="fa-solid fa-shield-halved" style="color:var(--pc-orange); font-size:24px;"></i>
+          <h1>Fiche impliqué</h1>
         </div>
         <div class="chips">
           <span class="chip"><i class="fa-solid fa-hashtag"></i> {{ fiche.numero }}</span>
           <span class="chip"><i class="fa-solid fa-user"></i> {{ fiche.nom }} {{ fiche.prenom }}</span>
           <span class="chip">
-            {% if fiche.statut == 'présent' %}
-              <i class="fa-solid fa-circle-check"></i> Présent
-            {% elif fiche.statut == 'sorti' %}
-              <i class="fa-solid fa-person-walking-arrow-right"></i> Sorti
-            {% else %}
-              <i class="fa-solid fa-trash-can"></i> Supprimé
-            {% endif %}
+            {% if fiche.statut == 'présent' %}<i class="fa-solid fa-circle-check"></i> Présent
+            {% elif fiche.statut == 'sorti' %}<i class="fa-solid fa-person-walking-arrow-right"></i> Sorti
+            {% else %}<i class="fa-solid fa-trash-can"></i> Supprimé{% endif %}
           </span>
         </div>
       </div>
 
-      <!-- Tuiles -->
+      <!-- tuiles -->
       <div class="tiles">
         <div class="tile">
-          <i class="fa-solid fa-cake-candles" aria-hidden="true"></i>
-          <div>
-            <div class="k">Naissance</div>
-            <div class="v">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else '—' }}</div>
-          </div>
+          <div class="ico"><i class="fa-solid fa-cake-candles"></i></div>
+          <div><div class="k">Naissance</div><div class="v">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else '—' }}</div></div>
         </div>
         <div class="tile">
-          <i class="fa-solid fa-barcode" aria-hidden="true"></i>
-          <div>
-            <div class="k">Code Sinus</div>
-            <div class="v">{{ fiche.code_sinus or '—' }}</div>
-          </div>
+          <div class="ico"><i class="fa-solid fa-barcode"></i></div>
+          <div><div class="k">Code Sinus</div><div class="v">{{ fiche.code_sinus or '—' }}</div></div>
         </div>
         <div class="tile">
-          <i class="fa-solid fa-phone" aria-hidden="true"></i>
-          <div>
-            <div class="k">Téléphone</div>
-            <div class="v">{{ fiche.telephone or '—' }}</div>
-          </div>
+          <div class="ico"><i class="fa-solid fa-phone"></i></div>
+          <div><div class="k">Téléphone</div><div class="v">{{ fiche.telephone or '—' }}</div></div>
         </div>
         <div class="tile">
-          <i class="fa-solid fa-shield-halved" aria-hidden="true"></i>
-          <div>
-            <div class="k">Évènement</div>
-            <div class="v">{{ fiche.evenement.nom }}</div>
-          </div>
+          <div class="ico"><i class="fa-solid fa-building-shield"></i></div>
+          <div><div class="k">Évènement</div><div class="v">{{ fiche.evenement.nom }}</div></div>
         </div>
       </div>
 
-      <!-- Mini timeline -->
+      <!-- arrivée / sortie -->
       <div class="mini-tl">
         <div>
           <div class="lbl">Arrivée</div>
-          <div class="val">
-            {% if fiche.heure_arrivee_locale %}{{ fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}
-          </div>
+          <div class="val">{% if fiche.heure_arrivee_locale %}{{ fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</div>
         </div>
         <div class="bar" aria-hidden="true"></div>
         <div style="text-align:right">
           <div class="lbl">Sortie</div>
-          <div class="val">
-            {% if fiche.heure_sortie_locale %}{{ fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}
-          </div>
+          <div class="val">{% if fiche.heure_sortie_locale %}{{ fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</div>
         </div>
       </div>
     </section>
@@ -234,53 +213,29 @@
 
       <!-- Colonne gauche -->
       <article class="card">
-        <div class="hd"><i class="fa-solid fa-user" aria-hidden="true"></i> Informations personnelles</div>
+        <div class="hd"><i class="fa-solid fa-id-card-clip"></i> Informations personnelles</div>
         <div class="bd">
-          <div class="dl">
-            <div class="row">
-              <div class="lbl">Nom</div>
-              <div class="val">{{ fiche.nom }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">Prénom</div>
-              <div class="val">{{ fiche.prenom }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">Date de naissance</div>
-              <div class="val">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else 'Non renseignée' }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">Code Sinus</div>
-              <div class="val">{{ fiche.code_sinus or 'Non renseigné' }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">N° prise en charge (Argos/AEP)</div>
-              <div class="val">{{ fiche.numero_pec or 'Non renseigné' }}</div>
-            </div>
-            <div class="row" style="grid-column: 1 / -1;">
-              <div class="lbl">Adresse</div>
-              <div class="val">{{ fiche.adresse or 'Non renseignée' }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">Téléphone</div>
-              <div class="val">{{ fiche.telephone or 'Non renseigné' }}</div>
-            </div>
-            <div class="row">
-              <div class="lbl">Évènement</div>
-              <div class="val">{{ fiche.evenement.nom }}</div>
-            </div>
+          <div class="field-grid">
+            <div class="field"><div class="label">Nom</div><div class="value">{{ fiche.nom }}</div></div>
+            <div class="field"><div class="label">Prénom</div><div class="value">{{ fiche.prenom }}</div></div>
+            <div class="field"><div class="label">Date de naissance</div><div class="value">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Code Sinus</div><div class="value">{{ fiche.code_sinus or 'Non renseigné' }}</div></div>
+            <div class="field"><div class="label">N° prise en charge (Argos/AEP)</div><div class="value">{{ fiche.numero_pec or 'Non renseigné' }}</div></div>
+            <div class="field" style="grid-column: 1 / -1;"><div class="label">Adresse</div><div class="value">{{ fiche.adresse or 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Téléphone</div><div class="value">{{ fiche.telephone or 'Non renseigné' }}</div></div>
+            <div class="field"><div class="label">Évènement</div><div class="value">{{ fiche.evenement.nom }}</div></div>
           </div>
         </div>
       </article>
 
       <!-- Colonne droite -->
       <article class="card">
-        <div class="hd"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Statut & informations</div>
+        <div class="hd"><i class="fa-solid fa-circle-info"></i> Statut & informations</div>
         <div class="bd">
-          <div class="dl">
-            <div class="row">
-              <div class="lbl">Statut</div>
-              <div class="val">
+          <div class="field-grid">
+            <div class="field">
+              <div class="label">Statut</div>
+              <div class="value">
                 {% if fiche.statut == 'présent' %}
                   <span class="pill present"><i class="fa-solid fa-circle-check"></i> Présent</span>
                 {% elif fiche.statut == 'sorti' %}
@@ -291,78 +246,53 @@
               </div>
             </div>
 
-            <div class="row">
-              <div class="lbl">Personne à prévenir</div>
-              <div class="val">
-                {% if fiche.personne_a_prevenir %}
-                  {{ fiche.personne_a_prevenir }}{% if fiche.tel_personne_a_prevenir %} – {{ fiche.tel_personne_a_prevenir }}{% endif %}
+            <div class="field"><div class="label">Personne à prévenir</div>
+              <div class="value">
+                {% if fiche.personne_a_prevenir %}{{ fiche.personne_a_prevenir }}{% if fiche.tel_personne_a_prevenir %} – {{ fiche.tel_personne_a_prevenir }}{% endif %}
                 {% else %}Non renseigné{% endif %}
               </div>
             </div>
 
-            <div class="row" style="grid-column: 1 / -1;">
-              <div class="lbl">Difficultés</div>
-              <div class="val">{{ fiche.difficultes or 'Non renseignée' }}</div>
-            </div>
+            <div class="field" style="grid-column: 1 / -1;"><div class="label">Difficultés</div><div class="value">{{ fiche.difficultes or 'Non renseignée' }}</div></div>
+            <div class="field" style="grid-column: 1 / -1;"><div class="label">Autres informations</div><div class="value">{{ fiche.autres_informations or 'Non renseigné' }}</div></div>
 
-            <div class="row" style="grid-column: 1 / -1;">
-              <div class="lbl">Autres informations</div>
-              <div class="val">{{ fiche.autres_informations or 'Non renseigné' }}</div>
-            </div>
+            <div class="field"><div class="label">Destination</div><div class="value">{{ fiche.destination or 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Moyen de transport</div><div class="value">{{ fiche.moyen_transport or 'Non renseigné' }}</div></div>
+            <div class="field"><div class="label">Recherche une personne</div><div class="value">{{ fiche.recherche_personne or 'Non' }}</div></div>
 
-            <div class="row">
-              <div class="lbl">Destination</div>
-              <div class="val">{{ fiche.destination or 'Non renseignée' }}</div>
-            </div>
-
-            <div class="row">
-              <div class="lbl">Moyen de transport</div>
-              <div class="val">{{ fiche.moyen_transport or 'Non renseigné' }}</div>
-            </div>
-
-            <div class="row">
-              <div class="lbl">Recherche une personne</div>
-              <div class="val">{{ fiche.recherche_personne or 'Non' }}</div>
-            </div>
-
-            <div class="row" style="grid-column: 1 / -1;">
-              <div class="lbl">Compétences</div>
-              <div class="val">
+            <div class="field" style="grid-column: 1 / -1;">
+              <div class="label">Compétences</div>
+              <div class="value">
                 {% set comps = (fiche.competences or '').split(',') if fiche.competences else [] %}
                 {% if comps %}
                   <div class="badges-line">
                     {% for c in comps %}
-                      {% set t = c.strip() %}
-                      <span class="badge"><i class="fa-solid fa-award"></i> {{ t }}</span>
+                      <span class="badge"><i class="fa-solid fa-award"></i> {{ c.strip() }}</span>
                     {% endfor %}
                   </div>
-                {% else %}
-                  Non renseignée
-                {% endif %}
+                {% else %}Non renseignée{% endif %}
               </div>
             </div>
 
-            <div class="row" style="grid-column: 1 / -1;">
-              <div class="lbl">Bagages</div>
-              <div class="val">
+            <div class="field" style="grid-column: 1 / -1;">
+              <div class="label">Bagages</div>
+              <div class="value">
                 {% if fiche.bagages and fiche.bagages|length > 0 %}
                   <div class="badges-line">
                     {% for bag in fiche.bagages %}
                       <span class="badge"><i class="fa-solid fa-suitcase-rolling"></i> {{ bag.numero }}</span>
                     {% endfor %}
                   </div>
-                {% else %}
-                  Aucun
-                {% endif %}
+                {% else %}Aucun{% endif %}
               </div>
             </div>
-
           </div>
         </div>
       </article>
+
     </section>
 
-    <!-- Actions -->
+    <!-- actions -->
     <div class="actions">
       <a href="{{ url_for('main_bp.dashboard', evenement_id=fiche.evenement.id) }}" class="btn btn-secondary">
         <i class="fa-solid fa-arrow-left-long"></i> Retour au dashboard
@@ -373,18 +303,17 @@
     </div>
 
     <!-- ===== Timeline ===== -->
-    <section class="card timeline-card" style="margin-top:16px;">
-      <div class="hd"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Suivi / Timeline</div>
+    <section class="card timeline-card" style="margin-top:18px;">
+      <div class="hd"><i class="fa-solid fa-clock-rotate-left"></i> Suivi / Timeline</div>
       <div class="bd">
         <form method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}" class="timeline-form">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <!-- aligne le nom du champ avec ton modèle (content) -->
           <textarea name="content" placeholder="Ajouter un commentaire de suivi..."></textarea>
           <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-plus"></i> Ajouter</button>
         </form>
 
         {% if not entries %}
-          <p class="muted" style="color:var(--muted); margin:0;">Aucun commentaire pour l'instant.</p>
+          <p style="color:var(--muted); margin:0;">Aucun commentaire pour l'instant.</p>
         {% else %}
           <div class="timeline-list">
             {% for e in entries %}
@@ -402,4 +331,4 @@
   </div>
 </div>
 
-{% endblock %} 
+{% endblock %}
