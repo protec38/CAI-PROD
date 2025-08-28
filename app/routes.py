@@ -1864,5 +1864,5 @@ def add_timeline_comment(fiche_id):
     db.session.commit()
     log_action("timeline_add", "FicheImplique", fiche.id, extra=content[:200])
     flash("Commentaire ajouté.", "success")
-    return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
+    return redirect(url_for("main_bp.fiche_detail", id=fiche_id))
 
