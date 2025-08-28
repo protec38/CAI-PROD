@@ -27,16 +27,15 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # IMPORTANT : autoriser le JS inline (dashboard) et les CDN utilisés
     csp = {
-    "default-src": "'self'",
-    "img-src": "'self' data:",
-    "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
-    "font-src": "'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
-    # ✅ autorise les <script> inline de tes templates + cdnjs si tu l’utilises
-    "script-src": "'self' https://cdnjs.cloudflare.com 'unsafe-inline'",
-    # ✅ autorise fetch/XHR vers ton backend
-    "connect-src": "'self'",
+        "default-src": "'self'",
+        "img-src": "'self' data:",
+        "style-src": "'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'",
+        "font-src": "'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:",
+        # ✅ autorise les <script> inline de tes templates + cdnjs si tu l’utilises
+        "script-src": "'self' https://cdnjs.cloudflare.com 'unsafe-inline'",
+        # ✅ autorise fetch/XHR vers ton backend
+        "connect-src": "'self'",
     }
-
 
     Talisman(
         app,
@@ -51,6 +50,7 @@ def create_app(config_name: str | None = None) -> Flask:
     limiter.init_app(app)
 
     # --- Flask-Login config ---
+    # NOTE : conserve l'endpoint tel que dans ton code actuel.
     login_manager.login_view = "main_bp.login"
     login_manager.login_message_category = "info"
 
@@ -62,7 +62,15 @@ def create_app(config_name: str | None = None) -> Flask:
         try:
             return db.session.get(UserModel, int(user_id))
         except Exception:
+            # Compat si la PK n'est pas un int
             return UserModel.query.get(user_id)
+
+    # --- Filtres Jinja (fr_datetime / fr_date / fr_time) ---
+    # Assure-toi d'avoir créé app/filters.py avec les fonctions fr_datetime, fr_date, fr_time
+    from . import filters as jfilters
+    app.add_template_filter(jfilters.fr_datetime, name="fr_datetime")
+    app.add_template_filter(jfilters.fr_date,     name="fr_date")
+    app.add_template_filter(jfilters.fr_time,     name="fr_time")
 
     # --- Gestion CSRF (page d’erreur claire) ---
     @app.errorhandler(CSRFError)
