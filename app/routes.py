@@ -1429,20 +1429,32 @@ def revoke_share_link(link_id):
 # 🔓 Vue PUBLIQUE (read-only) par token, pour coller à ton template:
 @main_bp.route("/autorite/<token>", methods=["GET"])
 def autorite_share_public(token):
-    # token valide et non révoqué
-    link = ShareLink.query.filter_by(token=token, revoked=False).first_or_404()
+    # On cherche le lien (même s'il est révoqué, on veut distinguer les cas)
+    link = ShareLink.query.filter_by(token=token).first()
+
+    # Lien introuvable ou révoqué -> page dédiée
+    if not link or link.revoked:
+        resp = render_template("autorite_share_invalid.html")
+        # 410 Gone = ressource n'est plus disponible (meilleur qu'un 404 ici)
+        return resp, 410, {
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+
+    # Lien valide -> on charge l'évènement
     ev = Evenement.query.get_or_404(link.evenement_id)
 
-    # On réutilise TON template "autorite_dashboard.html"
-    #   - manage=False : masque la zone de gestion (création/révocation de liens)
-    #   - public_token=token : pour que le JS appelle /autorite_json?token=...
+    # On réutilise le même template; manage=False masque la gestion
+    # public_token=token pour que le JS appelle /autorite_json?token=...
     return render_template(
         "autorite_dashboard.html",
         evenement=ev,
         manage=False,
         links=None,
-        public_token=token
+        public_token=token,
     )
+
 
 
 # ✅ Endpoint JSON consommé par ton JS (gère mode interne et public)
