@@ -283,6 +283,7 @@ class TimelineEntry(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
     kind = db.Column(db.String(20), default="comment", nullable=False)  # comment/status/etc.
+    user = db.relationship("Utilisateur", backref="timeline_comments")
     content = db.Column(db.Text, nullable=False)
 
 

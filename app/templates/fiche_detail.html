@@ -365,7 +365,7 @@ body{
             <div class="titem" id="entry-{{ e.id }}">
               <div class="ttime">{{ e.created_at|fr_datetime }}</div>
               <div class="tcontent">{{ (e.content or e.message)|e }}</div>
-              <div class="tmeta">par #{{ e.user_id }}</div>
+              <div class="tmeta">par #{{ e.user.nom }}</div>
             </div>
           {% endfor %}
         </div>
