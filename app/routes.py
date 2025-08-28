@@ -1398,16 +1398,27 @@ def autorite_dashboard_manage(evenement_id):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement_id))
 
-    links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
+    links = (ShareLink.query
+             .filter_by(evenement_id=evenement_id)
+             .order_by(ShareLink.created_at.desc())
+             .all())
 
-    # 🔐 si on vient de créer un lien, on reçoit ?token=... pour l'afficher une seule fois
+    # 🔥 Prépare les actualités déjà triées
+    all_news = (EventNews.query
+                .filter_by(evenement_id=evenement_id)
+                .order_by(EventNews.priority.asc(), EventNews.created_at.desc())
+                .all())
+
     one_time_token = request.args.get("token")
-    return render_template("autorite_dashboard.html",
-                           user=user,
-                           evenement=evt,
-                           links=links,
-                           manage=True,
-                           one_time_token=one_time_token)
+    return render_template(
+        "autorite_dashboard.html",
+        user=user,
+        evenement=evt,
+        links=links,
+        manage=True,
+        one_time_token=one_time_token,
+        all_news=all_news   # ✅ injecté au template
+    )
 
 
 # ===== Révocation par ID (pas par token qu’on ne stocke pas) =====
