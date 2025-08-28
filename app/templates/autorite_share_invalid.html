@@ -1,19 +1,76 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="UTF-8">
   <title>Lien indisponible</title>
-  
-<style>
-body{font-family:Roboto,Arial,sans-serif;background:#f6f7fb;margin:0;display:grid;place-items:center;height:100vh;color:#24324a}
-    .box{background:#fff;border:1px solid #e8ecf4;border-radius:14px;padding:24px;max-width:520px;box-shadow:0 8px 22px rgba(9,30,66,.08);text-align:center}
-</style>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
+
+  <style>
+    :root {
+      --pc-blue:#003b71;
+      --pc-orange:#f58220;
+      --bg:#f6f7fb;
+      --line:#e8ecf4;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body {
+      font-family:'Roboto',Arial,sans-serif;
+      background: linear-gradient(135deg, var(--pc-blue) 0%, var(--pc-orange) 100%);
+      display:flex; align-items:center; justify-content:center;
+      height:100vh; color:#24324a; padding:20px;
+    }
+    .card {
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:18px;
+      padding:32px 28px;
+      max-width:500px; width:100%;
+      box-shadow:0 10px 26px rgba(0,0,0,.15);
+      text-align:center;
+      animation:fadeIn .6s ease-out;
+    }
+    .logo {
+      width:80px; height:80px;
+      margin:0 auto 16px;
+      background: var(--pc-orange);
+      border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:34px; color:#fff;
+      box-shadow:0 4px 12px rgba(0,0,0,.2);
+    }
+    h1 {
+      font-size:24px; font-weight:700;
+      color:var(--pc-blue);
+      margin-bottom:12px;
+    }
+    p {
+      font-size:16px; color:#555; line-height:1.4;
+      margin-bottom:24px;
+    }
+    .btn {
+      display:inline-flex; align-items:center; gap:8px;
+      background:var(--pc-blue);
+      color:#fff; padding:12px 20px;
+      border-radius:10px; text-decoration:none;
+      font-weight:600; transition:background .2s ease;
+    }
+    .btn:hover { background:#00264f; }
+    @keyframes fadeIn {
+      from {opacity:0; transform:translateY(10px);}
+      to {opacity:1; transform:translateY(0);}
+    }
+  </style>
 </head>
 <body>
-  <div class="box">
-    <h2>⚠️ Lien indisponible</h2>
-    <p>Ce lien a expiré ou a été révoqué par l’organisateur.</p>
+  <div class="card">
+    <div class="logo"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    <h1>Lien indisponible</h1>
+    <p>⚠️ Ce lien de partage a expiré ou a été révoqué par l’organisateur.</p>
+    <a href="{{ url_for('main_bp.evenement_new') }}" class="btn">
+      <i class="fa-solid fa-arrow-left"></i> Retour
+    </a>
   </div>
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
