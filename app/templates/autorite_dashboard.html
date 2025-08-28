@@ -4,22 +4,28 @@
 <head>
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <meta charset="UTF-8" />
-  <title>Vue Autorité – {{ evenement.nom }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vue Autorité – {{ evenement.nom }}</title>
+  <meta name="description" content="Logiciel de la Protection Civile de l'Isère (38) – vue Autorité en temps réel : statut, compteurs et actualités opérationnelles.">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
 
   <style>
     :root{
-      --pc-blue:#003b71; --pc-blue-2:#0a2e55;
+      --pc-blue:#003b71; --pc-blue-2:#0a2e55; --pc-navy:#0b2240;
       --pc-orange:#f58220; --pc-yellow:#ffcc00;
       --bg:#f4f7fb; --ink:#0b1523; --muted:#6b778b; --line:#e7edf5;
       --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
       --card:#ffffff; --radius:16px; --shadow:0 12px 28px rgba(16,24,40,.10);
     }
+
     *{box-sizing:border-box}
     html,body{
-      margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;
-      color:var(--ink);background:linear-gradient(180deg,#0b2240 0%,#0b2240 26%,#f6f8fc 26%)
+      margin:0;padding:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;
+      color:var(--ink);
+      background:
+        radial-gradient(1200px 600px at 50% -200px, rgba(245,130,32,.16), rgba(0,0,0,0) 70%),
+        linear-gradient(180deg,var(--pc-navy) 0%, var(--pc-navy) 26%, #f6f8fc 26%);
     }
     a{text-decoration:none}
 
@@ -49,20 +55,28 @@
 
     /* Hero */
     .hero{
-      color:#fff;padding:22px;border-radius:18px;margin-bottom:16px;overflow:hidden;position:relative;
-      background:linear-gradient(135deg,rgba(0,47,108,.96),rgba(245,130,32,.92));
+      color:#fff;padding:22px;border-radius:18px;margin-bottom:18px;overflow:hidden;position:relative;
+      background:linear-gradient(135deg, rgba(0,47,108,.96) 10%, rgba(245,130,32,.95) 100%);
+      border:1px solid rgba(255,255,255,.18);
     }
     .hero::after{
       content:"";position:absolute;right:-80px;top:-80px;width:220px;height:220px;border-radius:50%;
-      background:radial-gradient(closest-side,rgba(255,255,255,.18),rgba(255,255,255,0));filter:blur(3px)
+      background:radial-gradient(closest-side,rgba(255,255,255,.18),rgba(255,255,255,0));
+      filter:blur(3px)
     }
-    .hero h1{margin:0 0 12px 0;font-size:26px;letter-spacing:.2px}
-    .chips{display:flex;gap:10px;flex-wrap:wrap}
+    .hero h1{margin:0 0 6px 0;font-size:26px;letter-spacing:.2px;display:flex;gap:10px;align-items:center}
+    .tagline{
+      display:flex;align-items:center;gap:8px;font-weight:700;
+      background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+      padding:8px 12px;border-radius:999px;margin:10px 0 6px 0
+    }
+    .chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
     .chip{
       background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.28);
       padding:8px 12px;border-radius:999px;font-weight:800;display:inline-flex;gap:8px;align-items:center
     }
-    .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+
+    .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
     @media (max-width:860px){.tiles{grid-template-columns:1fr}}
     .tile{
       background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;align-items:center;gap:12px;
@@ -71,6 +85,21 @@
     .ico{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:#f2f6fb;color:#0b2a55;font-size:18px}
     .k{font-size:12px;color:#536276;font-weight:900;text-transform:uppercase;letter-spacing:.4px}
     .v{font-size:28px;font-weight:900;color:var(--ink);min-height:34px}
+
+    /* News ticker (visible public + interne) */
+    #news-ticker{margin-top:16px}
+    .news-head{display:flex;align-items:center;gap:10px;margin:0 0 8px 0}
+    .news-head .dot{width:8px;height:8px;border-radius:999px;background:var(--pc-orange);box-shadow:0 0 0 4px rgba(245,130,32,.15)}
+    .news-list{display:grid;gap:10px}
+    .news-item{
+      padding:12px 14px;border-radius:14px;background:#fff;border:1px solid var(--line);
+      box-shadow:0 6px 16px rgba(0,0,0,.05);display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center
+    }
+    .badge{display:inline-flex;align-items:center;gap:8px;font-weight:800;border-radius:999px;padding:6px 10px;border:1px solid transparent}
+    .b-urgent{background:#ffefef;border-color:#ffd6d6;color:#8d0f0f}
+    .b-important{background:#fff7e6;border-color:#ffe1b3;color:#8a4a00}
+    .b-info{background:#eef5ff;border-color:#d9e6ff;color:#0b2a55}
+    .news-time{color:var(--muted);font-size:12px;white-space:nowrap}
 
     /* Buttons */
     .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;padding:10px 12px;border-radius:10px;font-weight:900;cursor:pointer}
@@ -83,20 +112,6 @@
     .muted{color:var(--muted);font-size:13px}
     code.share{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fafcff;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
-    /* News ticker (visible public + interne) */
-    #news-ticker{margin-top:16px}
-    .news-list{display:grid;gap:10px}
-    .news-item{
-      padding:10px 12px;border-radius:12px;background:#fff;border:1px solid var(--line);
-      box-shadow:0 4px 12px rgba(0,0,0,.05);display:flex;align-items:center;gap:12px
-    }
-    .badge{
-      display:inline-flex;align-items:center;gap:8px;font-weight:800;border-radius:999px;padding:6px 10px;border:1px solid transparent
-    }
-    .b-urgent{background:#ffefef;border-color:#ffd6d6;color:#8d0f0f}
-    .b-important{background:#fff7e6;border-color:#ffe1b3;color:#8a4a00}
-    .b-info{background:#eef5ff;border-color:#d9e6ff;color:#0b2a55}
-
     /* Manage block */
     .manage{margin-top:16px}
     .links{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
@@ -105,6 +120,10 @@
     .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;
            padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+    /* Footer */
+    .footer{max-width:1100px;margin:18px auto 36px; padding:0 12px; color:#7c8798; font-size:13px}
+    .footer .brand{font-weight:800; color:#0d2a50}
   </style>
 </head>
 <body>
@@ -121,6 +140,13 @@
     <!-- HERO -->
     <div class="hero card" role="banner" aria-label="En-tête de l'évènement">
       <h1 id="evt-nom"><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
+
+      <!-- Tagline produit -->
+      <div class="tagline">
+        <i class="fa-solid fa-shield-heart"></i>
+        <span>Logiciel de la Protection Civile de l'Isère (38)</span>
+      </div>
+
       <div class="chips">
         <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
         <span class="chip" id="evt-statut-chip">
@@ -155,7 +181,10 @@
 
     <!-- ACTUALITÉS : affiché en public & interne, alimenté par /autorite_json -->
     <div id="news-ticker" class="card" style="display:none">
-      <h3 style="margin-top:0"><i class="fa-solid fa-bullhorn"></i> Actualités</h3>
+      <div class="news-head">
+        <span class="dot"></span>
+        <h3 style="margin:0"><i class="fa-solid fa-bullhorn"></i> Actualités opérationnelles</h3>
+      </div>
       <div id="news-list" class="news-list"></div>
     </div>
 
@@ -206,7 +235,7 @@
         {% endif %}
       </div>
 
-      <!-- ====== ACTUALITÉS (création + liste) ====== -->
+      <!-- ====== ACTUALITÉS (création + liste interne) ====== -->
       <div class="sp"></div>
       <div class="card" style="border:1px dashed var(--line);">
         <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-bullhorn"></i> Actualités de l’évènement</h3>
@@ -234,22 +263,23 @@
           </div>
         </form>
 
-        <!-- Listing (interne) -->
+        <!-- Listing interne -->
         <div style="margin-top:10px">
           {% if all_news %}
             {% for n in all_news %}
-              <div class="news-item" style="justify-content:space-between;">
-                <div style="display:flex; align-items:center; gap:10px;">
-                  <span class="badge
-                      {% if n.priority == 1 %}b-urgent{% elif n.priority == 2 %}b-important{% else %}b-info{% endif %}">
-                    <i class="fa-solid {{ n.icon | default('fa-circle-info') }}"></i>
-                    {% if n.priority == 1 %}Urgent{% elif n.priority == 2 %}Important{% else %}Info{% endif %}
-                  </span>
-                  <span>{{ n.message }}</span>
-                  <span class="muted">{{ n.created_at.strftime('%d/%m/%Y %H:%M') if n.created_at else '' }}</span>
-                  {% if not n.is_active %}<span class="muted">— (masquée)</span>{% endif %}
+              <div class="news-item">
+                <span class="badge {% if n.priority == 1 %}b-urgent{% elif n.priority == 2 %}b-important{% else %}b-info{% endif %}">
+                  <i class="fa-solid {{ n.icon | default('fa-circle-info') }}"></i>
+                  {% if n.priority == 1 %}Urgent{% elif n.priority == 2 %}Important{% else %}Info{% endif %}
+                </span>
+                <div>
+                  <div>{{ n.message }}</div>
+                  <div class="muted" style="font-size:12px; margin-top:2px;">
+                    Créé le {{ (n.created_at_local or n.created_at).strftime('%d/%m/%Y %H:%M') if n.created_at else '' }}
+                    {% if not n.is_active %} — (masquée){% endif %}
+                  </div>
                 </div>
-                <div class="row">
+                <div class="row" style="justify-content:end">
                   <form class="inline" method="POST" action="{{ url_for('main_bp.toggle_event_news', news_id=n.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary">
@@ -270,6 +300,10 @@
       </div>
     </div>
     {% endif %}
+  </div>
+
+  <div class="footer">
+    <span class="brand">Protection Civile – Isère (38)</span> · Vue autorité publique/privée — actualisation automatique toutes les 4 secondes.
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite">Lien copié dans le presse-papiers</div>
@@ -307,7 +341,7 @@
       document.getElementById('evt-statut').textContent = statut || '—';
     }
 
-    // Rend les actus pour public & interne via JSON
+    // Rend les actus (public & interne) via JSON
     function renderNews(items){
       const box = document.getElementById('news-ticker');
       const list = document.getElementById('news-list');
@@ -319,21 +353,25 @@
         return;
       }
       items.forEach(n=>{
-        const div = document.createElement('div');
-        div.className = 'news-item';
+        const row = document.createElement('div');
+        row.className = 'news-item';
+
         const badge = document.createElement('span');
         badge.className = 'badge ' + (n.priority==1 ? 'b-urgent' : (n.priority==2 ? 'b-important' : 'b-info'));
-        badge.innerHTML = `<i class="fa-solid ${n.icon||'fa-circle-info'}"></i> `+
-                          (n.priority==1 ? 'Urgent' : (n.priority==2 ? 'Important' : 'Info'));
-        const txt = document.createElement('span');
-        txt.textContent = n.message;
+        badge.innerHTML = `<i class="fa-solid ${n.icon||'fa-circle-info'}"></i>` +
+                          (n.priority==1 ? ' Urgent' : (n.priority==2 ? ' Important' : ' Info'));
+
+        const textCol = document.createElement('div');
+        textCol.textContent = n.message;
+
         const time = document.createElement('span');
-        time.className = 'muted';
-        time.textContent = n.created_at ? ` (${n.created_at})` : '';
-        div.appendChild(badge);
-        div.appendChild(txt);
-        div.appendChild(time);
-        list.appendChild(div);
+        time.className = 'news-time';
+        time.textContent = n.created_at ? n.created_at : '';
+
+        row.appendChild(badge);
+        row.appendChild(textCol);
+        row.appendChild(time);
+        list.appendChild(row);
       });
       box.style.display = '';
     }

@@ -1391,6 +1391,9 @@ def create_share_link(evenement_id):
 @main_bp.route("/evenement/<int:evenement_id>/autorite", methods=["GET"])
 @login_required
 def autorite_dashboard_manage(evenement_id):
+    import pytz
+    paris = pytz.timezone("Europe/Paris")
+
     user = get_current_user()
     evt = Evenement.query.get_or_404(evenement_id)
 
@@ -1398,16 +1401,18 @@ def autorite_dashboard_manage(evenement_id):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement_id))
 
-    links = (ShareLink.query
-             .filter_by(evenement_id=evenement_id)
-             .order_by(ShareLink.created_at.desc())
-             .all())
+    links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
 
-    # 🔥 Prépare les actualités déjà triées
-    all_news = (EventNews.query
-                .filter_by(evenement_id=evenement_id)
-                .order_by(EventNews.priority.asc(), EventNews.created_at.desc())
-                .all())
+    # Récupération des actus avec conversion locale
+    all_news = EventNews.query.filter_by(evenement_id=evenement_id).order_by(
+        EventNews.priority.asc(), EventNews.created_at.desc()
+    ).all()
+    for n in all_news:
+        if n.created_at:
+            try:
+                n.created_at_local = n.created_at.astimezone(paris)
+            except Exception:
+                n.created_at_local = n.created_at
 
     one_time_token = request.args.get("token")
     return render_template(
@@ -1417,8 +1422,9 @@ def autorite_dashboard_manage(evenement_id):
         links=links,
         manage=True,
         one_time_token=one_time_token,
-        all_news=all_news   # ✅ injecté au template
+        all_news=all_news
     )
+
 
 
 # ===== Révocation par ID (pas par token qu’on ne stocke pas) =====
@@ -1466,11 +1472,13 @@ def autorite_share_public(token):
         public_token=token,
     )
 
+#####################################################
 
-
-# ✅ Endpoint JSON consommé par ton JS (gère mode interne et public)
 @main_bp.route("/evenement/<int:evenement_id>/autorite_json", methods=["GET"])
 def autorite_json(evenement_id):
+    import pytz
+    paris = pytz.timezone("Europe/Paris")
+
     token = request.args.get("token")
 
     if token:
@@ -1491,19 +1499,27 @@ def autorite_json(evenement_id):
     nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
     nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
 
-    # 🔥 ACTUS actives, triées par priorité puis date
+    # 🔥 ACTUS actives avec heure locale Paris
     news_q = (EventNews.query
               .filter_by(evenement_id=evenement_id, is_active=True)
               .order_by(EventNews.priority.asc(), EventNews.created_at.desc()))
-    news_items = [{
-        "id": n.id,
-        "message": n.message,
-        "priority": n.priority,
-        "icon": n.icon,
-        "created_at": n.created_at.strftime("%d/%m/%Y %H:%M") if n.created_at else ""
-    } for n in news_q.limit(12).all()]  # limite raisonnable
+    news_items = []
+    for n in news_q.limit(12).all():
+        created_local = None
+        if n.created_at:
+            try:
+                created_local = n.created_at.astimezone(paris).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                created_local = n.created_at.strftime("%d/%m/%Y %H:%M")
+        news_items.append({
+            "id": n.id,
+            "message": n.message,
+            "priority": n.priority,
+            "icon": n.icon,
+            "created_at": created_local
+        })
 
-    date_str = ev.date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture_locale", None) else ""
+    date_str = ev.date_ouverture.astimezone(paris).strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture", None) else ""
 
     return jsonify({
         "evenement": {
