@@ -24,6 +24,21 @@ import re
 import json
 main_bp = Blueprint("main_bp", __name__)
 
+def add_timeline(fiche_id: int, user_id: int | None, content: str, kind: str):
+    """Ajoute une entrée de timeline (UTC) et ne commit PAS (laisse l'appelant décider)."""
+    e = TimelineEntry(
+        fiche_id=fiche_id,
+        user_id=user_id,
+        content=(content or "").strip(),
+        kind=(kind or "comment"),
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(e)
+    return e
+
+
+
+
 def json_nocache(payload: dict, status: int = 200):
     """Réponse JSON avec no-store pour empêcher tout cache navigateur/proxy."""
     resp = make_response(jsonify(payload), status)
@@ -306,6 +321,13 @@ def fiche_new():
 
         db.session.add(fiche)
         db.session.commit()
+
+        # ✅ Timeline: création de la fiche
+        try:
+            add_timeline(fiche.id, user.id, "Création de la fiche", "create")
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         flash(f"✅ Fiche n°{numero} créée pour l’évènement en cours.", "success")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement.id))
@@ -620,11 +642,11 @@ def fiche_sortie(id):
         flash("⛔ Vous n’avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
-    # Récupère les champs envoyés par la popup
+    # Champs envoyés par la popup
     destination = (request.form.get("destination") or "").strip()
     moyen_transport = (request.form.get("moyen_transport") or "").strip()
 
-    # Met à jour + sortie
+    # Mise à jour de la fiche
     if destination:
         fiche.destination = destination
     if moyen_transport:
@@ -633,10 +655,25 @@ def fiche_sortie(id):
     fiche.statut = "sorti"
     fiche.heure_sortie = datetime.utcnow()
 
+    # 1er commit : on valide la mise à jour de la fiche
     db.session.commit()
+
+    # ✅ Timeline : trace de la sortie
+    try:
+        details = []
+        if destination:
+            details.append(f"destination={destination}")
+        if moyen_transport:
+            details.append(f"transport={moyen_transport}")
+        content = "Sortie" + (f" ({', '.join(details)})" if details else "")
+        add_timeline(fiche.id, user.id, content, "exit")
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     flash(f"🚪 {fiche.nom} {fiche.prenom} est marqué comme 'sorti'.", "info")
     return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
+
 
 
 
