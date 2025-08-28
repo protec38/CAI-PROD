@@ -10,23 +10,17 @@
   <!-- Icons -->
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet"/>
 
-  <!-- Reset + fonts de secours pour éviter les carrés -->
   <style>
     :root{
       --bleu:#002f6c; --orange:#f58220; --jaune:#ffcc00;
       --ink:#0b1523; --line:#e9edf3; --bg:#f6f8fb;
       --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
     }
-    /* Police: on force des fallbacks sûrs */
-    html,body{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol"; }
-
+    html,body{ font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui; }
     *{ box-sizing:border-box }
     body{ margin:0; background: linear-gradient(135deg, #002f6c, #f58220); min-height:100vh; }
     .wrap{ max-width:1100px; margin:28px auto; padding:12px; }
-
-    .card{ background:#fff; border-radius:16px; border:1px solid var(--line);
-           box-shadow:0 10px 26px rgba(13,49,98,.10); padding:18px; }
-
+    .card{ background:#fff; border-radius:16px; border:1px solid var(--line); box-shadow:0 10px 26px rgba(13,49,98,.10); padding:18px; }
     .hero{ color:#fff; padding:22px; border-radius:18px;
            background:linear-gradient(135deg, rgba(0,47,108,.96), rgba(245,130,32,.92));
            box-shadow:0 12px 34px rgba(0,0,0,.28); margin-bottom:16px; }
@@ -34,21 +28,23 @@
     .chips{ display:flex; gap:10px; flex-wrap:wrap; }
     .chip{ background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25);
            padding:8px 12px; border-radius:999px; font-weight:700; display:inline-flex; gap:8px; align-items:center }
-
     .tiles{ display:grid; grid-template-columns: repeat(3,1fr); gap:12px; margin-top:12px; }
     @media (max-width:860px){ .tiles{ grid-template-columns:1fr; } }
     .tile{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; display:flex; align-items:center; gap:12px; }
     .tile .ico{ width:40px; height:40px; border-radius:12px; display:grid; place-items:center; background:#f2f6fb; color:#0b2a55; font-size:18px }
     .tile .k{ font-size:12px; color:#536276; font-weight:900; text-transform:uppercase; letter-spacing:.4px }
     .tile .v{ font-size:22px; font-weight:900; color:var(--ink); }
-
     .manage{ margin-top:16px; }
     .links{ margin-top:12px; border-top:1px dashed var(--line); padding-top:10px; }
-    .btn{ display:inline-flex; align-items:center; gap:8px; background:var(--jaune); color:#00122a; padding:10px 12px; border-radius:10px; text-decoration:none; font-weight:900; border:1px solid rgba(0,0,0,.12); cursor:pointer }
+    .btn{ display:inline-flex; align-items:center; gap:8px; background:var(--jaune); color:#00122a;
+          padding:10px 12px; border-radius:10px; text-decoration:none; font-weight:900;
+          border:1px solid rgba(0,0,0,.12); cursor:pointer }
     .btn:hover{ filter:brightness(.98) }
     .btn-danger{ background:var(--err); color:#fff }
     .btn-secondary{ background:#eef2f7; color:#111 }
-    code.share{ display:block; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fafcff; word-break:break-all; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    code.share{ display:block; padding:10px 12px; border:1px solid var(--line);
+                border-radius:10px; background:#fafcff; word-break:break-all;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
     .muted{ color:#667788; font-size:13px; }
     .row{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
     form.inline{ display:inline }
@@ -63,18 +59,12 @@
         <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
         <span class="chip" id="evt-statut-chip">
           {% set st = evenement.statut or '' %}
-          {% if st == 'Ouvert' %}
-            <i class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
-          {% elif st == 'Complet' %}
-            <i class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
-          {% elif st == 'Fermé' %}
-            <i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
-          {% elif st == 'En cours de gréement' %}
-            <i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
-          {% elif st == 'Effectif dépassé' %}
-            <i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
-          {% else %}
-            <i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>
+          {% if st == 'Ouvert' %}<i class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
+          {% elif st == 'Complet' %}<i class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
+          {% elif st == 'Fermé' %}<i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
+          {% elif st == 'En cours de gréement' %}<i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
+          {% elif st == 'Effectif dépassé' %}<i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
+          {% else %}<i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>
           {% endif %}
         </span>
         <span class="chip"><i class="fa-solid fa-clock"></i> <span id="evt-date">{{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}</span></span>
@@ -89,7 +79,7 @@
 
     {% if manage %}
     <div class="card manage">
-      <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+      <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
@@ -101,7 +91,11 @@
         {% if links %}
           {% for l in links %}
             <div style="margin:12px 0; padding:10px; border:1px dashed var(--line); border-radius:12px;">
-              <div><strong>Créé :</strong> {{ l.created_at.strftime('%d/%m/%Y %H:%M') }} {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}</div>
+              <div>
+                <strong>Créé :</strong>
+                {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}
+                {% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}
+              </div>
 
               {% if l.token %}
                 <div style="height:6px"></div>
@@ -137,6 +131,7 @@
   <script>
     const EVT_ID = {{ evenement.id }};
     const PUBLIC_TOKEN = {{ (public_token | default(None)) | tojson }};
+    const INVALID_URL_TMPL = "{{ url_for('main_bp.autorite_share_public', token='__TOKEN__') }}";
 
     function setTxt(id, val){
       const el = document.getElementById(id);
@@ -159,8 +154,17 @@
     }
     function refreshAutorite(){
       const qs = PUBLIC_TOKEN ? `?token=${encodeURIComponent(PUBLIC_TOKEN)}` : '';
-      fetch(`/evenement/${EVT_ID}/autorite_json${qs}`)
-        .then(r=>r.json())
+      fetch(`/evenement/${EVT_ID}/autorite_json${qs}`, { cache:'no-store' })
+        .then(r=>{
+          if(!r.ok){
+            if(PUBLIC_TOKEN){
+              const url = INVALID_URL_TMPL.replace('__TOKEN__', PUBLIC_TOKEN);
+              window.location.replace(url);
+            }
+            throw new Error("HTTP "+r.status);
+          }
+          return r.json();
+        })
         .then(d=>{
           if(d.evenement){
             setTxt('evt-nom', d.evenement.nom);

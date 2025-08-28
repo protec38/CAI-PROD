@@ -178,6 +178,10 @@ class Bagage(db.Model):
 # ======================
 # Lien de partage (dashboard autorités)
 # ======================
+from datetime import datetime, timezone
+import pytz
+import secrets, hashlib
+
 class ShareLink(db.Model):
     __tablename__ = "share_link"
 
@@ -204,6 +208,15 @@ class ShareLink(db.Model):
         token = secrets.token_urlsafe(24)  # URL-safe court mais robuste
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         return token, token_hash
+
+    @property
+    def created_at_locale(self):
+        """Retourne la date de création convertie en Europe/Paris"""
+        if not self.created_at:
+            return None
+        tz = pytz.timezone("Europe/Paris")
+        return self.created_at.astimezone(tz)
+
 # ======================
 # Tickets (logistique/technique)
 # ======================
