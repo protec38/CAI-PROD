@@ -7,7 +7,7 @@
 <title>Fiche impliqué — {{ fiche.nom }} {{ fiche.prenom }}</title>
 
 <style>
-/* ===== Reset léger & thème ===== */
+/* ===== Reset & thème ===== */
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
 :root{
@@ -48,14 +48,14 @@ body{
   background:#0f223d;border:1px solid var(--line);color:#cfe0ff;font-weight:700;
 }
 
-/* ===== Wrap principal ===== */
+/* ===== Wrap ===== */
 .wrapper{max-width:var(--container); margin:20px auto; padding:0 20px;}
 
 /* ===== Hero / méta fiche ===== */
 .hero{
   border:1px solid var(--line); border-radius:calc(var(--radius) + 4px);
   background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
-  box-shadow:var(--shadow); padding:18px 18px 14px 18px;
+  box-shadow:var(--shadow); padding:18px 18px 10px 18px;
 }
 .hero h1{
   margin:0; font-size: clamp(22px, 2.6vw, 32px); color:#d8e6ff; letter-spacing:.4px;
@@ -68,6 +68,15 @@ body{
 .p-ok{background:rgba(27,179,134,.22); color:#bff1e3}
 .p-warn{background:rgba(255,178,36,.22); color:#ffe7b3}
 .p-err{background:rgba(255,107,107,.22); color:#ffd4d4}
+
+/* === Barre horaires (arrivée / sortie) === */
+.timebar{
+  margin-top:12px;
+  display:grid; grid-template-columns: 1fr auto 1fr; align-items:center; gap:14px;
+}
+.timebar .bar{ height:3px; width:100%; background:linear-gradient(90deg,#ffd7bd,#e1eaf8); border-radius:3px; }
+.timegroup .lbl{ color:var(--muted); font-size:.9rem; margin-bottom:3px; }
+.timegroup .val{ font-weight:900; color:#eaf2ff; }
 
 /* ===== Tuiles recap ===== */
 .tiles{display:grid; gap:12px; margin-top:14px; grid-template-columns: repeat(4, minmax(210px, 1fr));}
@@ -82,7 +91,7 @@ body{
 /* ===== Grille principale ===== */
 .grid{
   display:grid; gap:var(--gap); margin-top:var(--gap);
-  grid-template-columns: 1.2fr 1fr;  /* colonnes équilibrées */
+  grid-template-columns: 1.2fr 1fr;
 }
 .card{
   background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
@@ -95,7 +104,7 @@ body{
 }
 .card .bd{ padding:16px; }
 
-/* ===== Champs (label au-dessus, value large) ===== */
+/* ===== Champs ===== */
 .fields{ display:grid; gap:12px; grid-template-columns: repeat(2, minmax(260px, 1fr)); }
 .field{ border:1px solid var(--line); border-radius:12px; padding:12px; background:#0e1f36; }
 .label{ color:var(--muted); font-weight:800; font-size:.85rem; letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px; }
@@ -113,16 +122,35 @@ body{
 }
 .btn.warn{ background:rgba(245,130,32,.18); border-color:#2a3b54; color:#ffd9bd }
 
-/* ===== Timeline ===== */
-.timeline .bd{ display:grid; gap:12px; }
+/* ===== Timeline — refonte “ligne + pastilles” ===== */
+.timeline{ margin-top:18px; }
+.timeline .bd{ padding:0 0 8px 0; }
+.tform-wrap{
+  background:var(--card); border:1px dashed var(--line); border-radius:12px;
+  padding:12px; margin-bottom:14px;
+}
 .tform{ display:flex; gap:12px; align-items:flex-start; }
 .tform textarea{
   flex:1; min-height:110px; resize:vertical; padding:12px; border-radius:12px; border:1px solid var(--line);
   background:#0e1f36; color:#e8f0ff; font:inherit;
 }
 .tform button{ border:1px solid var(--line); background:#0f223d; color:#d6e5ff; border-radius:12px; padding:12px 16px; font-weight:900 }
-.tlist{ display:flex; flex-direction:column; gap:10px; }
-.titem{ border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:#0e1f36; }
+
+/* ligne verticale */
+.tline{
+  position:relative; padding-left:28px;
+}
+.tline::before{
+  content:""; position:absolute; left:12px; top:0; bottom:0; width:2px; background:#203453; border-radius:2px;
+}
+.titem{
+  position:relative; margin:0 0 14px 0; padding:10px 12px; background:#0e1f36; border:1px solid var(--line); border-radius:12px;
+}
+.titem::before{
+  content:""; position:absolute; left:6px; top:16px; width:12px; height:12px; border-radius:50%;
+  background:#ffd9bd; border:2px solid #243a5f;
+  box-shadow:0 0 0 4px rgba(245,130,32,.12);
+}
 .ttime{ color:var(--muted); font-size:.95rem; margin-bottom:6px; }
 .tcontent{ white-space:pre-wrap; color:#e8f0ff; font-weight:800; }
 .tmeta{ margin-top:6px; color:var(--muted); font-size:.9rem; }
@@ -181,6 +209,28 @@ body{
       <span class="pill">Évènement : {{ fiche.evenement.nom }}</span>
     </div>
 
+    <!-- ✅ Barre horaires Arrivée / Sortie -->
+    <div class="timebar">
+      <div class="timegroup">
+        <div class="lbl">Heure d’arrivée</div>
+        <div class="val">
+          {% if fiche.heure_arrivee_locale %}
+            {{ fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+      <div class="bar" aria-hidden="true"></div>
+      <div class="timegroup" style="text-align:right;">
+        <div class="lbl">Heure de sortie</div>
+        <div class="val">
+          {% if fiche.heure_sortie_locale %}
+            {{ fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') }}
+          {% else %}—{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Tuiles -->
     <div class="tiles">
       <div class="tile">
         <div class="ico">🎂</div>
@@ -195,8 +245,8 @@ body{
         <div><div class="k">Téléphone</div><div class="v">{{ fiche.telephone or '—' }}</div></div>
       </div>
       <div class="tile">
-        <div class="ico">🛡️</div>
-        <div><div class="k">Prise en charge</div><div class="v">{{ fiche.numero_pec or '—' }}</div></div>
+        <div class="ico">📄</div>
+        <div><div class="k">Fiche Argos/AEP</div><div class="v">{{ fiche.numero_pec or '—' }}</div></div>
       </div>
     </div>
   </section>
@@ -293,22 +343,24 @@ body{
 
   </section>
 
-  <!-- ===== Timeline ===== -->
-  <section class="card timeline" style="margin-top:18px;">
+  <!-- ===== Timeline (belle ligne & pastilles) ===== -->
+  <section class="card timeline">
     <div class="hd">Suivi / Timeline</div>
     <div class="bd">
-      <form class="tform" method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <!-- compat: selon ta route, certains attendent 'content' d'autres 'comment' -->
-        <textarea name="content" id="tl-content" placeholder="Ajouter un commentaire de suivi..."></textarea>
-        <input type="hidden" name="comment" id="tl-comment">
-        <button type="submit">+ Ajouter</button>
-      </form>
+      <div class="tform-wrap">
+        <form class="tform" method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <!-- compat: selon ta route, certains attendent 'content' d'autres 'comment' -->
+          <textarea name="content" id="tl-content" placeholder="Ajouter un commentaire de suivi..."></textarea>
+          <input type="hidden" name="comment" id="tl-comment">
+          <button type="submit">+ Ajouter</button>
+        </form>
+      </div>
 
       {% if not entries %}
-        <p class="tmeta">Aucun commentaire pour l'instant.</p>
+        <p class="tmeta" style="margin:6px 2px; color:var(--muted);">Aucun commentaire pour l'instant.</p>
       {% else %}
-        <div class="tlist">
+        <div class="tline">
           {% for e in entries %}
             <div class="titem" id="entry-{{ e.id }}">
               <div class="ttime">{{ e.created_at|fr_datetime }}</div>
@@ -328,10 +380,7 @@ body{
 (function(){
   const t = document.getElementById('tl-content');
   const h = document.getElementById('tl-comment');
-  if(t && h){
-    const sync = () => { h.value = t.value; };
-    t.addEventListener('input', sync); sync();
-  }
+  if(t && h){ const sync = () => { h.value = t.value; }; t.addEventListener('input', sync); sync(); }
 })();
 </script>
 
