@@ -1,51 +1,203 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>📋 Gestion des évènements</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="csrf-token" content="{{ csrf_token() }}" />
 
-{% block content %}
-<div class="container" style="max-width: 1000px; margin: 40px auto;">
-    <h1 class="text-center" style="color: #003b71; margin-bottom: 30px;">📋 Gestion des évènements</h1>
+<style>
+  :root{
+    --pc-blue:#003b71;
+    --pc-orange:#f58220;
+    --bg:#f6f8fc;
+    --card:#ffffff;
+    --line:#e6edf5;
+    --ink:#0f172a;
+    --muted:#667085;
+    --radius:16px;
+    --shadow:0 10px 24px rgba(16,24,40,.06);
+  }
 
-    <!-- ✅ Tableau modernisé -->
-    <div style="overflow-x:auto; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border-radius: 10px;">
-        <table class="table" style="border-collapse: collapse; width: 100%;">
-            <thead style="background-color: #003b71; color: white;">
-                <tr>
-                    <th style="padding: 12px;">ID</th>
-                    <th style="padding: 12px;">Nom</th>
-                    <th style="padding: 12px;">Type</th>
-                    <th style="padding: 12px;">Adresse</th>
-                    <th style="padding: 12px;">Statut</th>
-                    <th style="padding: 12px;">Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for evt in evenements %}
-                <tr style="border-bottom: 1px solid #ddd;">
-                    <td style="padding: 12px;">{{ evt.id }}</td>
-                    <td style="padding: 12px;">{{ evt.nom }}</td>
-                    <td style="padding: 12px;">{{ evt.type_evt }}</td>
-                    <td style="padding: 12px;">{{ evt.adresse }}</td>
-                    <td style="padding: 12px;">{{ evt.statut }}</td>
-                    <td style="padding: 12px;">
-                        {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
-                            <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn btn-sm" style="background-color: #ffc107; color: #212529; border-radius: 6px;">📝 Modifier</a>
-                            <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" style="display:inline;" onsubmit="return confirm('Supprimer cet évènement ?');">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans;
+    color: var(--ink); background: var(--bg);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
 
-                                <button type="submit" class="btn btn-sm" style="background-color: #dc3545; color: white; border-radius: 6px;">🗑 Supprimer</button>
-                            </form>
-                        {% else %}
-                            <span style="color: gray;">🔒</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
+  /* Header */
+  .header{
+    background: linear-gradient(180deg, var(--pc-blue), #002b52);
+    color:#fff; text-align:center; padding:18px 12px;
+    border-bottom: 4px solid var(--pc-orange);
+  }
+  .header .brand{
+    display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
+  }
+  .logo{
+    width:52px; height:52px; border-radius:14px; display:grid; place-items:center;
+    background: linear-gradient(135deg, var(--pc-orange), #ff9f49); color:#112944; font-weight:900;
+    box-shadow: inset 0 2px 10px rgba(0,0,0,.15);
+  }
+  .header h1{ margin:0; font-size: clamp(20px, 2.6vw, 28px); letter-spacing:.3px; }
+
+  /* Container */
+  .container{
+    width: min(1000px, 94vw);
+    margin: 24px auto 30px;
+  }
+
+  /* Card/table shell */
+  .card{
+    background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .card .hd{
+    padding: 14px 16px; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg,#fff,#f8fbff);
+    color: var(--pc-blue); font-weight:900; letter-spacing:.2px;
+  }
+  .card .bd{ padding: 0; }
+
+  /* Table */
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse: collapse; min-width:780px; }
+  thead th{
+    padding: 12px; text-align:left; color:#fff; font-weight:800; letter-spacing:.02em;
+    background: var(--pc-blue);
+  }
+  tbody td{ padding:12px; border-top:1px solid #eef2f7; vertical-align: top; }
+  tbody tr:nth-child(odd){ background:#fbfdff; }
+  tbody tr:hover{ background:#f4f8ff; }
+
+  /* Badges statut */
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px;
+    font-weight:800; border:1px solid var(--line); background:#f3f6fb;
+  }
+  .b-open{ color:#0b6b3a; background:#e9f7ef; border-color:#cfeede; }
+  .b-warn{ color:#8a6100; background:#fff6da; border-color:#ffe7ad; }
+  .b-full{ color:#7a0916; background:#ffe8ec; border-color:#ffd1d9; }
+  .b-setup{ color:#0b3d77; background:#eaf2ff; border-color:#d6e7ff; }
+  .b-closed{ color:#374151; background:#f2f4f7; border-color:#e5e7eb; }
+
+  /* Actions */
+  .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none;
+    border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
+    cursor:pointer; transition: transform .04s ease, filter .15s ease;
+  }
+  .btn:active{ transform: translateY(1px); }
+  .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
+  .btn.del{ background:#ffe3e6; border-color:#ffcbd2; color:#9a1a2a; }
+
+  /* Footer actions */
+  .footer-actions{
+    margin-top:16px; text-align:center;
+  }
+  .btn-back{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:10px 14px; border-radius:12px; font-weight:900; text-decoration:none;
+    border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
+  }
+
+  /* Responsive */
+  @media (max-width: 680px){
+    thead{ display:none; }
+    table, tbody, tr, td{ display:block; width:100%; }
+    tbody tr{ margin: 10px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+    tbody td{
+      border-top:none !important;
+      padding:10px 12px;
+      display:flex; align-items:flex-start; justify-content:space-between;
+      gap: 12px;
+    }
+    tbody td::before{
+      content: attr(data-label);
+      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.8rem; letter-spacing:.03em;
+    }
+    .actions{ justify-content:flex-end; }
+  }
+</style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="brand">
+      <div class="logo">PC</div>
+      <h1>📋 Gestion des évènements</h1>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="card">
+      <div class="hd">Liste des évènements</div>
+      <div class="bd table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom</th>
+              <th>Type</th>
+              <th>Adresse</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for evt in evenements %}
+            <tr>
+              <td data-label="ID">{{ evt.id }}</td>
+              <td data-label="Nom">{{ evt.nom }}</td>
+              <td data-label="Type">{{ evt.type_evt }}</td>
+              <td data-label="Adresse">{{ evt.adresse }}</td>
+              <td data-label="Statut">
+                {% set s = evt.statut or '' %}
+                {% if s == 'Ouvert' %}
+                  <span class="badge b-open">Ouvert</span>
+                {% elif s == 'Effectif dépassé' %}
+                  <span class="badge b-warn">Effectif dépassé</span>
+                {% elif s == 'Complet' %}
+                  <span class="badge b-full">Complet</span>
+                {% elif s == 'Fermé' %}
+                  <span class="badge b-closed">Fermé</span>
+                {% else %}
+                  <span class="badge b-setup">{{ s if s else '—' }}</span>
+                {% endif %}
+              </td>
+              <td data-label="Actions">
+                {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
+                  <div class="actions">
+                    <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn edit">📝 Modifier</a>
+
+                    <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Supprimer cet évènement ?');" style="display:inline;">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn del">🗑 Supprimer</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <span style="color: gray;">🔒</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
         </table>
+      </div>
+    </section>
+
+    <div class="footer-actions">
+      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn-back">⬅ Retour</a>
     </div>
 
-    <!-- 🔙 Bouton retour -->
-    <div class="text-center mt-4">
-        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn" style="background-color: #6c757d; color: white; border-radius: 6px;">⬅ Retour</a>
-    </div>
-</div>
-{% endblock %}
+  </main>
+
+</body>
+</html>

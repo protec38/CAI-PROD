@@ -1,39 +1,117 @@
-{% extends "base.html" %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Modifier l’évènement</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
 
-{% block content %}
-<div class="container" style="max-width: 700px; margin: 40px auto;">
-    <h1 class="text-center" style="color: #003b71; margin-bottom: 30px;">✏️ Modifier l’évènement</h1>
+  <style>
+    :root{
+      --pc-blue:#003b71;
+      --pc-orange:#f58220;
+      --bg:#f6f8fc;
+      --card:#ffffff;
+      --line:#e6edf5;
+      --muted:#667085;
+      --radius:16px;
+      --shadow:0 8px 20px rgba(16,24,40,.08);
+    }
 
-    <form method="POST" style="background: #fff; padding: 30px; border-radius: 10px; border-top: 6px solid #f58220; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:var(--bg); color:#101828;
+    }
 
-        
-        <label for="nom" style="font-weight: bold;">Nom de l’évènement</label>
-        <input type="text" id="nom" name="nom" required value="{{ evenement.nom }}" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc;">
+    .wrapper{
+      max-width:720px; margin:40px auto; padding:0 16px;
+    }
 
-        <label for="type" style="font-weight: bold;">Type d’évènement</label>
-        <select id="type" name="type" required style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc;">
+    .card{
+      background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:28px;
+    }
+
+    h1{
+      text-align:center; margin:0 0 28px; color:var(--pc-blue);
+      font-size:clamp(20px,2.6vw,28px);
+    }
+
+    .field{ display:grid; gap:6px; margin-bottom:18px; }
+    label{ font-weight:700; color:var(--muted); text-transform:uppercase; font-size:.85rem; letter-spacing:.04em; }
+    input[type="text"], select{
+      width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
+      font:inherit; background:#fff;
+    }
+
+    .actions{
+      display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap;
+      margin-top:22px;
+    }
+    .btn{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:12px 18px; border-radius:12px; font-weight:800; text-decoration:none;
+      border:none; cursor:pointer; transition:filter .15s ease, transform .04s ease;
+    }
+    .btn:active{ transform:translateY(1px); }
+    .btn.cancel{ background:#6c757d; color:#fff; }
+    .btn.save{ background:var(--pc-orange); color:#fff; }
+
+    @media(max-width:560px){
+      .actions{ flex-direction:column; }
+      .actions .btn{ width:100%; justify-content:center; }
+    }
+  </style>
+</head>
+<body>
+
+  <main class="wrapper">
+    <div class="card">
+      <h1>✏️ Modifier l’évènement</h1>
+
+      <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="field">
+          <label for="nom">Nom de l’évènement</label>
+          <input type="text" id="nom" name="nom" required value="{{ evenement.nom }}">
+        </div>
+
+        <div class="field">
+          <label for="type">Type d’évènement</label>
+          <select id="type" name="type" required>
             <option value="CAI" {% if evenement.type_evt == "CAI" %}selected{% endif %}>CAI</option>
             <option value="CHU" {% if evenement.type_evt == "CHU" %}selected{% endif %}>CHU</option>
             <option value="PRV" {% if evenement.type_evt == "PRV" %}selected{% endif %}>PRV</option>
-        </select>
+          </select>
+        </div>
 
-        <label for="adresse" style="font-weight: bold;">Adresse</label>
-        <input type="text" id="adresse" name="adresse" required value="{{ evenement.adresse }}" style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 20px; border-radius: 6px; border: 1px solid #ccc;">
+        <div class="field">
+          <label for="adresse">Adresse</label>
+          <input type="text" id="adresse" name="adresse" required value="{{ evenement.adresse }}">
+        </div>
 
-        <label for="statut" style="font-weight: bold;">Statut</label>
-        <select id="statut" name="statut" required style="width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 30px; border-radius: 6px; border: 1px solid #ccc;">
+        <div class="field">
+          <label for="statut">Statut</label>
+          <select id="statut" name="statut" required>
             <option value="En cours de gréement" {% if evenement.statut == "En cours de gréement" %}selected{% endif %}>En cours de gréement</option>
             <option value="Ouvert" {% if evenement.statut == "Ouvert" %}selected{% endif %}>Ouvert</option>
             <option value="Effectif dépassé" {% if evenement.statut == "Effectif dépassé" %}selected{% endif %}>Effectif dépassé</option>
             <option value="Complet" {% if evenement.statut == "Complet" %}selected{% endif %}>Complet</option>
             <option value="Fermé" {% if evenement.statut == "Fermé" %}selected{% endif %}>Fermé</option>
-        </select>
-
-        <div style="display: flex; justify-content: space-between;">
-            <a href="{{ url_for('main_bp.admin_evenements') }}" class="btn" style="background-color: #6c757d; color: white; border-radius: 6px; padding: 10px 20px;">⬅ Annuler</a>
-            <button type="submit" class="btn" style="background-color: #f58220; color: white; border-radius: 6px; padding: 10px 20px;">💾 Enregistrer</button>
+          </select>
         </div>
-    </form>
-</div>
-{% endblock %}
+
+        <div class="actions">
+          <a href="{{ url_for('main_bp.admin_evenements') }}" class="btn cancel">⬅ Annuler</a>
+          <button type="submit" class="btn save">💾 Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+</body>
+</html>
