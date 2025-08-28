@@ -128,14 +128,14 @@
         <span class="dot"><i class="fa-solid fa-arrow-down"></i></span>
         <div>
           <div class="lbl">Arrivée</div>
-          <div class="val">{{ fiche.heure_arrivee_locale|default('', true)|length and fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') or '—' }}</div>
+          <div class="val">{% if fiche.heure_arrivee_locale %}{{ fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</div>
         </div>
       </div>
       <div class="sep"></div>
       <div style="display:flex; align-items:center; gap:10px;">
         <div style="text-align:right">
           <div class="lbl">Sortie</div>
-          <div class="val">{{ fiche.heure_sortie_locale|default('', true)|length and fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') or '—' }}</div>
+          <div class="val">{% if fiche.heure_sortie_locale %}{{ fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</div>
         </div>
         <span class="dot"><i class="fa-solid fa-arrow-up"></i></span>
       </div>
