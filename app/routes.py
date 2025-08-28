@@ -1500,6 +1500,7 @@ def autorite_json(evenement_id):
         "message": n.message,
         "priority": n.priority,
         "icon": n.icon,
+        "created_at": n.created_at.strftime("%d/%m/%Y %H:%M") if n.created_at else ""
     } for n in news_q.limit(12).all()]  # limite raisonnable
 
     date_str = ev.date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture_locale", None) else ""

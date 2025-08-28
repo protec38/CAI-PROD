@@ -246,6 +246,7 @@
                     {% if n.priority == 1 %}Urgent{% elif n.priority == 2 %}Important{% else %}Info{% endif %}
                   </span>
                   <span>{{ n.message }}</span>
+                  <span class="muted">{{ n.created_at.strftime('%d/%m/%Y %H:%M') if n.created_at else '' }}</span>
                   {% if not n.is_active %}<span class="muted">— (masquée)</span>{% endif %}
                 </div>
                 <div class="row">
@@ -326,8 +327,12 @@
                           (n.priority==1 ? 'Urgent' : (n.priority==2 ? 'Important' : 'Info'));
         const txt = document.createElement('span');
         txt.textContent = n.message;
+        const time = document.createElement('span');
+        time.className = 'muted';
+        time.textContent = n.created_at ? ` (${n.created_at})` : '';
         div.appendChild(badge);
         div.appendChild(txt);
+        div.appendChild(time);
         list.appendChild(div);
       });
       box.style.display = '';
