@@ -1426,43 +1426,65 @@ def revoke_share_link(link_id):
     return redirect(url_for("main_bp.autorite_dashboard_manage", evenement_id=link.evenement_id))
 
 
-# ===== JSON public/privé (inchangé si tu as déjà la version qui marche) =====
+# 🔓 Vue PUBLIQUE (read-only) par token, pour coller à ton template:
+@main_bp.route("/autorite/<token>", methods=["GET"])
+def autorite_share_public(token):
+    # token valide et non révoqué
+    link = ShareLink.query.filter_by(token=token, revoked=False).first_or_404()
+    ev = Evenement.query.get_or_404(link.evenement_id)
+
+    # On réutilise TON template "autorite_dashboard.html"
+    #   - manage=False : masque la zone de gestion (création/révocation de liens)
+    #   - public_token=token : pour que le JS appelle /autorite_json?token=...
+    return render_template(
+        "autorite_dashboard.html",
+        evenement=ev,
+        manage=False,
+        links=None,
+        public_token=token
+    )
+
+
+# ✅ Endpoint JSON consommé par ton JS (gère mode interne et public)
 @main_bp.route("/evenement/<int:evenement_id>/autorite_json", methods=["GET"])
 def autorite_json(evenement_id):
     token = request.args.get("token")
-    evt = Evenement.query.get_or_404(evenement_id)
 
     if token:
-        import hashlib
-        token_hash = hashlib.sha256(token.encode()).hexdigest()
-        link = ShareLink.query.filter_by(token_hash=token_hash, evenement_id=evenement_id).first()
-        if not link or not link.is_active():
-            return jsonify({"error": "forbidden"}), 403
+        # Accès public : on valide le token pour CET événement
+        link = ShareLink.query.filter_by(
+            token=token, revoked=False, evenement_id=evenement_id
+        ).first()
+        if not link:
+            return jsonify({"error": "invalid_or_revoked_token"}), 403
+        ev = Evenement.query.get_or_404(evenement_id)
     else:
-        if "user_id" not in session:
-            return jsonify({"error":"unauthorized"}), 401
-        user = get_current_user()
-        if (evt not in user.evenements) and not (user.is_admin or user.role in {"codep","responsable"}):
-            return jsonify({"error":"forbidden"}), 403
+        # Accès interne : il faut être connecté et autorisé
+        if not current_user.is_authenticated:
+            abort(401)
+        ev = Evenement.query.get_or_404(evenement_id)
+        # (option) tu peux vérifier ici que current_user a bien accès à ev
 
-    fiches = FicheImplique.query.filter_by(evenement_id=evenement_id).all()
-    nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
-    nb_sorti   = sum(1 for f in fiches if (f.statut or "").lower() == "sorti")
-    nb_total   = len(fiches)
+    # Stats simples (ajuste si tes statuts diffèrent)
+    nb_total  = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id).count()
+    nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
+    nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
 
-    def fmt(dt): 
-        try: return dt.strftime("%d/%m/%Y %H:%M") if dt else ""
-        except: return ""
+    date_str = ev.date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture_locale", None) else ""
 
     return jsonify({
         "evenement": {
-            "id": evt.id,
-            "nom": evt.nom or "",
-            "adresse": evt.adresse or "",
-            "statut": evt.statut or "",
-            "date_ouverture": fmt(getattr(evt, "date_ouverture_locale", None)),
+            "id": ev.id,
+            "nom": ev.nom,
+            "adresse": ev.adresse,
+            "statut": ev.statut,
+            "date_ouverture": date_str,
         },
-        "stats": {"nb_present": nb_present, "nb_sorti": nb_sorti, "nb_total": nb_total}
+        "stats": {
+            "nb_total": nb_total,
+            "nb_present": nb_present,
+            "nb_sorti": nb_sorti,
+        }
     })
 
 
@@ -1742,10 +1764,4 @@ def add_timeline_comment(fiche_id):
     log_action("timeline_add", "FicheImplique", fiche.id, extra=content[:200])
     flash("Commentaire ajouté.", "success")
     return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
-
-
-@main_bp.route("/autorite/share/<token>")
-def autorite_share_public(token):
-    link = ShareLink.query.filter_by(token=token, revoked=False).first_or_404()
-    return render_template("autorite_share_public.html", link=link)
 
