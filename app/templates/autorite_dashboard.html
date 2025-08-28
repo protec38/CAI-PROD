@@ -60,6 +60,7 @@
     #news-ticker{margin-top:16px;display:none}
     #news-list div{padding:8px 10px;border-radius:10px;background:#fff;border:1px solid var(--line);display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
     #news-list .chip{background:#eef5ff;color:#0b2a55;border:1px solid #d9e6ff}
+    .news-manage .chip{background:#eef5ff;color:#0b2a55;border:1px solid #d9e6ff}
   </style>
 </head>
 <body>
@@ -93,10 +94,14 @@
       </div>
     </div>
 
-    <!-- Ruban Actus -->
-    <div id="news-ticker" class="card"><h3><i class="fa-solid fa-bullhorn"></i> Actualités</h3><div id="news-list"></div></div>
+    <!-- Ruban Actus (affiché pour public + interne) -->
+    <div id="news-ticker" class="card">
+      <h3><i class="fa-solid fa-bullhorn"></i> Actualités</h3>
+      <div id="news-list"></div>
+    </div>
 
     {% if manage %}
+    <!-- ===== Gestion (liens + actualités) ===== -->
     <div class="card manage">
       <h3><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
@@ -110,7 +115,7 @@
         {% if links %}
           {% for l in links %}
             <div style="margin:12px 0; padding:12px; border:1px dashed var(--line); border-radius:12px;">
-              <div><strong>Créé :</strong> {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}{% if l.revoked %}<span class="muted">— (révoqué)</span>{% endif %}</div>
+              <div><strong>Créé :</strong> {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}{% if l.revoked %}<span class="muted"> — (révoqué)</span>{% endif %}</div>
               {% if l.token %}
                 <div style="height:6px"></div>
                 <code class="share">{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}</code>
@@ -132,11 +137,73 @@
           <p class="muted">Aucun lien pour l’instant.</p>
         {% endif %}
       </div>
+
+      <!-- ====== ACTUALITÉS (création + liste) ====== -->
+      <div class="sp"></div>
+      <div class="card news-manage" style="border:1px dashed var(--line);">
+        <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-bullhorn"></i> Actualités de l’évènement</h3>
+
+        <!-- Formulaire d'ajout -->
+        <form class="row" method="POST" action="{{ url_for('main_bp.create_event_news', evenement_id=evenement.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div style="display:flex; gap:8px; flex-wrap:wrap; width:100%;">
+            <select name="priority" aria-label="Priorité" style="flex:0 0 180px; padding:10px; border-radius:10px; border:1px solid var(--line);">
+              <option value="1">🔴 Urgent</option>
+              <option value="2">🟠 Important</option>
+              <option value="3" selected>🔵 Info</option>
+            </select>
+            <select name="icon" aria-label="Symbole" style="flex:0 0 220px; padding:10px; border-radius:10px; border:1px solid var(--line);">
+              <option value="fa-triangle-exclamation">⚠️ Alerte</option>
+              <option value="fa-bullhorn" selected>📢 Annonce</option>
+              <option value="fa-circle-info">ℹ️ Info</option>
+              <option value="fa-truck-medical">🚑 Santé</option>
+              <option value="fa-road-barrier">🚧 Circulation</option>
+              <option value="fa-cloud-sun-rain">🌦 Météo</option>
+            </select>
+            <input type="text" name="message" placeholder="Votre message (court et clair)…"
+                   style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid var(--line);" required>
+            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter</button>
+          </div>
+        </form>
+
+        <!-- Listing des actus -->
+        <div style="margin-top:10px">
+          {# Si la route passe 'all_news', on l'utilise. Sinon, on tente le tri via EventNews injecté. #}
+          {% set all_news = all_news if all_news is defined else evenement.news.order_by(EventNews.priority.asc(), EventNews.created_at.desc()).all() %}
+          {% if all_news %}
+            {% for n in all_news %}
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px; border:1px dashed var(--line); border-radius:10px; margin:8px 0;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <span class="chip"><i class="fa-solid {{ n.icon | default('fa-circle-info') }}"></i>
+                    {% if n.priority == 1 %} Urgent{% elif n.priority == 2 %} Important{% else %} Info{% endif %}
+                  </span>
+                  <span>{{ n.message }}</span>
+                  {% if not n.is_active %}<span class="muted">— (masquée)</span>{% endif %}
+                </div>
+                <div class="row">
+                  <form class="inline" method="POST" action="{{ url_for('main_bp.toggle_event_news', news_id=n.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-secondary">
+                      {% if n.is_active %}<i class="fa-solid fa-eye-slash"></i> Masquer{% else %}<i class="fa-solid fa-eye"></i> Afficher{% endif %}
+                    </button>
+                  </form>
+                  <form class="inline" method="POST" action="{{ url_for('main_bp.delete_event_news', news_id=n.id) }}" onsubmit="return confirm('Supprimer cette actualité ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i></button>
+                  </form>
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="muted">Aucune actualité pour l’instant.</p>
+          {% endif %}
+        </div>
+      </div>
     </div>
     {% endif %}
   </div>
 
-  <div id="toast" class="toast">Lien copié dans le presse-papiers</div>
+  <div id="toast" class="toast" role="status" aria-live="polite">Lien copié dans le presse-papiers</div>
 
   <script>
     const EVT_ID = {{ evenement.id }};
