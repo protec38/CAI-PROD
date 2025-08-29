@@ -9,50 +9,49 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-    
 <style>
 body {
-            font-family: 'Roboto', sans-serif;
-            margin: 0;
-            background: linear-gradient(to right, #002f6c, #ff6f00);
-            color: #333;
-        }
-        .container {
-            max-width: 1000px;
-            margin: 40px auto;
-            background: #fff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        }
-        h1 {
-            text-align: center;
-            color: #002f6c;
-            margin-bottom: 30px;
-        }
-        form { display: flex; flex-wrap: wrap; gap: 20px; }
-        .form-group { flex: 1 1 45%; display: flex; flex-direction: column; }
-        .form-group-full { flex: 1 1 100%; }
-        label { font-weight: bold; margin-bottom: 5px; color: #002f6c; }
-        input, select, textarea {
-            padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
-        }
-        select[multiple] { min-height: 150px; }
-        small { font-size: 13px; color: #777; }
-        textarea { resize: vertical; }
-        button {
-            background-color: #ff6f00; color: white; padding: 14px 25px; font-size: 16px;
-            border: none; border-radius: 6px; cursor: pointer; width: 100%;
-        }
-        button:hover { background-color: #e65c00; }
-        .btn-secondary {
-            display: inline-block; margin-top: 10px; padding: 12px 20px; background: #ccc;
-            color: #000; border-radius: 6px; text-align: center; text-decoration: none;
-        }
-        @media (max-width: 768px) { .form-group { flex: 1 1 100%; } }
+    font-family: 'Roboto', sans-serif;
+    margin: 0;
+    background: linear-gradient(to right, #002f6c, #ff6f00);
+    color: #333;
+}
+.container {
+    max-width: 1000px;
+    margin: 40px auto;
+    background: #fff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+}
+h1 {
+    text-align: center;
+    color: #002f6c;
+    margin-bottom: 30px;
+}
+form { display: flex; flex-wrap: wrap; gap: 20px; }
+.form-group { flex: 1 1 45%; display: flex; flex-direction: column; }
+.form-group-full { flex: 1 1 100%; }
+label { font-weight: bold; margin-bottom: 5px; color: #002f6c; }
+input, select, textarea {
+    padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
+}
+select[multiple] { min-height: 150px; }
+small { font-size: 13px; color: #777; }
+textarea { resize: vertical; }
+button {
+    background-color: #ff6f00; color: white; padding: 14px 25px; font-size: 16px;
+    border: none; border-radius: 6px; cursor: pointer; width: 100%;
+}
+button:hover { background-color: #e65c00; }
+.btn-secondary {
+    display: inline-block; margin-top: 10px; padding: 12px 20px; background: #ccc;
+    color: #000; border-radius: 6px; text-align: center; text-decoration: none;
+}
+@media (max-width: 768px) { .form-group { flex: 1 1 100%; } }
 
-        /* Champ 'Autre' masqué par défaut */
-        #bloc-competence-autre { display:none; }
+/* Champ 'Autre' masqué par défaut */
+#bloc-competence-autre { display:none; }
 </style>
 </head>
 <body>
@@ -61,166 +60,163 @@ body {
     <h1><i class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
 
     <form method="POST">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <div class="form-group">
-            <label for="nom">Nom <span style="color:red">*</span></label>
-            <input type="text" name="nom" value="{{ fiche.nom }}" maxlength="40" required>
-        </div>
+      <div class="form-group">
+        <label for="nom">Nom <span style="color:red">*</span></label>
+        <input type="text" id="nom" name="nom" value="{{ fiche.nom or '' }}" maxlength="40" required>
+      </div>
 
-        <div class="form-group">
-            <label for="prenom">Prénom <span style="color:red">*</span></label>
-            <input type="text" name="prenom" value="{{ fiche.prenom }}" maxlength="40" required>
-        </div>
+      <div class="form-group">
+        <label for="prenom">Prénom <span style="color:red">*</span></label>
+        <input type="text" id="prenom" name="prenom" value="{{ fiche.prenom or '' }}" maxlength="40" required>
+      </div>
 
-        <!-- Code Sinus -->
-        <div class="form-group">
-            <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
-            <input type="text" id="code_sinus" name="code_sinus" value="{{ fiche.code_sinus or '' }}" maxlength="30" placeholder="Ex : SINUS-ABC123...">
-        </div>
+      <!-- Code Sinus -->
+      <div class="form-group">
+        <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
+        <input type="text" id="code_sinus" name="code_sinus" value="{{ fiche.code_sinus or '' }}" maxlength="30" placeholder="Ex : SINUS-ABC123...">
+      </div>
 
-        <!-- 🆕 Numéro prise en charge (Argos/AEP) -->
-        <div class="form-group">
-            <label for="numero_pec"><i class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
-            <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001">
-            <small>Référence de prise en charge secouriste (Argos / AEP).</small>
-        </div>
+      <!-- 🆕 Numéro prise en charge (Argos/AEP) -->
+      <div class="form-group">
+        <label for="numero_pec"><i class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
+        <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001">
+        <small>Référence de prise en charge secouriste (Argos / AEP).</small>
+      </div>
 
-        <div class="form-group">
-            <label for="date_naissance">Date de naissance <span style="color:red">*</span></label>
-            <input type="date" name="date_naissance" value="{{ fiche.date_naissance.strftime('%Y-%m-%d') if fiche.date_naissance }}" required>
-        </div>
+      <div class="form-group">
+        <label for="date_naissance">Date de naissance <span style="color:red">*</span></label>
+        <input type="date" id="date_naissance" name="date_naissance" value="{{ fiche.date_naissance.strftime('%Y-%m-%d') if fiche.date_naissance else '' }}" required>
+      </div>
 
-        <div class="form-group">
-            <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
-            <input type="text" name="telephone" value="{{ fiche.telephone }}" maxlength="15">
-        </div>
+      <div class="form-group">
+        <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
+        <input type="text" id="telephone" name="telephone" value="{{ fiche.telephone or '' }}" maxlength="15">
+      </div>
 
-        <div class="form-group">
-            <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
-            <input type="text" name="adresse" value="{{ fiche.adresse }}" maxlength="100">
-        </div>
+      <div class="form-group">
+        <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
+        <input type="text" id="adresse" name="adresse" value="{{ fiche.adresse or '' }}" maxlength="100">
+      </div>
 
-        <!-- 🚫 Nationalité SUPPRIMÉE -->
-        <!-- 🚫 Effets personnels SUPPRIMÉS -->
+      <!-- Recherche personne -->
+      <div class="form-group">
+        <label for="recherche_personne"><i class="fas fa-search"></i> Recherche personne</label>
+        <input type="text" id="recherche_personne" name="recherche_personne" value="{{ fiche.recherche_personne or '' }}" maxlength="200">
+      </div>
 
-        <!-- Recherche personne -->
-        <div class="form-group">
-            <label for="recherche_personne"><i class="fas fa-search"></i> Recherche personne</label>
-            <input type="text" name="recherche_personne" value="{{ fiche.recherche_personne }}" maxlength="200">
-        </div>
+      <!-- Personne à prévenir -->
+      <div class="form-group">
+        <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
+        <input type="text" id="personne_a_prevenir" name="personne_a_prevenir" value="{{ fiche.personne_a_prevenir or '' }}" maxlength="50">
+      </div>
 
-        <!-- Personne à prévenir -->
-        <div class="form-group">
-            <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
-            <input type="text" name="personne_a_prevenir" value="{{ fiche.personne_a_prevenir }}" maxlength="50">
-        </div>
+      <!-- Téléphone à prévenir -->
+      <div class="form-group">
+        <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
+        <input type="text" id="tel_personne_a_prevenir" name="tel_personne_a_prevenir" value="{{ fiche.tel_personne_a_prevenir or '' }}" maxlength="15">
+      </div>
 
-        <!-- Téléphone à prévenir -->
-        <div class="form-group">
-            <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
-            <input type="text" name="tel_personne_a_prevenir" value="{{ fiche.tel_personne_a_prevenir }}" maxlength="15">
-        </div>
+      <div class="form-group">
+        <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
+        <textarea id="difficulte" name="difficulte" rows="2" maxlength="200">{{ fiche.difficultes or '' }}</textarea>
+      </div>
 
-        <div class="form-group">
-            <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
-            <textarea name="difficulte" rows="2" maxlength="200">{{ fiche.difficultes }}</textarea>
-        </div>
+      <!-- Autres informations -->
+      <div class="form-group">
+        <label for="autres_informations"><i class="fas fa-info-circle"></i> Autres informations</label>
+        <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici...">{{ fiche.autres_informations or '' }}</textarea>
+        <small>Maximum 200 caractères.</small>
+      </div>
 
-        <!-- Autres informations -->
-        <div class="form-group">
-            <label for="autres_informations"><i class="fas fa-info-circle"></i> Autres informations</label>
-            <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici...">{{ fiche.autres_informations }}</textarea>
-            <small>Maximum 200 caractères.</small>
-        </div>
-
-        <!-- Compétences -->
-        <div class="form-group">
-            <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
-            <select id="competences" name="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
-                {% set fiche_comps = (fiche.competences or '').split(',') if fiche.competences else [] %}
-                {% for c in competences_list %}
-                    <option value="{{ c }}" {% if c in fiche_comps %}selected{% endif %}>{{ c }}</option>
-                {% endfor %}
-                <!-- Ajoute 'Autre' -->
-                <option value="Autre">Autre</option>
-                <!-- Valeurs extra déjà présentes sur la fiche -->
-                {% for extra in fiche_comps %}
-                    {% if extra and extra not in competences_list and extra != 'Autre' %}
-                        <option value="{{ extra }}" selected>{{ extra }}</option>
-                    {% endif %}
-                {% endfor %}
-            </select>
-            <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
-        </div>
-
-        <!-- Champ 'Autre' (20 caractères max) -->
-        <div id="bloc-competence-autre" class="form-group">
-            <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
-            <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
-            <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
-        </div>
-
-        <div class="form-group">
-            <label for="destination"><i class="fas fa-location-arrow"></i> Destination</label>
-            <input type="text" name="destination" value="{{ fiche.destination }}">
-        </div>
-
-        <div class="form-group">
-            <label for="moyen_transport"><i class="fas fa-bus"></i> Moyen de transport</label>
-            <input type="text" name="moyen_transport" value="{{ fiche.moyen_transport }}">
-        </div>
-
-        <div class="mb-3 form-group-full">
-            <label for="statut" class="form-label">Statut</label>
-            {% set peut_modifier_statut = user.is_admin or user.role == "codep" or (user.role == "responsable" and user in fiche.evenement.utilisateurs) %}
-            <select id="statut" name="statut" class="form-select" {% if not peut_modifier_statut %}disabled{% endif %}>
-                <option value="présent" {% if fiche.statut == "présent" %}selected{% endif %}>Présent</option>
-                <option value="sorti" {% if fiche.statut == "sorti" %}selected{% endif %}>Sorti</option>
-            </select>
-            {% if not peut_modifier_statut %}
-                <input type="hidden" name="statut" value="{{ fiche.statut }}">
+      <!-- Compétences -->
+      <div class="form-group">
+        <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
+        <select id="competences" name="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
+          {% set fiche_comps = (fiche.competences or '').split(',') if fiche.competences else [] %}
+          {% for c in competences_list %}
+            <option value="{{ c }}" {% if c in fiche_comps %}selected{% endif %}>{{ c }}</option>
+          {% endfor %}
+          <!-- Ajoute 'Autre' -->
+          <option value="Autre" {% if 'Autre' in fiche_comps %}selected{% endif %}>Autre</option>
+          <!-- Valeurs extra déjà présentes sur la fiche -->
+          {% for extra in fiche_comps %}
+            {% if extra and extra not in competences_list and extra != 'Autre' %}
+              <option value="{{ extra }}" selected>{{ extra }}</option>
             {% endif %}
-        </div>
+          {% endfor %}
+        </select>
+        <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+      </div>
 
-        <div class="form-group-full">
-            <button type="submit"><i class="fas fa-save"></i> Sauvegarder</button>
-            <a href="{{ url_for('main_bp.dashboard', evenement_id=fiche.evenement.id) }}" class="btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
-        </div>
+      <!-- Champ 'Autre' (20 caractères max) -->
+      <div id="bloc-competence-autre" class="form-group">
+        <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
+        <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
+        <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
+      </div>
+
+      <div class="form-group">
+        <label for="destination"><i class="fas fa-location-arrow"></i> Destination</label>
+        <input type="text" id="destination" name="destination" value="{{ fiche.destination or '' }}">
+      </div>
+
+      <div class="form-group">
+        <label for="moyen_transport"><i class="fas fa-bus"></i> Moyen de transport</label>
+        <input type="text" id="moyen_transport" name="moyen_transport" value="{{ fiche.moyen_transport or '' }}">
+      </div>
+
+      <div class="mb-3 form-group-full">
+        <label for="statut" class="form-label">Statut</label>
+        {% set peut_modifier_statut = user.is_admin or user.role == "codep" or (user.role == "responsable" and user in fiche.evenement.utilisateurs) %}
+        <select id="statut" name="statut" class="form-select" {% if not peut_modifier_statut %}disabled{% endif %}>
+          <option value="présent" {% if fiche.statut == "présent" %}selected{% endif %}>Présent</option>
+          <option value="sorti" {% if fiche.statut == "sorti" %}selected{% endif %}>Sorti</option>
+        </select>
+        {% if not peut_modifier_statut %}
+          <input type="hidden" name="statut" value="{{ fiche.statut or '' }}">
+        {% endif %}
+      </div>
+
+      <div class="form-group-full">
+        <button type="submit"><i class="fas fa-save"></i> Sauvegarder</button>
+        <a href="{{ url_for('main_bp.dashboard', evenement_id=fiche.evenement.id) }}" class="btn-secondary"><i class="fas fa-arrow-left"></i> Retour</a>
+      </div>
     </form>
 </div>
 
 <script>
 function onCompetencesChange(select) {
-    // Limite 4 compétences
-    const selected = Array.from(select.selectedOptions);
-    if (selected.length > 4) {
-        alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
-        selected[selected.length - 1].selected = false;
-    }
+  // Limite 4 compétences
+  const selected = Array.from(select.selectedOptions);
+  if (selected.length > 4) {
+    alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
+    selected[selected.length - 1].selected = false;
+  }
 
-    // Affiche/masque le champ 'Autre'
-    const showAutre = selected.some(o => o.value === 'Autre');
-    const bloc = document.getElementById('bloc-competence-autre');
-    if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
+  // Affiche/masque le champ 'Autre'
+  const showAutre = selected.some(o => o.value === 'Autre');
+  const bloc = document.getElementById('bloc-competence-autre');
+  if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
 
-    // Reset si 'Autre' décoché
-    if (!showAutre) {
-        const autreInput = document.getElementById('competence_autre');
-        if (autreInput) autreInput.value = '';
-    }
+  // Reset si 'Autre' décoché
+  if (!showAutre) {
+    const autreInput = document.getElementById('competence_autre');
+    if (autreInput) autreInput.value = '';
+  }
 }
 
 // Init à l'ouverture : si 'Autre' est déjà sélectionné, on affiche le champ
 document.addEventListener('DOMContentLoaded', () => {
-    const select = document.getElementById('competences');
-    if (!select) return;
-    const showAutre = Array.from(select.selectedOptions).some(o => o.value === 'Autre');
-    const bloc = document.getElementById('bloc-competence-autre');
-    if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
+  const select = document.getElementById('competences');
+  if (!select) return;
+  const showAutre = Array.from(select.selectedOptions).some(o => o.value === 'Autre');
+  const bloc = document.getElementById('bloc-competence-autre');
+  if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
 });
 </script>
 
-  <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+<script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>
