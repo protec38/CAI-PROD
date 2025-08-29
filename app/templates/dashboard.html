@@ -11,23 +11,26 @@
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
   <style>
-    :root{ --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00; --bg:#0a1324; --card:#0f1d39; --line:#193056; --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a; }
+    :root{
+      --bleu:#002f6c; --orange:#ff6f00; --jaune:#ffcc00;
+      --bg:#0a1324; --card:#0f1d39; --line:#193056;
+      --theadGrad1:#ffcc00; --theadGrad2:#ff9d1a;
+    }
     body{
       font-family:'Roboto',sans-serif;
       background:
         radial-gradient(1200px 600px at 10% 0%, rgba(255,204,0,.15), transparent 60%),
         linear-gradient(135deg,#00224d,#0b2b57 35%,#ff6f00 180%);
-      color:#fff; padding:20px;
+      color:#fff; padding:20px; margin:0;
     }
 
-    /* ===== Header en 3 zones : gauche (logout), centre (titre), droite (actions) ===== */
+    /* ===== Header ===== */
     .header{
       display:grid;
-      grid-template-columns:auto 1fr auto;
+      grid-template-columns: 1fr auto;
       align-items:center;
       gap:10px;
     }
-    .left-actions{display:flex;align-items:center;gap:10px}
     .center-title{display:flex;justify-content:center}
     .right-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
 
@@ -41,10 +44,18 @@
     .btn-green{background:#27ae60;color:#fff}
     .btn-logout{
       background:linear-gradient(180deg,#f04747,#c0392b);
-      color:#fff;
-      border:1px solid rgba(0,0,0,.2);
+      color:#fff;border:1px solid rgba(0,0,0,.2)
     }
 
+    /* ===== Flash ===== */
+    .flashes{margin:12px 0}
+    .alert{padding:10px 12px;border-radius:10px;margin:6px 0}
+    .alert-success{background:rgba(39,174,96,.2)}
+    .alert-danger{background:rgba(231,76,60,.2)}
+    .alert-warning{background:rgba(241,196,15,.2)}
+    .alert-info{background:rgba(52,152,219,.2)}
+
+    /* ===== Event info ===== */
     .event-info{
       background:linear-gradient(160deg,rgba(255,255,255,.08),rgba(255,255,255,.02));
       padding:18px;border-radius:16px;margin-top:12px;margin-bottom:16px;
@@ -58,6 +69,7 @@
       background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.16);font-weight:800
     }
 
+    /* ===== Filtres ===== */
     .filters{display:grid;gap:10px;margin:18px 0 8px;grid-template-columns:1.2fr .9fr 1.2fr auto}
     @media (max-width:900px){.filters{grid-template-columns:1fr 1fr}}
     @media (max-width:560px){.filters{grid-template-columns:1fr}}
@@ -77,27 +89,13 @@
     #filter-competences[multiple]{height:140px}
     #filter-statut[multiple]{height:96px}
 
-    .badge{padding:5px 10px;border-radius:999px;font-weight:900;display:inline-flex;align-items:center;gap:6px}
-    .badge.present{background:#2ecc71;color:#fff}
-    .badge.sorti{background:#e67e22;color:#fff}
-    .badge.supprime{background:#c0392b;color:#fff}
-    .badge-orange { background: #e67e22; }
-    .badge-green { background: #27ae60; }
-    .badge-red { background: #c0392b; }
-    .badge-blue { background: #2980b9; }
-    .badge-dark { background: #2c3e50; }
-
-    .badge-bagage{
-      display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;
-      background:#0c2a52;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.25)
-    }
-    .bagages-cell{min-width:160px}
-
+    /* ===== Tableau (toujours scrollable horizontalement) ===== */
     .table-wrap{
       background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);
-      border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.3)
+      border-radius:16px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+      box-shadow:0 10px 30px rgba(0,0,0,.3)
     }
-    table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(12,26,52,.65);color:#eaf2ff}
+    table{width:100%;border-collapse:separate;border-spacing:0;background:rgba(12,26,52,.65);color:#eaf2ff;min-width:980px}
 
     thead th{
       position:sticky;top:0;z-index:1;
@@ -107,13 +105,29 @@
       box-shadow:inset 0 -1px 0 rgba(255,255,255,.35);
     }
     thead th .th-label{display:flex;align-items:center;gap:8px}
-    thead th .th-label i{opacity:.85}
-
     tbody td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.06)}
     tbody tr:nth-child(odd){background:rgba(255,255,255,.04)}
     tbody tr:nth-child(even){background:rgba(255,255,255,.02)}
     tbody tr:hover{background:rgba(255,255,255,.08)}
 
+    /* Badges */
+    .badge{padding:5px 10px;border-radius:999px;font-weight:900;display:inline-flex;align-items:center;gap:6px}
+    .badge.present{background:#2ecc71;color:#fff}
+    .badge.sorti{background:#e67e22;color:#fff}
+    .badge.supprime{background:#c0392b;color:#fff}
+    .badge-orange { background: #e67e22; color:#fff; }
+    .badge-green { background: #27ae60; color:#fff; }
+    .badge-red { background: #c0392b; color:#fff; }
+    .badge-blue { background: #2980b9; color:#fff; }
+    .badge-dark { background: #2c3e50; color:#fff; }
+
+    .badge-bagage{
+      display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;
+      background:#0c2a52;color:#fff;font-size:12px;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.25)
+    }
+    .bagages-cell{min-width:160px}
+
+    /* Actions */
     .actions{display:flex;gap:8px;flex-wrap:wrap}
     .btn-action{
       display:inline-flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;font-weight:800;
@@ -130,37 +144,16 @@
     .actions form{display:inline-block;margin:0}
     .actions form button{all:unset;display:inline-flex}
 
-    select[name="statut_evt"]{padding:6px 8px;font-weight:900;background:#fff;color:#00122a;border-radius:8px;border:none}
+    select[name="statut_evt"]{
+      padding:6px 8px;font-weight:900;background:#fff;color:#00122a;border-radius:8px;border:none
+    }
 
     .badge-competence{
       display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;
       color:#fff;font-size:12px;font-weight:800;margin:2px
     }
 
-    /* ===== Mode mobile PORTRAIT (déjà présent) : overflow + colonnes réduites ===== */
-    @media (max-width:640px){
-      .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-      table{ min-width:720px; }
-      table th, table td { white-space:nowrap; }
-      thead th, tbody td { display:none; }
-      thead th:nth-child(2), tbody td:nth-child(2),
-      thead th:nth-child(3), tbody td:nth-child(3),
-      thead th:nth-child(4), tbody td:nth-child(4),
-      thead th:nth-child(9), tbody td:nth-child(9) { display:table-cell; }
-    }
-
-    /* ===== NOUVEAU : Mode mobile PAYSAGE — même comportement que portrait ===== */
-    @media (orientation: landscape) and (max-height: 480px){
-      .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
-      table{ min-width:720px; }
-      table th, table td { white-space:nowrap; }
-      thead th, tbody td { display:none; }
-      thead th:nth-child(2), tbody td:nth-child(2),
-      thead th:nth-child(3), tbody td:nth-child(3),
-      thead th:nth-child(4), tbody td:nth-child(4),
-      thead th:nth-child(9), tbody td:nth-child(9) { display:table-cell; }
-    }
-
+    /* Modals */
     .modal{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:1000; }
     .modal-content{ background:#f3f6fb; color:#000; width:min(520px,92vw); border-radius:14px; box-shadow:0 20px 40px rgba(0,0,0,.45); overflow:hidden; margin:0; }
     .modal-header,.modal-footer{padding:12px 16px;background:#fff;border-bottom:1px solid #e6e6e6}
@@ -178,24 +171,17 @@
 
 <body>
   <div class="header">
-    <!-- Gauche : déconnexion rouge -->
-    <div class="left-actions">
-      <a href="{{ url_for('main_bp.logout') }}" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
-    </div>
-
     <!-- Centre : titre -->
     <div class="center-title">
       <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord</h1>
     </div>
 
-    <!-- Droite : actions -->
+    <!-- Droite : actions (logout en dernier, rouge) -->
     <div class="right-actions">
       <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
       <a href="{{ url_for('main_bp.fiche_new') }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
       {% if user.is_admin or user.role in ["codep", "responsable"] %}
-        <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn">
-          <i class="fa-solid fa-eye"></i> Vue Autorité & Partage
-        </a>
+        <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
       {% endif %}
       {% if user.is_admin or user.role == "codep" or (user.role == "responsable" and user in evenement.utilisateurs) %}
         <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-file-pdf"></i> Export PDF</a>
@@ -204,6 +190,7 @@
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-ticket"></i> Tickets</a>
       {% endif %}
+      <a href="{{ url_for('main_bp.logout') }}" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
     </div>
   </div>
 
@@ -260,6 +247,7 @@
   </div>
   {% endif %}
 
+  <!-- Filtres -->
   <div class="filters">
     <div class="control">
       <i class="fa-solid fa-magnifying-glass"></i>
@@ -286,6 +274,7 @@
     </div>
   </div>
 
+  <!-- Tableau -->
   <div class="table-wrap">
     <table>
       <thead>
@@ -375,15 +364,25 @@
     };
 
     /* Utils DOM */
-    function setHTMLIfChanged(el, html){ if(!el) return; const next=(html||"").trim(); const prev=(el.innerHTML||"").trim(); if(next!==prev) el.innerHTML=html; }
-    function setTextIfChanged(el, text){ if(!el) return; const next=(text||"").trim(); const prev=(el.textContent||"").trim(); if(next!==prev) el.textContent=text; }
+    function setHTMLIfChanged(el, html){
+      if(!el) return;
+      const next=(html||"").trim();
+      const prev=(el.innerHTML||"").trim();
+      if(next!==prev) el.innerHTML=html;
+    }
+    function setTextIfChanged(el, text){
+      if(!el) return;
+      const next=(text||"").trim();
+      const prev=(el.textContent||"").trim();
+      if(next!==prev) el.textContent=text;
+    }
 
     /* UI helpers */
     function getStatutHtml(statut){
       if(statut==='présent') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
       if(statut==='sorti') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
       if(statut==='supprimé') return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
-      return statut;
+      return statut || '';
     }
     function getStatutEvenementHTML(statut) {
       switch (statut) {
@@ -392,7 +391,7 @@
         case "Effectif dépassé": return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
         case "Complet": return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
         case "Fermé": return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
-        default: return statut;
+        default: return statut || '';
       }
     }
     function renderCompetenceBadges(raw){
@@ -603,7 +602,9 @@
           setTimeout(()=>document.getElementById('numeros').focus(),50);
         });
     }
-    function fermerModalBagage(){ const m=document.getElementById('modal-bagage'); if(m) m.style.display='none'; }
+    function fermerModalBagage(){
+      const m=document.getElementById('modal-bagage'); if(m) m.style.display='none';
+    }
 
     function ouvrirModalSortie(ficheId, ficheNumero, destination="", moyen=""){
       const form=document.getElementById('form-sortie');
@@ -615,7 +616,9 @@
       document.getElementById('modal-sortie').style.display='flex';
       setTimeout(()=>document.getElementById('sortie-destination').focus(),50);
     }
-    function fermerModalSortie(){ const m=document.getElementById('modal-sortie'); if(m) m.style.display='none'; }
+    function fermerModalSortie(){
+      const m=document.getElementById('modal-sortie'); if(m) m.style.display='none';
+    }
   </script>
 </body>
 </html>
