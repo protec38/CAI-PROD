@@ -49,7 +49,7 @@
     margin: 24px auto 30px;
   }
 
-  /* Toolbar */
+  /* Toolbar (boutons + recherche) */
   .toolbar{
     display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;
     margin-bottom:12px;
@@ -69,11 +69,9 @@
   .search{
     display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line);
     border-radius:12px; padding:8px 10px;
-    flex:1;
   }
   .search input{
-    border:none; outline:none; background:transparent; font:inherit; min-width:160px;
-    width:100%;
+    border:none; outline:none; background:transparent; font:inherit; min-width:220px;
   }
 
   /* Card/table shell */
@@ -90,7 +88,7 @@
   .card .bd{ padding: 0; }
 
   /* Table */
-  .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .table-wrap{ overflow-x:auto; }
   table{ width:100%; border-collapse: collapse; min-width:860px; }
   thead th{
     padding: 12px; text-align:left; color:#fff; font-weight:800; letter-spacing:.02em;
@@ -114,29 +112,18 @@
   .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
   .btn.del{ background:#ffe3e6; border-color:#ffcbd2; color:#9a1a2a; }
 
-  /* Responsive → toolbar et cartes */
-  @media (max-width: 900px){
-    .toolbar{ flex-direction:column; align-items:stretch; gap:12px; }
-    .left-actions, .right-actions{ width:100%; justify-content:stretch; }
-    .left-actions .btn, .right-actions .btn, .search{ flex:1; justify-content:center; }
-  }
-
+  /* === Mobile portrait : garder la table complète avec scroll horizontal === */
   @media (max-width: 760px){
-    thead{ display:none; }
-    table, tbody, tr, td{ display:block; width:100%; }
-    tbody tr{ margin: 12px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.05); }
-    tbody td{
-      border-top:none !important;
-      padding:10px 14px;
-      display:flex; align-items:flex-start; justify-content:space-between;
-      gap: 12px;
-      font-size: 14px;
+    .table-wrap{
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
     }
-    tbody td::before{
-      content: attr(data-label);
-      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.75rem; letter-spacing:.03em;
+    table{
+      min-width: 1100px;
     }
-    .table-actions{ justify-content:flex-end; }
+    th, td{
+      white-space: nowrap;
+    }
   }
 </style>
 </head>
@@ -189,9 +176,9 @@
           <tbody>
             {% for u in utilisateurs %}
             <tr>
-              <td data-label="Nom">{{ u.nom }}</td>
-              <td data-label="Nom d'utilisateur">{{ u.nom_utilisateur }}</td>
-              <td data-label="Rôle">
+              <td>{{ u.nom }}</td>
+              <td>{{ u.nom_utilisateur }}</td>
+              <td>
                 {% set r = (u.role or '')|lower %}
                 {% if r == 'admin' %}
                   <span class="badge r-admin">Admin</span>
@@ -201,15 +188,15 @@
                   <span class="badge r-user">{{ u.role|capitalize }}</span>
                 {% endif %}
               </td>
-              <td data-label="Type">{{ u.type_utilisateur | capitalize }}</td>
-              <td data-label="Évènements associés">
+              <td>{{ u.type_utilisateur | capitalize }}</td>
+              <td>
                 {% for evt in u.evenements %}
                   <div>{{ evt.nom }} ({{ evt.numero }})</div>
                 {% else %}
                   <em>—</em>
                 {% endfor %}
               </td>
-              <td data-label="Actions">
+              <td>
                 <div class="table-actions">
                   <a href="{{ url_for('main_bp.utilisateur_edit', id=u.id) }}" class="btn edit">📝 Modifier</a>
                   <a href="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}"
@@ -230,6 +217,7 @@
   </main>
 
   <script>
+    // Filtre client-side simple
     (function(){
       const input = document.getElementById('filter');
       const table = document.getElementById('user-table');
