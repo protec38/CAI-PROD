@@ -106,22 +106,18 @@
     border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue);
   }
 
-  /* Responsive */
+  /* === Mobile portrait : garder la table complète avec scroll horizontal === */
   @media (max-width: 680px){
-    thead{ display:none; }
-    table, tbody, tr, td{ display:block; width:100%; }
-    tbody tr{ margin: 10px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
-    tbody td{
-      border-top:none !important;
-      padding:10px 12px;
-      display:flex; align-items:flex-start; justify-content:space-between;
-      gap: 12px;
+    .table-wrap{
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
     }
-    tbody td::before{
-      content: attr(data-label);
-      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.8rem; letter-spacing:.03em;
+    table{
+      min-width: 960px; /* garder toutes les colonnes visibles via scroll */
     }
-    .actions{ justify-content:flex-end; }
+    th, td{
+      white-space: nowrap;
+    }
   }
 </style>
 </head>
@@ -154,11 +150,11 @@
           <tbody>
             {% for evt in evenements %}
             <tr>
-              <td data-label="ID">{{ evt.id }}</td>
-              <td data-label="Nom">{{ evt.nom }}</td>
-              <td data-label="Type">{{ evt.type_evt }}</td>
-              <td data-label="Adresse">{{ evt.adresse }}</td>
-              <td data-label="Statut">
+              <td>{{ evt.id }}</td>
+              <td>{{ evt.nom }}</td>
+              <td>{{ evt.type_evt }}</td>
+              <td>{{ evt.adresse }}</td>
+              <td>
                 {% set s = evt.statut or '' %}
                 {% if s == 'Ouvert' %}
                   <span class="badge b-open">Ouvert</span>
@@ -172,7 +168,7 @@
                   <span class="badge b-setup">{{ s if s else '—' }}</span>
                 {% endif %}
               </td>
-              <td data-label="Actions">
+              <td>
                 {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
                   <div class="actions">
                     <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn edit">📝 Modifier</a>
