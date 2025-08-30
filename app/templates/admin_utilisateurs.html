@@ -49,7 +49,7 @@
     margin: 24px auto 30px;
   }
 
-  /* Toolbar (boutons + recherche) */
+  /* Toolbar */
   .toolbar{
     display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between;
     margin-bottom:12px;
@@ -69,9 +69,11 @@
   .search{
     display:flex; align-items:center; gap:8px; background:#fff; border:1px solid var(--line);
     border-radius:12px; padding:8px 10px;
+    flex:1;
   }
   .search input{
-    border:none; outline:none; background:transparent; font:inherit; min-width:220px;
+    border:none; outline:none; background:transparent; font:inherit; min-width:160px;
+    width:100%;
   }
 
   /* Card/table shell */
@@ -88,7 +90,7 @@
   .card .bd{ padding: 0; }
 
   /* Table */
-  .table-wrap{ overflow-x:auto; }
+  .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
   table{ width:100%; border-collapse: collapse; min-width:860px; }
   thead th{
     padding: 12px; text-align:left; color:#fff; font-weight:800; letter-spacing:.02em;
@@ -112,20 +114,27 @@
   .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
   .btn.del{ background:#ffe3e6; border-color:#ffcbd2; color:#9a1a2a; }
 
-  /* Responsive → cartes */
+  /* Responsive → toolbar et cartes */
+  @media (max-width: 900px){
+    .toolbar{ flex-direction:column; align-items:stretch; gap:12px; }
+    .left-actions, .right-actions{ width:100%; justify-content:stretch; }
+    .left-actions .btn, .right-actions .btn, .search{ flex:1; justify-content:center; }
+  }
+
   @media (max-width: 760px){
     thead{ display:none; }
     table, tbody, tr, td{ display:block; width:100%; }
-    tbody tr{ margin: 10px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; }
+    tbody tr{ margin: 12px 0; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; box-shadow:0 4px 12px rgba(0,0,0,.05); }
     tbody td{
       border-top:none !important;
-      padding:10px 12px;
+      padding:10px 14px;
       display:flex; align-items:flex-start; justify-content:space-between;
       gap: 12px;
+      font-size: 14px;
     }
     tbody td::before{
       content: attr(data-label);
-      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.8rem; letter-spacing:.03em;
+      font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.75rem; letter-spacing:.03em;
     }
     .table-actions{ justify-content:flex-end; }
   }
@@ -203,7 +212,6 @@
               <td data-label="Actions">
                 <div class="table-actions">
                   <a href="{{ url_for('main_bp.utilisateur_edit', id=u.id) }}" class="btn edit">📝 Modifier</a>
-                  <!-- Conserve la méthode GET comme dans ton snippet (confirmation JS) -->
                   <a href="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}"
                      class="btn del"
                      onclick="return confirm('Supprimer cet utilisateur ?')">🗑 Supprimer</a>
@@ -222,7 +230,6 @@
   </main>
 
   <script>
-    // Filtre client-side simple (pas d'impact backend)
     (function(){
       const input = document.getElementById('filter');
       const table = document.getElementById('user-table');
@@ -239,7 +246,6 @@
     })();
   </script>
 
-  <!-- helper global si présent côté app -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>
