@@ -65,9 +65,34 @@
       font-weight:800; color:var(--muted);
       text-transform:uppercase; font-size:.85rem; letter-spacing:.04em;
     }
+    .hint{
+      margin:2px 0 0;
+      font-size:.8rem;
+      color:#5d6a7d;
+    }
     input[type="text"], input[type="password"], select{
       width:100%; padding:12px 14px; border-radius:12px; border:1px solid var(--line);
       font:inherit; background:#fff;
+    }
+    .checkbox-field{
+      background:#f8fbff;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:12px 14px;
+    }
+    .checkbox{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      font-weight:700;
+      color:var(--ink);
+      text-transform:none;
+      font-size:1rem;
+      letter-spacing:0;
+    }
+    .checkbox input{
+      width:auto;
+      accent-color:var(--pc-blue);
     }
 
     /* Password row */
@@ -96,7 +121,7 @@
     .ev-grid input{ transform: translateY(1px); }
 
     /* Actions */
-    .actions{
+    .actions{ 
       display:flex; gap:12px; justify-content:space-between; flex-wrap:wrap; margin-top:8px;
     }
     .btn{
@@ -118,6 +143,22 @@
       .actions{ flex-direction:column; }
       .actions .btn{ width:100%; justify-content:center; }
     }
+
+    .flash-stack{
+      display:grid;
+      gap:8px;
+      margin-bottom:16px;
+    }
+    .flash{
+      padding:12px 14px;
+      border-radius:12px;
+      font-weight:700;
+      border:1px solid transparent;
+    }
+    .flash-success{ background:#ecfdf3; border-color:#bbf7d0; color:#166534; }
+    .flash-info{ background:#eff6ff; border-color:#bfdbfe; color:#1d4ed8; }
+    .flash-warning{ background:#fefce8; border-color:#fef08a; color:#92400e; }
+    .flash-danger{ background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
   </style>
 </head>
 <body>
@@ -135,6 +176,16 @@
     <section class="card">
       <div class="hd">Formulaire</div>
       <div class="bd">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="flash-stack" aria-live="assertive">
+              {% for category, message in messages %}
+                <div class="flash flash-{{ category }}">{{ message }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
         <form method="post">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -157,8 +208,15 @@
               <option value="aep"         {% if utilisateur and utilisateur.role == 'aep' %}selected{% endif %}>AEP</option>
               <option value="logisticien" {% if utilisateur and utilisateur.role == 'logisticien' %}selected{% endif %}>Logisticien</option>
               <option value="responsable" {% if utilisateur and utilisateur.role == 'responsable' %}selected{% endif %}>Responsable</option>
-              <option value="codep"       {% if utilisateur and utilisateur.role == 'codep' %}selected{% endif %}>CODEP</option>
+              {% set can_choose_codep = current_user and current_user.is_admin %}
+              {% set is_target_codep = utilisateur and utilisateur.role == 'codep' %}
+              {% if can_choose_codep or is_target_codep %}
+                <option value="codep" {% if is_target_codep %}selected{% endif %} {% if (not can_choose_codep) and (not is_target_codep) %}disabled{% endif %}>CODEP</option>
+              {% endif %}
             </select>
+            {% if current_user and not current_user.is_admin %}
+              <p class="hint">Les comptes CODEP et administrateurs sont gérés exclusivement par les administrateurs.</p>
+            {% endif %}
           </div>
 
           <div class="field">
@@ -176,7 +234,20 @@
               <input type="password" id="password" name="password" {% if mode == 'create' %}required{% endif %}>
               <button type="button" class="pw-toggle" onclick="togglePw()">Afficher</button>
             </div>
+            {% if current_user and not current_user.is_admin %}
+              <p class="hint">Un CODEP ne peut modifier le mot de passe que pour ses propres accès ou pour des rôles opérationnels.</p>
+            {% endif %}
           </div>
+
+          {% if current_user and current_user.is_admin %}
+          <div class="field checkbox-field">
+            <label class="checkbox">
+              <input type="checkbox" name="is_admin" value="1" {% if utilisateur and utilisateur.is_admin %}checked{% endif %}>
+              Donner les droits administrateur
+            </label>
+            <p class="hint">Les administrateurs disposent d’un accès complet à la configuration et aux comptes sensibles.</p>
+          </div>
+          {% endif %}
 
           <div class="field">
             <label>Associer aux évènements :</label>

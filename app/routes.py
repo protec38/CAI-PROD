@@ -608,12 +608,21 @@ def utilisateur_create():
     all_evenements = Evenement.query.all()
 
     if request.method == "POST":
-        nom = request.form["nom"]
-        nom_utilisateur = request.form["nom_utilisateur"]
-        role = request.form["role"]
-        type_utilisateur = request.form["type_utilisateur"]
+        nom = request.form["nom"].strip()
+        nom_utilisateur = request.form["nom_utilisateur"].strip()
+        role = (request.form["role"].strip() or "").lower()
+        type_utilisateur = request.form["type_utilisateur"].strip()
         password = request.form["password"]
         evenement_ids = request.form.getlist("evenements")
+        wants_admin = bool(request.form.get("is_admin"))
+
+        if not user.is_admin:
+            if wants_admin:
+                flash("Seul un administrateur peut créer un autre administrateur.", "danger")
+                return redirect(url_for("main_bp.utilisateur_create"))
+            if role == "codep":
+                flash("Un compte CODEP ne peut être créé que par un administrateur.", "danger")
+                return redirect(url_for("main_bp.utilisateur_create"))
 
         existing = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
         if existing:
@@ -625,6 +634,7 @@ def utilisateur_create():
             nom_utilisateur=nom_utilisateur,
             role=role,
             type_utilisateur=type_utilisateur,
+            is_admin=wants_admin if user.is_admin else False,
         )
         new_user.set_password(password)
 
@@ -638,7 +648,13 @@ def utilisateur_create():
         flash("Utilisateur créé avec succès", "success")
         return redirect(url_for("main_bp.admin_utilisateurs"))
 
-    return render_template("utilisateur_form.html", utilisateur=None, all_evenements=all_evenements, mode="create")
+    return render_template(
+        "utilisateur_form.html",
+        utilisateur=None,
+        all_evenements=all_evenements,
+        mode="create",
+        current_user=user,
+    )
 
 
 ###########################################
@@ -656,15 +672,42 @@ def utilisateur_edit(id):
     from app.models import Evenement
     all_evenements = Evenement.query.all()
 
+    if not user.is_admin and utilisateur.id != user.id and (utilisateur.is_admin or utilisateur.role == "codep"):
+        flash("Seul un administrateur peut modifier ce compte.", "danger")
+        return redirect(url_for("main_bp.admin_utilisateurs"))
+
     if request.method == "POST":
-        utilisateur.nom = request.form["nom"]
-        utilisateur.nom_utilisateur = request.form["nom_utilisateur"]
-        utilisateur.role = request.form["role"]
-        utilisateur.type_utilisateur = request.form["type_utilisateur"]
+        role = (request.form["role"].strip() or "").lower()
+        type_utilisateur = request.form["type_utilisateur"].strip()
+        wants_admin = bool(request.form.get("is_admin"))
         password = request.form["password"]
 
+        if not user.is_admin:
+            if role == "codep" and utilisateur.role != "codep":
+                flash("Seul un administrateur peut attribuer le rôle CODEP.", "danger")
+                return redirect(url_for("main_bp.utilisateur_edit", id=id))
+            if wants_admin != utilisateur.is_admin:
+                flash("Seul un administrateur peut modifier les droits administrateur.", "danger")
+                return redirect(url_for("main_bp.utilisateur_edit", id=id))
+        else:
+            utilisateur.is_admin = wants_admin
+
+        utilisateur.nom = request.form["nom"].strip()
+        utilisateur.nom_utilisateur = request.form["nom_utilisateur"].strip()
+        utilisateur.role = role or utilisateur.role
+        utilisateur.type_utilisateur = type_utilisateur or utilisateur.type_utilisateur
+
         if password:
-            utilisateur.set_password(password)
+            if user.is_admin:
+                utilisateur.set_password(password)
+            else:
+                if utilisateur.id == user.id:
+                    utilisateur.set_password(password)
+                elif not utilisateur.is_admin and utilisateur.role != "codep":
+                    utilisateur.set_password(password)
+                else:
+                    flash("Seul un administrateur peut modifier le mot de passe de ce compte.", "danger")
+                    return redirect(url_for("main_bp.utilisateur_edit", id=id))
 
         utilisateur.evenements = []
         for evt_id in request.form.getlist("evenements"):
@@ -676,7 +719,13 @@ def utilisateur_edit(id):
         flash("Utilisateur mis à jour.", "success")
         return redirect(url_for("main_bp.admin_utilisateurs"))
 
-    return render_template("utilisateur_form.html", utilisateur=utilisateur, all_evenements=all_evenements, mode="edit")
+    return render_template(
+        "utilisateur_form.html",
+        utilisateur=utilisateur,
+        all_evenements=all_evenements,
+        mode="edit",
+        current_user=user,
+    )
 
 
 
@@ -690,6 +739,10 @@ def utilisateur_delete(id):
         return redirect(url_for("main_bp.dashboard"))
 
     utilisateur = Utilisateur.query.get_or_404(id)
+    if not user.is_admin and user.role == "codep" and (utilisateur.is_admin or utilisateur.role == "codep"):
+        flash("Seul un administrateur peut supprimer ce compte.", "danger")
+        return redirect(url_for("main_bp.admin_utilisateurs"))
+
     db.session.delete(utilisateur)
     db.session.commit()
     flash("Utilisateur supprimé.", "info")
@@ -1300,12 +1353,17 @@ def delete_evenement(evenement_id):
     if not (user.is_admin or user.role == "codep" or evt.createur_id == user.id):
         abort(403)
 
-    # 🧹 Supprime les fiches impliquées
-    FicheImplique.query.filter_by(evenement_id=evt.id).delete()
-
-    # 🧹 Supprime les tickets (si tu en as)
+    # 🧹 Supprime les fiches impliquées et leurs dépendances (bagages, timeline…)
     from .models import Ticket
-    Ticket.query.filter_by(evenement_id=evt.id).delete()
+
+    for fiche in list(evt.impliques):
+        for bagage in list(getattr(fiche, "bagages", []) or []):
+            db.session.delete(bagage)
+        db.session.delete(fiche)
+
+    # 🧹 Supprime aussi les tickets associés
+    for ticket in list(evt.tickets):
+        db.session.delete(ticket)
 
     # 🗑 Supprime l'évènement
     db.session.delete(evt)
@@ -1528,7 +1586,10 @@ def export_evenement_fiches_csv(evenement_id):
     import pytz
     from flask import redirect, url_for, flash
     from openpyxl import Workbook
-    from openpyxl.writer.write_only import WriteOnlyCell
+    try:
+        from openpyxl.cell import WriteOnlyCell  # openpyxl ≥ 3.1
+    except ImportError:  # pragma: no cover - compat older versions
+        from openpyxl.writer.write_only import WriteOnlyCell
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
     user = get_current_user()
