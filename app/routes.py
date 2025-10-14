@@ -226,8 +226,23 @@ def evenement_new():
         return redirect(url_for("main_bp.dashboard", evenement_id=nouvel_evt.id))
 
     # 🔁 Méthode GET
-    evenements = Evenement.query.all() if user.is_admin or user.role == "codep" else user.evenements
-    return render_template("evenement_new.html", user=user, evenements=evenements)
+    if user.is_admin or user.role == "codep":
+        evenements = Evenement.query.order_by(Evenement.date_ouverture.desc()).all()
+    else:
+        evenements = sorted(
+            user.evenements,
+            key=lambda evt: evt.date_ouverture or datetime.min,
+            reverse=True,
+        )
+
+    statuts_disponibles = sorted({evt.statut for evt in evenements if evt.statut})
+
+    return render_template(
+        "evenement_new.html",
+        user=user,
+        evenements=evenements,
+        statuts_disponibles=statuts_disponibles,
+    )
 
 
 

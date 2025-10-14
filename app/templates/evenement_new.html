@@ -386,33 +386,37 @@
       {% endif %}
     {% endwith %}
 
-    <section class="card" aria-labelledby="selection-evenement">
-      <h3 id="selection-evenement">Rejoindre un évènement</h3>
-      <p class="join-helper">Sélectionnez l'opération que vous souhaitez rejoindre parmi vos accès autorisés.</p>
-      <form method="post" action="{{ url_for('main_bp.select_evenement') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="field">
-          <label for="evenement_id">Vos évènements disponibles</label>
-          <select name="evenement_id" id="evenement_id" required aria-describedby="statut-selectionne">
-            <option value="" disabled selected>— Choisir un évènement —</option>
-            {% for evt in evenements %}
-              <option value="{{ evt.id }}" data-statut="{{ evt.statut }}">{{ evt.nom }} ({{ evt.numero }})</option>
-            {% endfor %}
-          </select>
-        </div>
-        <p id="statut-selectionne" class="join-helper" role="status"></p>
-        <div class="form-actions">
-          <button type="submit">➡️ Rejoindre</button>
-        </div>
-      </form>
-    </section>
-
     <section class="card" aria-labelledby="liste-evenements">
       <h3 id="liste-evenements">Vos accès évènementiels</h3>
       {% if evenements %}
+        <div class="event-tools" role="group" aria-label="Filtres des évènements">
+          <div class="field">
+            <label for="event-search">Recherche</label>
+            <input type="search" id="event-search" name="event-search" placeholder="Rechercher par nom ou numéro">
+          </div>
+          <div class="field">
+            <label for="event-status">Statut</label>
+            <select id="event-status" name="event-status">
+              <option value="">Tous les statuts</option>
+              {% for statut in statuts_disponibles %}
+                <option value="{{ statut }}">{{ statut }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="event-slider" id="event-slider-wrap" hidden>
+          <label for="event-page">Page</label>
+          <input type="range" id="event-page" min="1" max="1" value="1" step="1" aria-describedby="event-page-label">
+          <span id="event-page-label" aria-live="polite">1 / 1</span>
+        </div>
+
         <div class="event-list" role="list">
           {% for evt in evenements %}
-            <article class="event-card" role="listitem">
+            <article class="event-card" role="listitem"
+                     data-name="{{ evt.nom|default('', true)|lower }}"
+                     data-numero="{{ evt.numero|default('', true)|lower }}"
+                     data-statut="{{ evt.statut or '' }}">
               <header>
                 <h4 class="event-name">{{ evt.nom }}</h4>
                 <span class="status">{{ evt.statut }}</span>
@@ -421,15 +425,17 @@
                 <span><strong>Numéro :</strong> {{ evt.numero }}</span>
                 <span><strong>Adresse :</strong> {{ evt.adresse }}</span>
                 <span><strong>Type :</strong> {{ evt.type_evt }}</span>
+                <span><strong>Ouvert :</strong> {{ evt.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evt.date_ouverture_locale else '—' }}</span>
               </div>
               <form class="event-cta" method="post" action="{{ url_for('main_bp.select_evenement') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="evenement_id" value="{{ evt.id }}">
-                <button type="submit">Rejoindre cet évènement</button>
+                <button type="submit">Accéder à l'évènement</button>
               </form>
             </article>
           {% endfor %}
         </div>
+        <p id="no-event-message" class="empty-state is-hidden">Aucun évènement ne correspond à votre recherche.</p>
       {% else %}
         <div class="empty-state">Aucun évènement n'est actuellement associé à votre profil.</div>
       {% endif %}
@@ -492,15 +498,95 @@
   </footer>
 
   <script>
-    function afficherStatut() {
-      const select = document.getElementById("evenement_id");
-      const option = select.options[select.selectedIndex];
-      const statut = option ? option.getAttribute("data-statut") : "";
-      const statusEl = document.getElementById("statut-selectionne");
-      statusEl.textContent = statut ? `Statut actuel : ${statut}` : "";
-    }
+    document.addEventListener("DOMContentLoaded", () => {
+      const searchInput = document.getElementById("event-search");
+      const statusSelect = document.getElementById("event-status");
+      const sliderWrap = document.getElementById("event-slider-wrap");
+      const slider = document.getElementById("event-page");
+      const sliderLabel = document.getElementById("event-page-label");
+      const eventCards = Array.from(document.querySelectorAll(".event-card"));
+      const noEventMessage = document.getElementById("no-event-message");
+      const EVENTS_PER_PAGE = 5;
 
-    document.getElementById("evenement_id")?.addEventListener("change", afficherStatut);
+      if (!eventCards.length) {
+        return;
+      }
+
+      let filteredCards = [...eventCards];
+
+      const applyFilters = () => {
+        const term = (searchInput?.value || "").trim().toLowerCase();
+        const statut = statusSelect?.value || "";
+
+        filteredCards = eventCards.filter((card) => {
+          const name = card.dataset.name || "";
+          const numero = card.dataset.numero || "";
+          const cardStatut = card.dataset.statut || "";
+          const matchesTerm = !term || name.includes(term) || numero.includes(term);
+          const matchesStatus = !statut || cardStatut === statut;
+          return matchesTerm && matchesStatus;
+        });
+
+        if (slider) {
+          slider.value = "1";
+        }
+        updatePagination();
+      };
+
+      const updatePagination = () => {
+        const totalPages = filteredCards.length ? Math.ceil(filteredCards.length / EVENTS_PER_PAGE) : 0;
+
+        if (slider) {
+          slider.max = String(Math.max(totalPages, 1));
+        }
+
+        if (sliderWrap) {
+          sliderWrap.hidden = totalPages <= 1;
+        }
+
+        renderPage();
+      };
+
+      const renderPage = () => {
+        const totalPages = filteredCards.length ? Math.ceil(filteredCards.length / EVENTS_PER_PAGE) : 0;
+        let currentPage = slider ? parseInt(slider.value || "1", 10) : 1;
+
+        if (!totalPages) {
+          if (sliderLabel) {
+            sliderLabel.textContent = "0 / 0";
+          }
+        } else {
+          if (currentPage > totalPages) {
+            currentPage = totalPages;
+            if (slider) {
+              slider.value = String(currentPage);
+            }
+          }
+          if (sliderLabel) {
+            sliderLabel.textContent = `${currentPage} / ${totalPages}`;
+          }
+        }
+
+        eventCards.forEach((card) => card.classList.add("is-hidden"));
+
+        if (!filteredCards.length) {
+          noEventMessage?.classList.remove("is-hidden");
+          return;
+        }
+
+        noEventMessage?.classList.add("is-hidden");
+
+        const start = (currentPage - 1) * EVENTS_PER_PAGE;
+        const end = start + EVENTS_PER_PAGE;
+        filteredCards.slice(start, end).forEach((card) => card.classList.remove("is-hidden"));
+      };
+
+      slider?.addEventListener("input", renderPage);
+      searchInput?.addEventListener("input", applyFilters);
+      statusSelect?.addEventListener("change", applyFilters);
+
+      applyFilters();
+    });
   </script>
 
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
