@@ -64,31 +64,32 @@ def get_current_user():
 # 🔐 Page de connexion
 LOGIN_LOCK_THRESHOLD = 3
 LOGIN_LOCK_DURATION = timedelta(minutes=5)
-client_login_attempts: dict[str, dict[str, datetime | int]] = {}
+# Les tentatives sont suivies par adresse IP pour éviter de cibler un compte spécifique.
+ip_login_attempts: dict[str, dict[str, datetime | int]] = {}
 
 
-def _get_client_identifier() -> str:
-    """Retourne un identifiant de client basé sur l'adresse IP (prend en compte X-Forwarded-For)."""
+def _get_client_ip() -> str:
+    """Retourne l'adresse IP du client en tenant compte de X-Forwarded-For."""
     forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
     if forwarded_for:
         return forwarded_for
     return request.remote_addr or "unknown"
 
 
-def _cleanup_login_attempts(client_id: str) -> None:
-    """Réinitialise les tentatives lorsque le verrou a expiré."""
-    record = client_login_attempts.get(client_id)
+def _cleanup_login_attempts(client_ip: str) -> None:
+    """Réinitialise les tentatives lorsque le verrou lié à une IP a expiré."""
+    record = ip_login_attempts.get(client_ip)
     if not record:
         return
 
     lock_until = record.get("lock_until")
     if lock_until and datetime.utcnow() >= lock_until:
-        client_login_attempts.pop(client_id, None)
+        ip_login_attempts.pop(client_ip, None)
 
 
-def _get_lock_remaining(client_id: str) -> timedelta | None:
-    """Retourne le temps restant avant la fin du verrouillage pour un client donné."""
-    record = client_login_attempts.get(client_id)
+def _get_lock_remaining(client_ip: str) -> timedelta | None:
+    """Retourne le temps restant avant la fin du verrouillage pour une IP donnée."""
+    record = ip_login_attempts.get(client_ip)
     if not record:
         return None
 
@@ -98,15 +99,15 @@ def _get_lock_remaining(client_id: str) -> timedelta | None:
 
     remaining = lock_until - datetime.utcnow()
     if remaining.total_seconds() <= 0:
-        client_login_attempts.pop(client_id, None)
+        ip_login_attempts.pop(client_ip, None)
         return None
 
     return remaining
 
 
-def _build_lock_context(client_id: str) -> dict:
-    """Construit le contexte utilisé par la page de connexion pour afficher le statut du verrouillage."""
-    remaining = _get_lock_remaining(client_id)
+def _build_lock_context(client_ip: str) -> dict:
+    """Construit le contexte de verrouillage pour une IP donnée."""
+    remaining = _get_lock_remaining(client_ip)
     if not remaining:
         return {
             "lock_active": False,
@@ -134,9 +135,9 @@ def _build_lock_context(client_id: str) -> dict:
 
 @main_bp.route("/", methods=["GET", "POST"])
 def login():
-    client_id = _get_client_identifier()
-    _cleanup_login_attempts(client_id)
-    context = _build_lock_context(client_id)
+    client_ip = _get_client_ip()
+    _cleanup_login_attempts(client_ip)
+    context = _build_lock_context(client_ip)
 
     if request.method == "POST":
         if context["lock_active"]:
@@ -149,18 +150,18 @@ def login():
         if user and user.check_password(mot_de_passe):
             session["user_id"] = user.id
             log_action("login_success", "utilisateur", user.id)
-            client_login_attempts.pop(client_id, None)
+            ip_login_attempts.pop(client_ip, None)
             return redirect(url_for("main_bp.evenement_new"))
         else:
-            record = client_login_attempts.setdefault(
-                client_id,
+            record = ip_login_attempts.setdefault(
+                client_ip,
                 {"count": 0},
             )
             record["count"] = int(record.get("count", 0)) + 1
 
             if record["count"] >= LOGIN_LOCK_THRESHOLD:
                 record["lock_until"] = datetime.utcnow() + LOGIN_LOCK_DURATION
-                context = _build_lock_context(client_id)
+                context = _build_lock_context(client_ip)
                 if context["lock_message"]:
                     flash(context["lock_message"], "danger")
             else:
@@ -170,7 +171,7 @@ def login():
                     f"Il vous reste {remaining_attempts} tentative(s) avant le blocage.",
                     "danger",
                 )
-            context = _build_lock_context(client_id)
+            context = _build_lock_context(client_ip)
 
     return render_template("login.html", **context)
 # 🔓 Déconnexion
