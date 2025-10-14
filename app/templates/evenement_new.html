@@ -2,195 +2,446 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Gestion des évènements</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="csrf-token" content="{{ csrf_token() }}"/>
+  <title>Portail des évènements</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}" />
 
   <style>
-    :root{
-      --pc-blue:#003b71;
-      --pc-blue-2:#0a2f57;
-      --pc-orange:#f58220;
-      --ink:#0f172a;
-      --muted:#667085;
-      --line:#e6edf5;
-      --bg:#f6f8fc;
-      --card:#ffffff;
-      --radius:16px;
-      --gap:18px;
-      --shadow:0 10px 24px rgba(16,24,40,.06);
+    :root {
+      --pc-blue: #002b52;
+      --pc-blue-light: #0b3f78;
+      --pc-orange: #f58220;
+      --pc-amber: #fdb022;
+      --ink: #0f172a;
+      --muted: #475467;
+      --line: #d9e2f1;
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --radius: 18px;
+      --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
     }
 
-    /* base */
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0}
-    body{
-      font: 15px/1.45 system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, Noto Sans;
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
       color: var(--ink);
       background: var(--bg);
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      line-height: 1.6;
     }
 
-    /* header */
-    .header{
-      background: linear-gradient(180deg, var(--pc-blue), #002b52);
-      color:#fff; text-align:center; padding:18px 12px;
+    a.skip-link {
+      position: absolute;
+      top: -40px;
+      left: 16px;
+      padding: 10px 16px;
+      background: var(--pc-orange);
+      color: #fff;
+      border-radius: 999px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: top 0.2s ease;
+      z-index: 999;
+    }
+
+    a.skip-link:focus {
+      top: 12px;
+    }
+
+    header.app-header {
+      background: linear-gradient(135deg, var(--pc-blue), #001830);
+      color: #fff;
+      padding: 28px 20px 32px;
       border-bottom: 4px solid var(--pc-orange);
     }
-    .header .brand{
-      display:flex; gap:12px; align-items:center; justify-content:center; flex-wrap:wrap;
-    }
-    .logo{
-      width:54px; height:54px; border-radius:14px; display:grid; place-items:center;
-      background: linear-gradient(135deg, var(--pc-orange), #ff9f49); color:#112944; font-weight:900;
-      box-shadow: inset 0 2px 10px rgba(0,0,0,.15);
-    }
-    .header h1{margin:0; font-size: clamp(20px, 2.4vw, 28px); letter-spacing:.3px;}
-    .header p{margin:.25rem 0 0 0; opacity:.9; font-weight:600}
 
-    /* container */
-    .container{
-      width: min(940px, 94vw);
-      margin: 22px auto 30px;
-      display: grid; gap: var(--gap);
+    .header-wrapper {
+      margin: 0 auto;
+      width: min(1040px, 94vw);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 24px;
+      justify-content: space-between;
     }
 
-    /* cartes */
-    .card{
-      background: var(--card); border:1px solid var(--line); border-radius: var(--radius);
-      box-shadow: var(--shadow); overflow: hidden;
-    }
-    .card .hd{
-      padding: 14px 16px; border-bottom:1px solid var(--line);
-      background: linear-gradient(180deg,#fff,#f8fbff);
-      color: var(--pc-blue); font-weight:900; letter-spacing:.2px;
-    }
-    .card .bd{ padding: 16px; }
-
-    /* boutons principaux */
-    .btns{
-      display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
-      padding: 14px; border:1px dashed var(--line); border-radius: 14px; background:#fff;
-    }
-    .btn{
-      display:inline-flex; align-items:center; gap:8px; padding:12px 16px; border-radius:12px;
-      border:1px solid #dbe6ff; background:#eef3ff; color:var(--pc-blue); font-weight:900;
-      text-decoration:none; cursor:pointer;
-      transition: transform .04s ease, filter .15s ease;
-    }
-    .btn:active{ transform: translateY(1px); }
-    .btn.warn{ background:#fff1e6; color:#9b4600; border-color:#ffd8bd; }
-    .btn.admin{ background:#eaf7ff; color:#035388; border-color:#c6e7ff; }
-
-    /* formulaires */
-    label{ font-weight:800; color: var(--muted); text-transform:uppercase; font-size:.85rem; letter-spacing:.04em; }
-    .field{ display:grid; gap:6px; }
-    .field + .field{ margin-top: 12px; }
-    input[type="text"], select{
-      width:100%; padding:12px 12px; border-radius:12px; border:1px solid var(--line); background:#fff; font:inherit;
+    .identity {
+      display: flex;
+      gap: 20px;
+      align-items: center;
     }
 
-    .form-actions{ margin-top:14px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
-    .submit{ background: var(--pc-orange); border:1px solid #ffcfad; color:#fff; }
-    .submit:hover{ filter: brightness(1.03); }
+    .logo {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, var(--pc-orange), var(--pc-amber));
+      color: #11203b;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: inset 0 4px 18px rgba(0, 0, 0, 0.18);
+    }
 
-    /* flash */
-    .flash{ padding: 12px 16px; border-radius:12px; border:1px solid transparent; font-weight:800; text-align:center; }
-    .flash-success{ background:#ecfdf3; border-color:#abefc6; color:#067647; }
-    .flash-danger{ background:#fef3f2; border-color:#fecdcf; color:#b42318; }
-    .flash-warning{ background:#fffaeb; border-color:#fedf89; color:#b54708; }
-    .flash-info{ background:#eff8ff; border-color:#b2ddff; color:#175cd3; }
+    .identity h1 {
+      margin: 0 0 4px;
+      font-size: clamp(24px, 2.7vw, 34px);
+      letter-spacing: 0.4px;
+    }
 
-    /* sections */
-    .section{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; }
-    .section h2{ margin:6px 0 14px; color: var(--pc-blue); font-size: 20px; text-align:center; }
+    .identity p {
+      margin: 0;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.85);
+    }
 
-    /* statut affiche */
-    #statut-selectionne{ margin-top:10px; font-weight:900; color: var(--pc-blue); }
+    .profile-badge {
+      background: rgba(255, 255, 255, 0.14);
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 14px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-    /* responsive */
-    @media (max-width: 560px){
-      .btns{ display:grid; grid-template-columns: 1fr; }
-      .form-actions{ justify-content:stretch; }
-      .form-actions .btn{ width:100%; justify-content:center; }
+    nav.top-actions {
+      width: min(1040px, 94vw);
+      margin: -22px auto 24px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    nav.top-actions a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: #ffffff;
+      color: var(--pc-blue-light);
+      font-weight: 700;
+      text-decoration: none;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 6px 16px rgba(2, 24, 56, 0.08);
+    }
+
+    nav.top-actions a.logout {
+      background: #fff0e8;
+      color: #a1440f;
+      border-color: #ffd9c2;
+    }
+
+    main.layout {
+      width: min(1040px, 94vw);
+      margin: 0 auto 48px;
+      display: grid;
+      gap: 28px;
+    }
+
+    .hero {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+    }
+
+    .hero h2 {
+      margin: 0 0 12px;
+      color: var(--pc-blue);
+      font-size: 22px;
+    }
+
+    .hero p { margin: 0; color: var(--muted); }
+
+    #flash-messages {
+      display: grid;
+      gap: 12px;
+    }
+
+    .flash {
+      padding: 14px 18px;
+      border-radius: 14px;
+      font-weight: 600;
+      border: 1px solid transparent;
+    }
+
+    .flash-success { background: #ecfdf3; border-color: #abefc6; color: #067647; }
+    .flash-danger { background: #fef3f2; border-color: #fecdcf; color: #b42318; }
+    .flash-warning { background: #fffaeb; border-color: #fedf89; color: #b54708; }
+    .flash-info { background: #eff8ff; border-color: #b2ddff; color: #175cd3; }
+
+    .grid-two {
+      display: grid;
+      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 24px;
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+
+    .card h3 {
+      margin-top: 0;
+      color: var(--pc-blue);
+      font-size: 20px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    label {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    select, input[type="text"] {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid #c9d7ec;
+      font: inherit;
+      background: #fff;
+    }
+
+    select:focus, input[type="text"]:focus {
+      outline: 3px solid rgba(245, 130, 32, 0.25);
+      border-color: var(--pc-orange);
+    }
+
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    button, .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      border: 1px solid transparent;
+      background: var(--pc-orange);
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.1s ease;
+    }
+
+    button:focus-visible, .btn-link:focus-visible {
+      outline: 3px solid rgba(15, 23, 42, 0.35);
+      outline-offset: 2px;
+    }
+
+    button:hover, .btn-link:hover {
+      transform: translateY(-1px);
+    }
+
+    .join-helper {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .event-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .event-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      background: #fff;
+      display: grid;
+      gap: 12px;
+    }
+
+    .event-card header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    .event-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+    }
+
+    .event-meta {
+      display: grid;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .event-cta {
+      justify-self: flex-start;
+    }
+
+    .notice {
+      background: rgba(0, 43, 82, 0.06);
+      border-radius: 14px;
+      padding: 16px;
+      font-size: 0.95rem;
+      color: var(--pc-blue);
+    }
+
+    .empty-state {
+      border: 2px dashed var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    footer.page-footer {
+      margin: 32px 0 48px;
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 720px) {
+      nav.top-actions { justify-content: flex-start; }
+      .form-actions { justify-content: stretch; }
+      .form-actions button { width: 100%; justify-content: center; }
+      .event-card header { flex-direction: column; align-items: flex-start; }
+      .event-cta { width: 100%; }
+      .event-cta button { width: 100%; justify-content: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0s !important; }
     }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#contenu-principal">Passer au contenu</a>
 
-  <!-- ===== Header ===== -->
-  <header class="header">
-    <div class="brand">
-      <div class="logo">PC</div>
-      <div>
-        <h1>Protection Civile — Gestion des évènements</h1>
-        <p>Créer ou rejoindre rapidement un évènement</p>
+  <header class="app-header">
+    <div class="header-wrapper">
+      <div class="identity">
+        <div class="logo" aria-hidden="true">PC</div>
+        <div>
+          <p class="overline">Protection Civile</p>
+          <h1>Portail des évènements</h1>
+          <p>Rejoignez votre mission ou créez un nouvel engagement</p>
+        </div>
+      </div>
+      <div class="profile-badge" aria-live="polite">
+        <span>Connecté en tant que</span>
+        <strong>{{ (user.role or 'membre')|capitalize }}</strong>
       </div>
     </div>
   </header>
 
-  <main class="container">
+  <nav class="top-actions" aria-label="Navigation principale">
+    <a href="{{ url_for('main_bp.logout') }}" class="logout">🚪 Déconnexion</a>
+    {% if user.is_admin or user.role == "codep" %}
+      <a href="{{ url_for('main_bp.admin_utilisateurs') }}">👥 Gérer les utilisateurs</a>
+      <a href="{{ url_for('main_bp.admin_evenements') }}">🛠️ Administrer les évènements</a>
+    {% endif %}
+  </nav>
 
-    <!-- ===== Flash messages ===== -->
+  <main id="contenu-principal" class="layout" tabindex="-1">
+    <section class="hero" aria-labelledby="hero-title">
+      <h2 id="hero-title">Bienvenue sur votre espace évènementiel</h2>
+      <p>Les membres voient uniquement les opérations auxquelles ils sont rattachés. Les coordinateurs (CODEP) et administrateurs disposent d'un accès complet pour préparer de nouvelles missions.</p>
+    </section>
+
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
-        <div id="flash-messages">
+        <div id="flash-messages" aria-live="assertive">
           {% for category, message in messages %}
             <div class="flash flash-{{ category }}">{{ message }}</div>
           {% endfor %}
         </div>
-        <script>
-          setTimeout(() => {
-            const f = document.getElementById("flash-messages");
-            if (f) f.style.display = "none";
-          }, 8000);
-        </script>
       {% endif %}
     {% endwith %}
 
-    <!-- ===== 1) Boutons d'accès (en premier) ===== -->
-    <section class="card">
-      <div class="hd">Accès rapide</div>
-      <div class="bd">
-        <div class="btns">
-          <a href="{{ url_for('main_bp.logout') }}" class="btn warn">🚪 Déconnexion</a>
-          <a href="{{ url_for('main_bp.admin_utilisateurs') }}" class="btn">👥 Gérer les utilisateurs</a>
-          {% if user.is_admin or user.role == "codep" %}
-            <a href="{{ url_for('main_bp.admin_evenements') }}" class="btn admin">🛠 Modifier les évènements</a>
-          {% endif %}
+    <section class="card" aria-labelledby="selection-evenement">
+      <h3 id="selection-evenement">Rejoindre un évènement</h3>
+      <p class="join-helper">Sélectionnez l'opération que vous souhaitez rejoindre parmi vos accès autorisés.</p>
+      <form method="post" action="{{ url_for('main_bp.select_evenement') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field">
+          <label for="evenement_id">Vos évènements disponibles</label>
+          <select name="evenement_id" id="evenement_id" required aria-describedby="statut-selectionne">
+            <option value="" disabled selected>— Choisir un évènement —</option>
+            {% for evt in evenements %}
+              <option value="{{ evt.id }}" data-statut="{{ evt.statut }}">{{ evt.nom }} ({{ evt.numero }})</option>
+            {% endfor %}
+          </select>
         </div>
-      </div>
+        <p id="statut-selectionne" class="join-helper" role="status"></p>
+        <div class="form-actions">
+          <button type="submit">➡️ Rejoindre</button>
+        </div>
+      </form>
     </section>
 
-    <!-- ===== 2) Rejoindre un évènement ===== -->
-    <section class="card">
-      <div class="hd">Rejoindre un évènement existant</div>
-      <div class="bd">
-        <form method="post" action="{{ url_for('main_bp.select_evenement') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <div class="field">
-            <label for="evenement_id">Sélectionner un évènement</label>
-            <select name="evenement_id" id="evenement_id" required onchange="afficherStatut()">
-              <option value="" disabled selected>— Choisir un évènement —</option>
-              {% for evt in evenements %}
-                <option value="{{ evt.id }}" data-statut="{{ evt.statut }}">{{ evt.nom }} ({{ evt.numero }})</option>
-              {% endfor %}
-            </select>
-          </div>
-          <p id="statut-selectionne"></p>
-          <div class="form-actions">
-            <button type="submit" class="btn submit">➡️ Rejoindre</button>
-          </div>
-        </form>
-      </div>
+    <section class="card" aria-labelledby="liste-evenements">
+      <h3 id="liste-evenements">Vos accès évènementiels</h3>
+      {% if evenements %}
+        <div class="event-list" role="list">
+          {% for evt in evenements %}
+            <article class="event-card" role="listitem">
+              <header>
+                <h4 class="event-name">{{ evt.nom }}</h4>
+                <span class="status">{{ evt.statut }}</span>
+              </header>
+              <div class="event-meta">
+                <span><strong>Numéro :</strong> {{ evt.numero }}</span>
+                <span><strong>Adresse :</strong> {{ evt.adresse }}</span>
+                <span><strong>Type :</strong> {{ evt.type_evt }}</span>
+              </div>
+              <form class="event-cta" method="post" action="{{ url_for('main_bp.select_evenement') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="evenement_id" value="{{ evt.id }}">
+                <button type="submit">Rejoindre cet évènement</button>
+              </form>
+            </article>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state">Aucun évènement n'est actuellement associé à votre profil.</div>
+      {% endif %}
     </section>
 
-    <!-- ===== 3) Créer un évènement ===== -->
-    <section class="card">
-      <div class="hd">Créer un nouvel évènement</div>
-      <div class="bd">
+    {% if user.is_admin or user.role == "codep" %}
+      <section class="card" aria-labelledby="creation-evenement">
+        <h3 id="creation-evenement">Créer un nouvel évènement</h3>
+        <p class="join-helper">Définissez les informations principales pour enregistrer une nouvelle mission.</p>
         <form method="post" action="{{ url_for('main_bp.evenement_new') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
           <div class="field">
             <label for="nom_evt">Nom de l'évènement</label>
             <input type="text" id="nom_evt" name="nom_evt" required>
@@ -222,25 +473,36 @@
           </div>
 
           <div class="form-actions">
-            <button type="submit" class="btn submit">➕ Créer l'évènement</button>
+            <button type="submit">➕ Créer l'évènement</button>
           </div>
         </form>
-      </div>
-    </section>
-
+      </section>
+    {% else %}
+      <section class="card" aria-labelledby="besoin-aide">
+        <h3 id="besoin-aide">Besoin d'un nouvel évènement&nbsp;?</h3>
+        <div class="notice">
+          Seuls les administrateurs et coordinateurs départementaux peuvent créer des opérations. Contactez votre responsable si vous devez être ajouté à une nouvelle mission.
+        </div>
+      </section>
+    {% endif %}
   </main>
 
+  <footer class="page-footer">
+    © Protection Civile — Portail évènementiel
+  </footer>
+
   <script>
-    // Affiche le statut de l'évènement sélectionné
     function afficherStatut() {
       const select = document.getElementById("evenement_id");
-      const opt = select.options[select.selectedIndex];
-      const statut = opt ? opt.getAttribute("data-statut") : "";
-      document.getElementById("statut-selectionne").innerText = statut ? "Statut : " + statut : "";
+      const option = select.options[select.selectedIndex];
+      const statut = option ? option.getAttribute("data-statut") : "";
+      const statusEl = document.getElementById("statut-selectionne");
+      statusEl.textContent = statut ? `Statut actuel : ${statut}` : "";
     }
+
+    document.getElementById("evenement_id")?.addEventListener("change", afficherStatut);
   </script>
 
-  <!-- si tu utilises ce helper global côté app -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>
