@@ -407,6 +407,25 @@
       return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${n}</span>`).join(' ');
     }
 
+    function normalizeStatutValue(raw){
+      return (raw ?? '').toString().trim().toLowerCase();
+    }
+
+    function extractCompetenceList(raw){
+      if(!raw) return [];
+      if(Array.isArray(raw)) return raw;
+      return String(raw)
+        .split(',')
+        .map(c=>c.trim())
+        .filter(Boolean);
+    }
+
+    function buildCompetenceDataset(raw){
+      return extractCompetenceList(raw)
+        .map(c=>c.toLowerCase())
+        .join('|');
+    }
+
     function actionsHTML(f){
       const delBtn = CAN_DELETE_FICHE ? `
         <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
@@ -452,6 +471,7 @@
       let tr=document.getElementById(`fiche-row-${f.id}`);
       if(!tr){
         tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
+        tr=document.getElementById(`fiche-row-${f.id}`);
       }else{
         setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero);
         setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom);
@@ -460,6 +480,10 @@
         const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee);
         const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
         const c=tr.querySelector('[data-col="competences"]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
+      }
+      if(tr){
+        tr.dataset.statut = normalizeStatutValue(f.statut);
+        tr.dataset.competences = buildCompetenceDataset(f.competences);
       }
       rowsCache.set(f.id, f);
       majBagagesCell(f.id);
@@ -487,12 +511,14 @@
       const prenom=row.children[2]?.textContent.toLowerCase()||"";
       const searchOk=!searchTerm || nom.includes(searchTerm) || prenom.includes(searchTerm);
 
-      const selectedStatus=getSelectValues(document.getElementById('filter-statut'));
-      const statutTxt=(f.statut||'').toLowerCase();
+      const selectedStatus=getSelectValues(document.getElementById('filter-statut')).map(normalizeStatutValue);
+      const statutTxt=normalizeStatutValue(f?.statut ?? row?.dataset?.statut ?? '');
       const statusOk=selectedStatus.length===0 || selectedStatus.includes(statutTxt);
 
-      const selectedComps=getSelectValues(document.getElementById('filter-competences'));
-      const ficheComps=(f.competences||'').split(',').map(x=>x.trim()).filter(Boolean);
+      const selectedComps=getSelectValues(document.getElementById('filter-competences')).map(c=>c.toLowerCase());
+      const ficheComps=f
+        ? extractCompetenceList(f.competences).map(c=>c.toLowerCase())
+        : (row?.dataset?.competences||'').split('|').filter(Boolean);
       const compOk=selectedComps.length===0 || ficheComps.some(c=>selectedComps.includes(c));
 
       return searchOk && statusOk && compOk;
