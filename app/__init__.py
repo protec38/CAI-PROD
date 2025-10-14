@@ -71,6 +71,7 @@ def create_app(config_name: str | None = None) -> Flask:
     app.add_template_filter(jfilters.fr_datetime, name="fr_datetime")
     app.add_template_filter(jfilters.fr_date,     name="fr_date")
     app.add_template_filter(jfilters.fr_time,     name="fr_time")
+    app.add_template_filter(jfilters.age_in_years, name="age")
 
     # --- Gestion CSRF (page d’erreur claire) ---
     @app.errorhandler(CSRFError)

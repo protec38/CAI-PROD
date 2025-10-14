@@ -39,6 +39,21 @@ input, select, textarea {
 select[multiple] { min-height: 150px; }
 small { font-size: 13px; color: #777; }
 textarea { resize: vertical; }
+.required { color: #d92d20; font-weight: 700; }
+.birth-row { display: flex; align-items: center; gap: 12px; }
+.birth-row input { flex: 1; }
+.age-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(0, 47, 108, 0.1);
+    color: #002f6c;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
 button {
     background-color: #ff6f00; color: white; padding: 14px 25px; font-size: 16px;
     border: none; border-radius: 6px; cursor: pointer; width: 100%;
@@ -86,8 +101,12 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="form-group">
-        <label for="date_naissance">Date de naissance <span style="color:red">*</span></label>
-        <input type="date" id="date_naissance" name="date_naissance" value="{{ fiche.date_naissance.strftime('%Y-%m-%d') if fiche.date_naissance else '' }}" required>
+        <label for="date_naissance">Date de naissance <span class="required">*</span></label>
+        <div class="birth-row">
+          <input type="date" id="date_naissance" name="date_naissance" value="{{ fiche.date_naissance.strftime('%Y-%m-%d') if fiche.date_naissance else '' }}" required>
+          {% set age_val = fiche.date_naissance|age %}
+          <span class="age-badge" id="age-display" aria-live="polite">{{ age_val ~ ' ans' if age_val is not none else '—' }}</span>
+        </div>
       </div>
 
       <div class="form-group">
@@ -187,33 +206,78 @@ button:hover { background-color: #e65c00; }
 </div>
 
 <script>
+function computeAgeFromIso(iso) {
+  if (!iso) return null;
+  const parts = iso.split('-');
+  if (parts.length !== 3) return null;
+  const [yearStr, monthStr, dayStr] = parts;
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+    return null;
+  }
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const candidate = new Date(year, month - 1, day);
+  if (
+    candidate.getFullYear() !== year ||
+    candidate.getMonth() !== month - 1 ||
+    candidate.getDate() !== day ||
+    candidate > todayMidnight
+  ) {
+    return null;
+  }
+  let age = today.getFullYear() - year;
+  const currentMonth = today.getMonth() + 1;
+  const currentDay = today.getDate();
+  if (currentMonth < month || (currentMonth === month && currentDay < day)) {
+    age -= 1;
+  }
+  return age >= 0 ? age : null;
+}
+
 function onCompetencesChange(select) {
-  // Limite 4 compétences
   const selected = Array.from(select.selectedOptions);
   if (selected.length > 4) {
     alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
     selected[selected.length - 1].selected = false;
   }
 
-  // Affiche/masque le champ 'Autre'
   const showAutre = selected.some(o => o.value === 'Autre');
   const bloc = document.getElementById('bloc-competence-autre');
   if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
 
-  // Reset si 'Autre' décoché
   if (!showAutre) {
     const autreInput = document.getElementById('competence_autre');
     if (autreInput) autreInput.value = '';
   }
 }
 
-// Init à l'ouverture : si 'Autre' est déjà sélectionné, on affiche le champ
 document.addEventListener('DOMContentLoaded', () => {
   const select = document.getElementById('competences');
-  if (!select) return;
-  const showAutre = Array.from(select.selectedOptions).some(o => o.value === 'Autre');
   const bloc = document.getElementById('bloc-competence-autre');
-  if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
+  if (select && bloc) {
+    const showAutre = Array.from(select.selectedOptions).some(o => o.value === 'Autre');
+    bloc.style.display = showAutre ? 'block' : 'none';
+  }
+
+  const birthInput = document.getElementById('date_naissance');
+  const ageDisplay = document.getElementById('age-display');
+  const refreshAge = () => {
+    if (!ageDisplay) return;
+    const iso = birthInput?.value || '';
+    if (!iso) {
+      ageDisplay.textContent = '—';
+      return;
+    }
+    const age = computeAgeFromIso(iso);
+    ageDisplay.textContent = age !== null ? `${age} ans` : '—';
+  };
+
+  birthInput?.addEventListener('input', refreshAge);
+  birthInput?.addEventListener('change', refreshAge);
+  refreshAge();
 });
 </script>
 

@@ -4,7 +4,7 @@ from .extensions import db
 from werkzeug.security import check_password_hash
 from functools import wraps
 from .audit import log_action
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from flask import jsonify
 from flask_login import current_user
 from flask import make_response
@@ -138,6 +138,9 @@ def login():
     client_ip = _get_client_ip()
     _cleanup_login_attempts(client_ip)
     context = _build_lock_context(client_ip)
+
+    if request.method == "GET" and "user_id" in session:
+        return redirect(url_for("main_bp.evenement_new"))
 
     if request.method == "POST":
         if context["lock_active"]:
@@ -337,14 +340,19 @@ def fiche_new():
             # fallback si vide ou format inattendu
             heure_arrivee = datetime.utcnow()
 
-        # --- Date de naissance
-        date_naissance = None
-        date_naissance_str = request.form.get("date_naissance")
-        if date_naissance_str:
-            try:
-                date_naissance = datetime.strptime(date_naissance_str, "%Y-%m-%d").date()
-            except ValueError:
-                date_naissance = None
+        # --- Date de naissance (obligatoire)
+        date_naissance_str = (request.form.get("date_naissance") or "").strip()
+        if not date_naissance_str:
+            flash("La date de naissance est obligatoire.", "danger")
+            return redirect(request.url)
+        try:
+            date_naissance = datetime.strptime(date_naissance_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Format de date de naissance invalide.", "danger")
+            return redirect(request.url)
+        if date_naissance > date.today():
+            flash("La date de naissance ne peut pas être dans le futur.", "danger")
+            return redirect(request.url)
 
         # --- Champs de base
         nom = (request.form.get("nom") or "").strip()
@@ -704,16 +712,20 @@ def fiche_edit(id):
             return redirect(request.url)
         fiche.autres_informations = autres_infos
 
-        # ✅ Conversion de la date au bon format
-        date_str = request.form.get("date_naissance")
-        if date_str:
-            try:
-                fiche.date_naissance = datetime.strptime(date_str, "%Y-%m-%d").date()
-            except ValueError:
-                flash("⚠️ Format de date invalide.", "danger")
-                return redirect(request.url)
-        else:
-            fiche.date_naissance = None
+        # ✅ Conversion de la date au bon format (obligatoire)
+        date_str = (request.form.get("date_naissance") or "").strip()
+        if not date_str:
+            flash("La date de naissance est obligatoire.", "danger")
+            return redirect(request.url)
+        try:
+            parsed_birth = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("⚠️ Format de date invalide.", "danger")
+            return redirect(request.url)
+        if parsed_birth > date.today():
+            flash("La date de naissance ne peut pas être dans le futur.", "danger")
+            return redirect(request.url)
+        fiche.date_naissance = parsed_birth
 
         # ====== 1er commit : on valide la mise à jour ======
         db.session.commit()
