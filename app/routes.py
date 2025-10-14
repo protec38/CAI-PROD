@@ -187,13 +187,12 @@ def logout():
 def evenement_new():
     user = get_current_user()
 
-    # 🔒 Restriction stricte à admin ou codep
-    if not user.is_admin and user.role != "codep":
-        flash("⛔ Vous n’avez pas l’autorisation de créer un évènement.", "danger")
-        evenements = user.evenements  # on peut quand même lui afficher ceux qu’il voit
-        return render_template("evenement_new.html", user=user, evenements=evenements)
-
     if request.method == "POST":
+        # 🔒 Restriction stricte à admin ou codep
+        if not user.is_admin and user.role != "codep":
+            flash("⛔ Vous n’avez pas l’autorisation de créer un évènement.", "danger")
+            return redirect(url_for("main_bp.evenement_new"))
+
         nom_evt = request.form["nom_evt"]
         type_evt = request.form["type_evt"]
         adresse = request.form["adresse"]
