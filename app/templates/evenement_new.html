@@ -196,33 +196,101 @@
     }
 
     .event-tools {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
       gap: 16px;
       margin-bottom: 10px;
-      align-items: flex-end;
+      align-items: stretch;
     }
 
     .event-tools .field {
       margin-bottom: 0;
-      flex: 1 1 220px;
-      min-width: 190px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .event-tools label {
+      font-weight: 700;
+      color: var(--muted);
     }
 
     .event-tools input,
     .event-tools select {
-      padding: 10px 14px;
+      padding: 12px 14px;
       border-radius: 12px;
       border: 1px solid var(--line);
       background: #f8fbff;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      width: 100%;
     }
 
     .event-tools input:focus,
     .event-tools select:focus {
       outline: none;
       border-color: var(--pc-blue);
+      background: #fff;
       box-shadow: 0 0 0 3px rgba(0, 59, 113, 0.12);
+    }
+
+    .input-with-icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 14px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .input-with-icon input {
+      padding-left: 42px;
+    }
+
+    .filter-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: #f8fbff;
+      border-radius: 12px;
+      padding: 6px;
+      border: 1px solid var(--line);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
+    }
+
+    .filter-pill {
+      border: none;
+      background: transparent;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 700;
+      color: var(--pc-blue);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.1s ease;
+    }
+
+    .filter-pill:is(:hover, :focus-visible) {
+      background: rgba(0, 59, 113, 0.12);
+      outline: none;
+    }
+
+    .filter-pill.is-active {
+      background: var(--pc-blue);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(0, 59, 113, 0.18);
+    }
+
+    .visually-hidden {
+      position: absolute !important;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
     }
 
     .event-summary {
@@ -412,7 +480,12 @@
       .event-card header { flex-direction: column; align-items: flex-start; }
       .event-cta { width: 100%; }
       .event-cta button { width: 100%; justify-content: center; }
-      .event-tools { flex-direction: column; align-items: stretch; gap: 12px; }
+      .event-tools { grid-template-columns: 1fr; gap: 12px; }
+    }
+
+    @media (max-width: 540px) {
+      .filter-pills { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+      .filter-pill { flex: 0 0 auto; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -470,16 +543,25 @@
         <div class="event-tools" role="group" aria-label="Filtres des évènements">
           <div class="field">
             <label for="event-search">Recherche</label>
-            <input type="search" id="event-search" name="event-search" placeholder="Rechercher par nom ou numéro">
+            <div class="input-with-icon">
+              <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+              <input type="search" id="event-search" name="event-search" placeholder="Rechercher par nom ou numéro">
+            </div>
           </div>
-          <div class="field">
+          <div class="field field--status">
             <label for="event-status">Statut</label>
-            <select id="event-status" name="event-status">
+            <select id="event-status" name="event-status" class="visually-hidden">
               <option value="">Tous les statuts</option>
               {% for statut in statuts_disponibles %}
                 <option value="{{ statut }}">{{ statut }}</option>
               {% endfor %}
             </select>
+            <div class="filter-pills" role="group" aria-label="Statut de l'évènement">
+              <button type="button" class="filter-pill is-active" data-value="" aria-pressed="true">Tous</button>
+              {% for statut in statuts_disponibles %}
+                <button type="button" class="filter-pill" data-value="{{ statut }}" aria-pressed="false">{{ statut }}</button>
+              {% endfor %}
+            </div>
           </div>
         </div>
 
@@ -584,6 +666,7 @@
     document.addEventListener("DOMContentLoaded", () => {
       const searchInput = document.getElementById("event-search");
       const statusSelect = document.getElementById("event-status");
+      const statusPills = Array.from(document.querySelectorAll(".filter-pill"));
       const sliderWrap = document.getElementById("event-slider-wrap");
       const slider = document.getElementById("event-page");
       const sliderLabel = document.getElementById("event-page-label");
@@ -611,6 +694,14 @@
           text += ` sur ${overall} ${pluralAll}`;
         }
         counter.textContent = text;
+      };
+
+      const setActivePill = (value) => {
+        statusPills.forEach((pill) => {
+          const isActive = (pill.dataset.value || "") === value;
+          pill.classList.toggle("is-active", isActive);
+          pill.setAttribute("aria-pressed", isActive ? "true" : "false");
+        });
       };
 
       const applyFilters = () => {
@@ -683,8 +774,24 @@
 
       slider?.addEventListener("input", renderPage);
       searchInput?.addEventListener("input", applyFilters);
-      statusSelect?.addEventListener("change", applyFilters);
+      const handleStatusChange = () => {
+        setActivePill(statusSelect?.value || "");
+        applyFilters();
+      };
 
+      statusSelect?.addEventListener("change", handleStatusChange);
+
+      statusPills.forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const value = pill.dataset.value || "";
+          if (statusSelect) {
+            statusSelect.value = value;
+          }
+          handleStatusChange();
+        });
+      });
+
+      setActivePill(statusSelect?.value || "");
       applyFilters();
     });
   </script>
