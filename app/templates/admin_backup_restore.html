@@ -22,8 +22,19 @@
   <div class="bk-card">
     <h3><i class="fa-solid fa-download"></i> Exporter une sauvegarde</h3>
     <div class="bk-body">
-      <p class="hint">Télécharge un export JSON complet de la base (utilisateurs, évènements, fiches, bagages, animaux, liens partagés, tickets, associations).</p>
-      <a class="btn btn-blue" href="{{ url_for('main_bp.admin_backup') }}"><i class="fa-solid fa-file-arrow-down"></i> Télécharger backup.json</a>
+      <p class="hint">Télécharge un export JSON de la base (utilisateurs, évènements, fiches, bagages, animaux, liens partagés, tickets, associations).</p>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <a class="btn btn-blue" href="{{ url_for('main_bp.admin_backup') }}"><i class="fa-solid fa-globe"></i> Sauvegarder tous les évènements</a>
+        <form method="GET" action="{{ url_for('main_bp.admin_backup') }}" class="bk-form-select">
+          <label for="evenement-select"><strong>Sélectionner des évènements à exporter</strong></label>
+          <select id="evenement-select" name="evenement_id" multiple size="6" style="width:100%; padding:8px; border-radius:8px; border:1px solid #d5d8dc;">
+            {% for evt in evenements %}
+              <option value="{{ evt.id }}">{{ evt.numero }} — {{ evt.nom }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-secondary" type="submit"><i class="fa-solid fa-file-arrow-down"></i> Exporter la sélection</button>
+        </form>
+      </div>
     </div>
   </div>
 

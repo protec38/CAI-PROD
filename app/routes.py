@@ -1,11 +1,23 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort
-from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, AuditLog, TimelineEntry, utilisateur_evenement, EventNews
-from .extensions import db
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, Response, stream_with_context, jsonify
+from .models import (
+    Utilisateur,
+    Evenement,
+    FicheImplique,
+    Bagage,
+    ShareLink,
+    ShareLinkAccessLog,
+    Ticket,
+    Animal,
+    AuditLog,
+    TimelineEntry,
+    utilisateur_evenement,
+    EventNews,
+)
+from .extensions import db, limiter
 from werkzeug.security import check_password_hash
 from functools import wraps
 from .audit import log_action
 from datetime import datetime, timedelta, date
-from flask import jsonify
 from flask_login import current_user
 from flask import make_response
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -22,6 +34,11 @@ import os
 from io import BytesIO
 import re
 import json
+import tempfile
+import redis
+from sqlalchemy import text, func
+import typing
+
 main_bp = Blueprint("main_bp", __name__)
 
 def add_timeline(fiche_id: int, user_id: int | None, content: str, kind: str):
@@ -66,6 +83,8 @@ LOGIN_LOCK_THRESHOLD = 3
 LOGIN_LOCK_DURATION = timedelta(minutes=5)
 # Les tentatives sont suivies par adresse IP pour éviter de cibler un compte spécifique.
 ip_login_attempts: dict[str, dict[str, datetime | int]] = {}
+
+TIMELINE_COMMENT_MAX_LENGTH = 1000
 
 
 def _get_client_ip() -> str:
@@ -134,6 +153,7 @@ def _build_lock_context(client_ip: str) -> dict:
 
 
 @main_bp.route("/", methods=["GET", "POST"])
+@limiter.limit("10 per minute", methods=["POST"], error_message="Trop de tentatives de connexion, veuillez patienter avant de réessayer.")
 def login():
     client_ip = _get_client_ip()
     _cleanup_login_attempts(client_ip)
@@ -150,12 +170,32 @@ def login():
         mot_de_passe = request.form.get("password", "")
 
         user = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
-        if user and user.check_password(mot_de_passe):
+        password_ok = user.check_password(mot_de_passe) if user else False
+        if user and password_ok and user.actif:
             session["user_id"] = user.id
             log_action("login_success", "utilisateur", user.id)
             ip_login_attempts.pop(client_ip, None)
             return redirect(url_for("main_bp.evenement_new"))
         else:
+            reason = "inactive" if (user and password_ok and not user.actif) else "invalid_credentials"
+            log_action(
+                "login_failed",
+                "utilisateur",
+                user.id if user else None,
+                extra=json.dumps(
+                    {
+                        "username": nom_utilisateur,
+                        "ip": client_ip,
+                        "reason": reason,
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+
+            if reason == "inactive":
+                flash("Votre compte est désactivé. Contactez un administrateur.", "danger")
+                return render_template("login.html", **context)
+
             record = ip_login_attempts.setdefault(
                 client_ip,
                 {"count": 0},
@@ -496,8 +536,58 @@ def admin_utilisateurs():
         flash("⛔ Accès refusé : vous n’avez pas les droits pour gérer les utilisateurs.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    utilisateurs = Utilisateur.query.all()
-    return render_template("admin_utilisateurs.html", utilisateurs=utilisateurs, user=user)
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+    except (TypeError, ValueError):
+        page = 1
+    per_page = 25
+    pagination = (
+        Utilisateur.query.order_by(Utilisateur.nom.asc(), Utilisateur.prenom.asc())
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    return render_template(
+        "admin_utilisateurs.html",
+        utilisateurs=pagination.items,
+        pagination=pagination,
+        user=user,
+    )
+
+
+
+
+
+################################################################
+
+
+@main_bp.route("/admin/utilisateurs/<int:utilisateur_id>/toggle", methods=["POST"])
+@login_required
+def admin_toggle_utilisateur(utilisateur_id: int):
+    user = get_current_user()
+
+    if not (user.is_admin or user.role == "codep"):
+        abort(403)
+
+    target = Utilisateur.query.get_or_404(utilisateur_id)
+    if target.id == user.id:
+        flash("Vous ne pouvez pas désactiver votre propre compte.", "warning")
+        return redirect(url_for("main_bp.admin_utilisateurs", page=request.args.get("page", 1)))
+
+    target.actif = not bool(target.actif)
+    db.session.commit()
+
+    log_action(
+        "user_toggle_active",
+        "utilisateur",
+        target.id,
+        extra=json.dumps({"actif": target.actif, "by": user.id}, ensure_ascii=False),
+    )
+
+    flash(
+        f"Compte {'activé' if target.actif else 'désactivé'} pour {target.nom or target.nom_utilisateur}.",
+        "success",
+    )
+    return redirect(url_for("main_bp.admin_utilisateurs", page=request.args.get("page", 1)))
 
 
 
@@ -1016,8 +1106,9 @@ def _styled_table(data):
 def export_pdf_fiche(id):
     fiche = FicheImplique.query.get_or_404(id)
 
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=60, bottomMargin=40)
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+    tmp_file.close()
+    doc = SimpleDocTemplate(tmp_file.name, pagesize=A4, rightMargin=40, leftMargin=40, topMargin=60, bottomMargin=40)
 
     story = []
 
@@ -1049,26 +1140,56 @@ def export_pdf_fiche(id):
     ]
     story.append(_styled_table(data_perso))
 
-    # === INFOS HORAIRES ===
-    story.append(Paragraph("Heures", styles['SectionTitle']))
+    # === CONTACT & COORDONNÉES ===
+    story.append(Paragraph("Coordonnées et contact", styles['SectionTitle']))
+    data_contact = [
+        ["Téléphone", fiche.telephone or "Non renseigné"],
+        ["Personne à prévenir", fiche.personne_a_prevenir or "Non renseignée"],
+        ["Téléphone personne à prévenir", fiche.tel_personne_a_prevenir or "Non renseigné"],
+        ["Numéro PEC", fiche.numero_pec or "Non renseigné"],
+    ]
+    story.append(_styled_table(data_contact))
+
+    # === INFOS HORAIRES & STATUT ===
+    story.append(Paragraph("Suivi opérationnel", styles['SectionTitle']))
     data_horaires = [
+        ["Statut", fiche.statut or "Non renseigné"],
         ["Heure d’arrivée", fiche.heure_arrivee_locale.strftime('%d/%m/%Y %H:%M') if fiche.heure_arrivee_locale else "Non renseignée"],
-        ["Heure de sortie", fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') if fiche.heure_sortie_locale else "Non sortie"]
+        ["Heure de sortie", fiche.heure_sortie_locale.strftime('%d/%m/%Y %H:%M') if fiche.heure_sortie_locale else "Non renseignée"],
+        ["Destination", fiche.destination or "Non renseignée"],
+        ["Moyen de transport", fiche.moyen_transport or "Non renseigné"],
     ]
     story.append(_styled_table(data_horaires))
 
-    # === INFOS SUP ===
-    story.append(Paragraph("Informations supplémentaires", styles['SectionTitle']))
+    # === INFORMATIONS MÉDICALES / LOGISTIQUES ===
+    story.append(Paragraph("Informations complémentaires", styles['SectionTitle']))
     data_supp = [
-        ["Statut", fiche.statut],
-        ["Difficultés", fiche.difficultes or "Non renseignée"],
-        ["Compétences", fiche.competences or "Non renseignée"],
-        ["Est un animal", "Oui" if fiche.est_animal else "Non"],
+        ["Code Sinus", fiche.code_sinus or "Non renseigné"],
         ["Recherche une personne", fiche.recherche_personne or "Non"],
-        ["N° recherche", fiche.numero_recherche or "Non renseigné"],
-        ["Évènement", fiche.evenement.nom]
+        ["Numéro de recherche", fiche.numero_recherche or "Non renseigné"],
+        ["Difficultés", fiche.difficultes or "Non renseignées"],
+        ["Compétences", fiche.competences or "Non renseignées"],
+        ["Effets personnels", fiche.effets_perso or "Non renseignés"],
+        ["Est un animal", "Oui" if fiche.est_animal else "Non"],
+        ["Est humain", "Oui" if fiche.humain else "Non"],
     ]
     story.append(_styled_table(data_supp))
+
+    # === ÉVÈNEMENT ASSOCIÉ ===
+    story.append(Paragraph("Évènement associé", styles['SectionTitle']))
+    evenement_data = [
+        ["Nom", fiche.evenement.nom if fiche.evenement else "Non renseigné"],
+        ["Numéro", fiche.evenement.numero if fiche.evenement else "Non renseigné"],
+        ["Adresse", fiche.evenement.adresse if fiche.evenement else "Non renseignée"],
+        ["Statut", fiche.evenement.statut if fiche.evenement else "Non renseigné"],
+        ["Créateur de la fiche", (fiche.createur.nom if fiche.createur else "Non renseigné")],
+    ]
+    story.append(_styled_table(evenement_data))
+
+    # === AUTRES INFORMATIONS ===
+    if fiche.autres_informations:
+        story.append(Paragraph("Autres informations", styles['SectionTitle']))
+        story.append(_styled_table([["Notes", fiche.autres_informations]]))
 
     # === BAGAGES ===
     story.append(Paragraph("Bagages", styles['SectionTitle']))
@@ -1083,10 +1204,48 @@ def export_pdf_fiche(id):
     bagages_str = ", ".join(bag_list) if bag_list else "Aucun"
     story.append(_styled_table([["Bagages rattachés", bagages_str]]))
 
+    # === HISTORIQUE TIMELINE ===
+    timeline_entries = (
+        fiche.timeline_entries.order_by(TimelineEntry.created_at.desc()).limit(10).all()
+    )
+    if timeline_entries:
+        import pytz
+
+        story.append(Paragraph("Historique récent", styles['SectionTitle']))
+        paris = pytz.timezone("Europe/Paris")
+        timeline_rows = []
+        for entry in reversed(timeline_entries):
+            try:
+                ts = entry.created_at.astimezone(paris) if entry.created_at else None
+            except Exception:
+                ts = entry.created_at
+            auteur = entry.user.nom if entry.user and entry.user.nom else (entry.user.nom_utilisateur if entry.user else "")
+            timeline_rows.append([
+                ts.strftime('%d/%m/%Y %H:%M') if ts else "—",
+                f"{auteur or '—'} — {entry.content}",
+            ])
+        story.append(_styled_table([["Date", "Commentaire"]] + timeline_rows))
+
     doc.build(story)
 
-    buffer.seek(0)
-    return send_file(buffer, as_attachment=True, download_name="fiche_protection_civile.pdf", mimetype='application/pdf')
+    def generate() -> typing.Iterator[bytes]:
+        try:
+            with open(tmp_file.name, "rb") as f:
+                while True:
+                    chunk = f.read(8192)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            try:
+                os.remove(tmp_file.name)
+            except OSError:
+                pass
+
+    filename = f"fiche_{fiche.numero or fiche.id}.pdf"
+    response = Response(stream_with_context(generate()), mimetype="application/pdf")
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 
@@ -1365,14 +1524,12 @@ def fiche_bagages_json(fiche_id):
 @main_bp.route("/evenement/<int:evenement_id>/export/csv")
 @login_required
 def export_evenement_fiches_csv(evenement_id):
-    # -> Désormais export XLSX stylé
-    import io
     from datetime import datetime
     import pytz
-    from flask import send_file, redirect, url_for, flash
+    from flask import redirect, url_for, flash
     from openpyxl import Workbook
+    from openpyxl.writer.write_only import WriteOnlyCell
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    from openpyxl.utils import get_column_letter
 
     user = get_current_user()
     evenement = Evenement.query.get_or_404(evenement_id)
@@ -1386,18 +1543,32 @@ def export_evenement_fiches_csv(evenement_id):
         flash("⛔ Accès refusé pour l’export.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement.id))
 
-    # Fiches
-    fiches = (
+    fiches_query = (
         FicheImplique.query
         .filter_by(evenement_id=evenement.id)
         .order_by(FicheImplique.id.asc())
-        .all()
+        .yield_per(200)
     )
 
-    # Comptes
-    nb_total = len(fiches)
-    nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
-    nb_sorti = sum(1 for f in fiches if (f.statut or "").lower() == "sorti")
+    nb_total = db.session.query(func.count(FicheImplique.id)).filter_by(evenement_id=evenement.id).scalar() or 0
+    nb_present = (
+        db.session.query(func.count(FicheImplique.id))
+        .filter(FicheImplique.evenement_id == evenement.id)
+        .filter(func.lower(FicheImplique.statut) == "présent")
+        .scalar()
+        or 0
+    )
+    nb_sorti = (
+        db.session.query(func.count(FicheImplique.id))
+        .filter(FicheImplique.evenement_id == evenement.id)
+        .filter(func.lower(FicheImplique.statut) == "sorti")
+        .scalar()
+        or 0
+    )
+
+    bagages_map: dict[int, list[str]] = {}
+    for bagage in Bagage.query.filter_by(evenement_id=evenement.id).yield_per(200):
+        bagages_map.setdefault(bagage.fiche_id, []).append(bagage.numero)
 
     # Timezone Paris
     paris = pytz.timezone("Europe/Paris")
@@ -1408,54 +1579,48 @@ def export_evenement_fiches_csv(evenement_id):
         except Exception:
             return None
 
-    # ====== Workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Fiches Impliqués"
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title="Fiches Impliqués")
+    if len(wb.worksheets) > 1:
+        wb.remove(wb.worksheets[0])
 
-    # Couleurs
     BLEU = "002F6C"
     ORANGE = "F58220"
     GRIS_LIGNE = "E9EDF3"
-    ZEBRA = "F8FAFF"
 
-    # Styles
-    th_font = Font(bold=True, color="FFFFFF")
-    th_fill = PatternFill("solid", fgColor=BLEU)
-    title_font = Font(bold=True, color="FFFFFF", size=16)
-    banner_fill = PatternFill("solid", fgColor=ORANGE)
-    key_cell = PatternFill("solid", fgColor="FFF3E6")
-    val_cell = PatternFill("solid", fgColor="FFFFFFFF")
-    txt_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    txt_left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor=BLEU)
+    title_font = Font(bold=True, color="FFFFFF", size=14)
+    title_fill = PatternFill("solid", fgColor=ORANGE)
     border_thin = Border(
         left=Side(style="thin", color=GRIS_LIGNE),
         right=Side(style="thin", color=GRIS_LIGNE),
         top=Side(style="thin", color=GRIS_LIGNE),
         bottom=Side(style="thin", color=GRIS_LIGNE),
     )
+    wrap_left = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    center = Alignment(horizontal="center", vertical="center")
 
-    # ====== En-tête événement
-    # Titre bandeau
-    headers = [
-        "Numéro", "Code Sinus", "Nom", "Prénom", "Date de naissance", "Téléphone",
-        "Adresse", "Statut", "Heure d’arrivée", "Heure de sortie", "Destination",
-        "Moyen de transport", "Recherche personne", "N° recherche",
-        "Personne à prévenir", "Tél. à prévenir", "Difficultés",
-        "Compétences", "Bagages", "Autres informations",
-    ]
-    last_col = get_column_letter(len(headers))
+    def make_cell(value, font=None, fill=None, alignment=None, border=None, number_format=None):
+        cell = WriteOnlyCell(ws, value=value)
+        if font:
+            cell.font = font
+        if fill:
+            cell.fill = fill
+        if alignment:
+            cell.alignment = alignment
+        if border:
+            cell.border = border
+        if number_format:
+            cell.number_format = number_format
+        return cell
 
-    ws.merge_cells(f"A1:{last_col}1")
-    c = ws["A1"]
-    c.value = "📋 Export Fiches Impliqués — Protection Civile"
-    c.font = title_font
-    c.alignment = txt_left
-    c.fill = banner_fill
-    ws.row_dimensions[1].height = 26
+    ws.append([
+        make_cell("📋 Export Fiches Impliqués — Protection Civile", font=title_font, fill=title_fill, alignment=center, border=border_thin)
+    ])
+    ws.append([])
 
-    # Tableau d’infos évènement (2 colonnes: clé / valeur) sur 2 colonnes x 4 lignes (8 infos)
-    evt_pairs = [
+    summary_rows = [
         ("Évènement", evenement.nom or ""),
         ("Numéro", evenement.numero or ""),
         ("Adresse", evenement.adresse or ""),
@@ -1465,134 +1630,106 @@ def export_evenement_fiches_csv(evenement_id):
         ("Présents", nb_present),
         ("Total / Sortis", f"{nb_total} / {nb_sorti}"),
     ]
-
-    start_row = 3
-    for idx, (k, v) in enumerate(evt_pairs):
-        r = start_row + idx
-        # clé
-        ws[f"A{r}"].value = k
-        ws[f"A{r}"].fill = key_cell
-        ws[f"A{r}"].font = Font(bold=True, color=BLEU)
-        ws[f"A{r}"].alignment = txt_left
-        ws[f"A{r}"].border = border_thin
-        # valeur (colonne B fusionnée jusqu’à D pour laisser de l'espace)
-        ws.merge_cells(f"B{r}:D{r}")
-        cell = ws[f"B{r}"]
-        if isinstance(v, datetime):
-            cell.value = v
-            cell.number_format = "DD/MM/YYYY HH:MM"
+    for label, value in summary_rows:
+        cells = [
+            make_cell(label, font=Font(bold=True, color=BLEU), alignment=wrap_left, border=border_thin),
+        ]
+        if isinstance(value, datetime):
+            cells.append(make_cell(value, alignment=wrap_left, border=border_thin, number_format="DD/MM/YYYY HH:MM"))
         else:
-            cell.value = v
-        cell.fill = val_cell
-        cell.alignment = txt_left
-        cell.border = border_thin
+            cells.append(make_cell(value, alignment=wrap_left, border=border_thin))
+        ws.append(cells)
 
-    # Ligne vide
-    table_start_row = start_row + len(evt_pairs) + 2
+    ws.append([])
 
-    # ====== En-têtes du tableau
-    for col_idx, h in enumerate(headers, start=1):
-        cell = ws.cell(row=table_start_row, column=col_idx, value=h)
-        cell.font = th_font
-        cell.fill = th_fill
-        cell.alignment = txt_center
-        cell.border = border_thin
-    ws.freeze_panes = ws[f"A{table_start_row+1}"]  # fige titres
-    ws.auto_filter.ref = f"A{table_start_row}:{last_col}{table_start_row}"
+    headers = [
+        "Numéro",
+        "Code Sinus",
+        "Nom",
+        "Prénom",
+        "Date de naissance",
+        "Téléphone",
+        "Adresse",
+        "Statut",
+        "Heure d’arrivée",
+        "Heure de sortie",
+        "Destination",
+        "Moyen de transport",
+        "Recherche personne",
+        "N° recherche",
+        "Personne à prévenir",
+        "Tél. à prévenir",
+        "Difficultés",
+        "Compétences",
+        "Bagages",
+        "Autres informations",
+    ]
+    ws.append([make_cell(h, font=header_font, fill=header_fill, alignment=center, border=border_thin) for h in headers])
 
-    # ====== Lignes
-    for i, f in enumerate(fiches, start=1):
-        r = table_start_row + i
-        # Bagages
-        try:
-            bag_nums = [b.numero for b in (f.bagages or []) if b and b.numero]
-            bagages_txt = ", ".join(sorted(bag_nums))
-        except Exception:
-            bagages_txt = ""
+    for fiche in fiches_query:
+        bagages_txt = ", ".join(sorted(bagages_map.get(fiche.id, []))) if bagages_map.get(fiche.id) else ""
+        naissance = fiche.date_naissance if isinstance(fiche.date_naissance, datetime) else fiche.date_naissance
+        arrivee = fiche.heure_arrivee_locale.replace(tzinfo=None) if getattr(fiche, "heure_arrivee_locale", None) else to_paris_dt(getattr(fiche, "heure_arrivee", None))
+        sortie = fiche.heure_sortie_locale.replace(tzinfo=None) if getattr(fiche, "heure_sortie_locale", None) else to_paris_dt(getattr(fiche, "heure_sortie", None))
 
-        # Dates/Heures (format Excel)
-        d_naiss = f.date_naissance  # date ou None
-        h_arr = to_paris_dt(getattr(f, "heure_arrivee", None))
-        # si propriété *_locale dispo:
-        if getattr(f, "heure_arrivee_locale", None):
-            h_arr = f.heure_arrivee_locale.replace(tzinfo=None)
-        h_sort = to_paris_dt(getattr(f, "heure_sortie", None))
-        if getattr(f, "heure_sortie_locale", None):
-            h_sort = f.heure_sortie_locale.replace(tzinfo=None)
-
-        row_vals = [
-            f.numero or "",
-            getattr(f, "code_sinus", "") or "",
-            f.nom or "",
-            f.prenom or "",
-            d_naiss,                # Excel date
-            f.telephone or "",
-            f.adresse or "",
-            f.statut or "",
-            h_arr,                  # Excel datetime
-            h_sort,                 # Excel datetime
-            f.destination or "",
-            f.moyen_transport or "",
-            f.recherche_personne or "",
-            getattr(f, "numero_recherche", "") or "",
-            f.personne_a_prevenir or "",
-            f.tel_personne_a_prevenir or "",
-            f.difficultes or "",
-            f.competences or "",
+        row_values = [
+            fiche.numero or "",
+            getattr(fiche, "code_sinus", "") or "",
+            fiche.nom or "",
+            fiche.prenom or "",
+            naissance,
+            fiche.telephone or "",
+            fiche.adresse or "",
+            fiche.statut or "",
+            arrivee,
+            sortie,
+            fiche.destination or "",
+            fiche.moyen_transport or "",
+            fiche.recherche_personne or "",
+            getattr(fiche, "numero_recherche", "") or "",
+            fiche.personne_a_prevenir or "",
+            fiche.tel_personne_a_prevenir or "",
+            fiche.difficultes or "",
+            fiche.competences or "",
             bagages_txt,
-            f.autres_informations or "",
+            fiche.autres_informations or "",
         ]
 
-        for c_idx, val in enumerate(row_vals, start=1):
-            cell = ws.cell(row=r, column=c_idx, value=val)
-            cell.alignment = txt_left
-            cell.border = border_thin
-            # formats
-            if c_idx == 5 and isinstance(val, datetime):
-                cell.number_format = "DD/MM/YYYY"
-            if c_idx in (9, 10) and isinstance(val, datetime):
-                cell.number_format = "DD/MM/YYYY HH:MM"
-            # zébrage
-            if i % 2 == 1:
-                cell.fill = PatternFill("solid", fgColor=ZEBRA)
+        row_cells = []
+        for idx, value in enumerate(row_values):
+            number_format = None
+            if idx == 4 and isinstance(value, datetime):
+                number_format = "DD/MM/YYYY"
+            if idx in (8, 9) and isinstance(value, datetime):
+                number_format = "DD/MM/YYYY HH:MM"
+            row_cells.append(make_cell(value, alignment=wrap_left, border=border_thin, number_format=number_format))
+        ws.append(row_cells)
 
-    # ====== Largeurs de colonnes (preset + auto approx)
-    preset_widths = {
-        "A": 12,  # Numéro
-        "B": 18,  # Code Sinus
-        "C": 20,  # Nom
-        "D": 18,  # Prénom
-        "E": 14,  # Naissance
-        "F": 16,  # Téléphone
-        "G": 30,  # Adresse
-        "H": 12,  # Statut
-        "I": 18,  # Arrivée
-        "J": 18,  # Sortie
-        "K": 22,  # Destination
-        "L": 18,  # Moyen
-        "M": 24,  # Recherche personne
-        "N": 18,  # N° recherche
-        "O": 24,  # Personne à prévenir
-        "P": 18,  # Tél à prévenir
-        "Q": 28,  # Difficultés
-        "R": 28,  # Compétences
-        "S": 24,  # Bagages
-        "T": 32,  # Autres informations
-    }
-    for col, w in preset_widths.items():
-        ws.column_dimensions[col].width = w
+    tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
+    tmp_file.close()
+    wb.save(tmp_file.name)
 
-    # ====== Export
-    bio = io.BytesIO()
-    wb.save(bio)
-    bio.seek(0)
+    def generate() -> typing.Iterator[bytes]:
+        try:
+            with open(tmp_file.name, "rb") as fh:
+                while True:
+                    chunk = fh.read(8192)
+                    if not chunk:
+                        break
+                    yield chunk
+        finally:
+            try:
+                os.remove(tmp_file.name)
+            except OSError:
+                pass
+
     filename = f"evenement_{evenement.numero or evenement.id}_fiches.xlsx"
-    return send_file(
-        bio,
-        as_attachment=True,
-        download_name=filename,
+    response = Response(
+        stream_with_context(generate()),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
+    response.headers["Content-Disposition"] = f"attachment; filename={filename}"
+    return response
 
 
 
@@ -1604,6 +1741,7 @@ def can_manage_sharing(user):
 
 # ===== Création d’un lien de partage (affiche le token UNE fois) =====
 @main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
+@limiter.limit("5 per minute", error_message="Trop de créations de lien de partage, réessayez ultérieurement.")
 @login_required
 def create_share_link(evenement_id):
     user = get_current_user()
@@ -1646,6 +1784,44 @@ def autorite_dashboard_manage(evenement_id):
 
     links = ShareLink.query.filter_by(evenement_id=evenement_id).order_by(ShareLink.created_at.desc()).all()
 
+    share_metrics: dict[int, dict] = {}
+    if links:
+        link_ids = [link.id for link in links]
+        logs = (
+            ShareLinkAccessLog.query.filter(ShareLinkAccessLog.share_link_id.in_(link_ids))
+            .order_by(ShareLinkAccessLog.accessed_at.desc())
+            .all()
+        )
+        logs_by_link: dict[int, list[ShareLinkAccessLog]] = {}
+        for log in logs:
+            logs_by_link.setdefault(log.share_link_id, []).append(log)
+
+        for link in links:
+            entries = logs_by_link.get(link.id, [])
+            try:
+                last_access = entries[0].accessed_at.astimezone(paris) if entries else None
+            except Exception:
+                last_access = entries[0].accessed_at if entries else None
+            recent_history = []
+            for entry in entries[:10]:
+                try:
+                    accessed_at = entry.accessed_at.astimezone(paris)
+                except Exception:
+                    accessed_at = entry.accessed_at
+                recent_history.append(
+                    {
+                        "at": accessed_at,
+                        "ip": entry.ip,
+                        "user_agent": entry.user_agent,
+                    }
+                )
+            share_metrics[link.id] = {
+                "total": len(entries),
+                "unique_ips": len({entry.ip for entry in entries if entry.ip}),
+                "last_access": last_access,
+                "recent": recent_history,
+            }
+
     # Récupération des actus avec conversion locale
     all_news = EventNews.query.filter_by(evenement_id=evenement_id).order_by(
         EventNews.priority.asc(), EventNews.created_at.desc()
@@ -1663,6 +1839,7 @@ def autorite_dashboard_manage(evenement_id):
         user=user,
         evenement=evt,
         links=links,
+        share_metrics=share_metrics,
         manage=True,
         one_time_token=one_time_token,
         all_news=all_news
@@ -1688,6 +1865,7 @@ def revoke_share_link(link_id):
 
 # 🔓 Vue PUBLIQUE (read-only) par token, pour coller à ton template:
 @main_bp.route("/autorite/<token>", methods=["GET"])
+@limiter.limit("60 per minute", error_message="Trop de requêtes sur ce lien public, merci de patienter.")
 def autorite_share_public(token):
     # On cherche le lien (même s'il est révoqué, on veut distinguer les cas)
     link = ShareLink.query.filter_by(token=token).first()
@@ -1704,6 +1882,18 @@ def autorite_share_public(token):
 
     # Lien valide -> on charge l'évènement
     ev = Evenement.query.get_or_404(link.evenement_id)
+
+    try:
+        access_log = ShareLinkAccessLog(
+            share_link_id=link.id,
+            ip=_get_client_ip(),
+            user_agent=(request.headers.get("User-Agent") or "")[:255],
+            referer=(request.referrer or "")[:255],
+        )
+        db.session.add(access_log)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     # On réutilise le même template; manage=False masque la gestion
     # public_token=token pour que le JS appelle /autorite_json?token=...
@@ -1977,16 +2167,29 @@ def ticket_delete(ticket_id):
 
 # === Sauvegarde (téléchargement direct) ===
 @main_bp.route("/admin/backup", methods=["GET"])
+@limiter.limit("3 per minute", error_message="Trop de demandes de sauvegarde, merci de patienter.")
 @login_required
 def admin_backup():
     user = get_current_user()
     if not user.is_admin:
         abort(403)
-    buf = backup_to_bytesio()
+    evenement_ids: list[int] = []
+    for raw_id in request.args.getlist("evenement_id"):
+        try:
+            evenement_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+
+    buf = backup_to_bytesio(evenement_ids or None)
+    if evenement_ids:
+        suffix = "_".join(str(eid) for eid in sorted(set(evenement_ids)))
+        filename = f"backup_evenements_{suffix}.json"
+    else:
+        filename = "backup.json"
     return send_file(
         buf,
         as_attachment=True,
-        download_name="backup.json",
+        download_name=filename,
         mimetype="application/json"
     )
 
@@ -1997,10 +2200,12 @@ def admin_backup_restore_page():
     user = get_current_user()
     if not user.is_admin:
         abort(403)
-    return render_template("admin_backup_restore.html", user=user)
+    evenements = Evenement.query.order_by(Evenement.nom.asc()).all()
+    return render_template("admin_backup_restore.html", user=user, evenements=evenements)
 
 # === Restauration ===
 @main_bp.route("/admin/restore", methods=["POST"])
+@limiter.limit("1 per minute", error_message="Trop de demandes de restauration, réessayez plus tard.")
 @login_required
 def admin_restore():
 
@@ -2069,8 +2274,28 @@ def admin_restore():
 
 
 @main_bp.route('/healthz')
+@limiter.exempt
 def _healthz():
-    return {'status':'ok'}, 200
+    health = {"status": "ok", "checks": {}}
+
+    try:
+        db.session.execute(text("SELECT 1"))
+        health["checks"]["database"] = "ok"
+    except Exception as exc:
+        health["status"] = "error"
+        health["checks"]["database"] = str(exc)
+
+    try:
+        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
+        client = redis.from_url(redis_url)
+        client.ping()
+        health["checks"]["redis"] = "ok"
+    except Exception as exc:
+        health["status"] = "error"
+        health["checks"]["redis"] = str(exc)
+
+    status_code = 200 if health["status"] == "ok" else 503
+    return jsonify(health), status_code
 
 
 # =====================
@@ -2098,10 +2323,17 @@ def add_timeline_comment(fiche_id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(fiche_id)
     # TODO: autorisations fines si besoin (mêmes règles que l'édition de fiche)
-    content = (request.form.get("comment") or "").strip()
+    raw_content = (request.form.get("comment") or "")
+    content = re.sub(r"\r\n?", "\n", raw_content).strip()
     if not content:
         flash("Le commentaire est vide.", "warning")
         return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
+    if len(content) > TIMELINE_COMMENT_MAX_LENGTH:
+        content = content[:TIMELINE_COMMENT_MAX_LENGTH].rstrip()
+        flash(
+            f"Le commentaire a été tronqué à {TIMELINE_COMMENT_MAX_LENGTH} caractères pour respecter la taille maximale.",
+            "warning",
+        )
     entry = TimelineEntry(fiche_id=fiche.id, user_id=user.id, content=content, kind="comment")
     db.session.add(entry)
     db.session.commit()

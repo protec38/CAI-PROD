@@ -6,8 +6,15 @@ from datetime import datetime, date, timezone
 
 from . import db
 from .models import (
-    Utilisateur, Evenement, FicheImplique, Bagage, Animal,
-    ShareLink, Ticket, utilisateur_evenement
+    Utilisateur,
+    Evenement,
+    FicheImplique,
+    Bagage,
+    Animal,
+    ShareLink,
+    ShareLinkAccessLog,
+    Ticket,
+    utilisateur_evenement,
 )
 
 # -------------------------------------------------------------------
@@ -41,26 +48,105 @@ def is_db_empty() -> bool:
 # BACKUP (export)
 # -------------------------------------------------------------------
 
-def backup_to_bytesio() -> BytesIO:
-    """
-    Exporte **tout** dans un JSON structuré et renvoie un BytesIO prêt à télécharger.
-    Les datetime sont au format ISO 8601.
-    """
-    payload = {
-        "utilisateurs": [u.__dict__ | {"_sa_instance_state": None} for u in Utilisateur.query.all()],
-        "evenements":   [e.__dict__ | {"_sa_instance_state": None} for e in Evenement.query.all()],
-        "fiches":       [f.__dict__ | {"_sa_instance_state": None} for f in FicheImplique.query.all()],
-        "bagages":      [b.__dict__ | {"_sa_instance_state": None} for b in Bagage.query.all()],
-        "animaux":      [a.__dict__ | {"_sa_instance_state": None} for a in Animal.query.all()],
-        "share_links":  [s.__dict__ | {"_sa_instance_state": None} for s in ShareLink.query.all()],
-        "tickets":      [t.__dict__ | {"_sa_instance_state": None} for t in Ticket.query.all()],
-        "assoc_utilisateur_evenement": []
-    }
+def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
+    """Exporte un instantané JSON de la base.
 
-    # Récupère la table d’association via SQL
-    with db.engine.connect() as conn:
-        res = conn.execute(utilisateur_evenement.select()).mappings()
-        payload["assoc_utilisateur_evenement"] = [dict(r) for r in res]
+    - Si ``evenement_ids`` est fourni, limite l'export aux évènements sélectionnés et
+      à leurs objets associés (fiches, bagages, liens de partage, tickets, etc.).
+    - Sinon, exporte l'intégralité de la base comme auparavant.
+    """
+
+    evenement_query = Evenement.query
+    if evenement_ids:
+        evenement_query = evenement_query.filter(Evenement.id.in_(evenement_ids))
+    evenements = evenement_query.all()
+    evenement_id_list = [e.id for e in evenements]
+
+    fiche_query = FicheImplique.query
+    bagage_query = Bagage.query
+    animal_query = Animal.query
+    share_link_query = ShareLink.query
+    ticket_query = Ticket.query
+
+    if evenement_id_list:
+        fiche_query = fiche_query.filter(FicheImplique.evenement_id.in_(evenement_id_list))
+        bagage_query = bagage_query.filter(Bagage.evenement_id.in_(evenement_id_list))
+        share_link_query = share_link_query.filter(ShareLink.evenement_id.in_(evenement_id_list))
+        ticket_query = ticket_query.filter(Ticket.evenement_id.in_(evenement_id_list))
+
+    fiches = fiche_query.all()
+    fiche_ids = [f.id for f in fiches]
+    if fiche_ids:
+        animal_query = animal_query.filter(Animal.fiche_id.in_(fiche_ids))
+
+    bagages = bagage_query.all()
+    animaux = animal_query.all()
+    share_links = share_link_query.all()
+    share_link_ids = [s.id for s in share_links]
+
+    if share_link_ids:
+        share_link_logs = ShareLinkAccessLog.query.filter(
+            ShareLinkAccessLog.share_link_id.in_(share_link_ids)
+        ).all()
+    else:
+        share_link_logs = []
+
+    tickets = ticket_query.all()
+
+    if evenement_ids:
+        # Restreint les utilisateurs aux comptes réellement liés aux évènements exportés
+        user_ids: set[int] = set()
+        for evt in evenements:
+            if evt.createur_id:
+                user_ids.add(evt.createur_id)
+        for fiche in fiches:
+            if fiche.utilisateur_id:
+                user_ids.add(fiche.utilisateur_id)
+        for link in share_links:
+            if link.created_by:
+                user_ids.add(link.created_by)
+        for ticket in tickets:
+            if ticket.created_by_id:
+                user_ids.add(ticket.created_by_id)
+            if ticket.assigned_to_id:
+                user_ids.add(ticket.assigned_to_id)
+
+        assoc_rows: list[dict] = []
+        if evenement_id_list:
+            with db.engine.connect() as conn:
+                res = conn.execute(
+                    utilisateur_evenement.select().where(
+                        utilisateur_evenement.c.evenement_id.in_(evenement_id_list)
+                    )
+                ).mappings()
+                assoc_rows = [dict(r) for r in res]
+        for row in assoc_rows:
+            if row.get("utilisateur_id"):
+                user_ids.add(row["utilisateur_id"])
+
+        utilisateur_query = Utilisateur.query
+        if user_ids:
+            utilisateur_query = utilisateur_query.filter(Utilisateur.id.in_(user_ids))
+        utilisateurs = utilisateur_query.all()
+    else:
+        utilisateurs = Utilisateur.query.all()
+        with db.engine.connect() as conn:
+            res = conn.execute(utilisateur_evenement.select()).mappings()
+            assoc_rows = [dict(r) for r in res]
+
+    payload = {
+        "utilisateurs": [u.__dict__ | {"_sa_instance_state": None} for u in utilisateurs],
+        "evenements":   [e.__dict__ | {"_sa_instance_state": None} for e in evenements],
+        "fiches":       [f.__dict__ | {"_sa_instance_state": None} for f in fiches],
+        "bagages":      [b.__dict__ | {"_sa_instance_state": None} for b in bagages],
+        "animaux":      [a.__dict__ | {"_sa_instance_state": None} for a in animaux],
+        "share_links":  [s.__dict__ | {"_sa_instance_state": None} for s in share_links],
+        "share_link_access_logs": [
+            log.__dict__ | {"_sa_instance_state": None} for log in share_link_logs
+        ],
+        "tickets":      [t.__dict__ | {"_sa_instance_state": None} for t in tickets],
+        "assoc_utilisateur_evenement": assoc_rows if evenement_ids else assoc_rows,
+    }
 
     # Nettoyage des champs SQLAlchemy
     def clean(d):
@@ -102,6 +188,7 @@ def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5):
 
                 # Ordre important (FK)
                 conn.execute(text(f"DELETE FROM {Ticket.__tablename__}"))
+                conn.execute(text(f"DELETE FROM {ShareLinkAccessLog.__tablename__}"))
                 conn.execute(text(f"DELETE FROM {ShareLink.__tablename__}"))
                 conn.execute(text(f"DELETE FROM {Animal.__tablename__}"))
                 conn.execute(text(f"DELETE FROM {Bagage.__tablename__}"))
@@ -237,21 +324,29 @@ def bulk_restore(payload: dict):
     #  - convertir 'token' -> 'token_hash' (sha256)
     for sl in share_links:
         sl.pop("expires_at", None)
-        if "token" in sl and "token_hash" not in sl:
+        if "token" in sl and sl.get("token") is not None and "token_hash" not in sl:
             import hashlib
             sl["token_hash"] = hashlib.sha256(sl["token"].encode()).hexdigest()
-            sl.pop("token", None)
+        if "token" not in sl:
+            sl["token"] = None
 
     db.session.bulk_insert_mappings(ShareLink, share_links)
     db.session.flush()
 
-    # 6) Tickets
+    # 6) Journaux d'accès aux liens de partage
+    share_link_access_logs = payload.get("share_link_access_logs", []) or []
+    _coerce_fields(share_link_access_logs, {"accessed_at": _parse_dt})
+    if share_link_access_logs:
+        db.session.bulk_insert_mappings(ShareLinkAccessLog, share_link_access_logs)
+        db.session.flush()
+
+    # 7) Tickets
     tickets = payload.get("tickets", []) or []
     _coerce_fields(tickets, {"created_at": _parse_dt})
     db.session.bulk_insert_mappings(Ticket, tickets)
     db.session.flush()
 
-    # 7) Table d’association utilisateurs ↔ évènements
+    # 8) Table d’association utilisateurs ↔ évènements
     assoc = payload.get("assoc_utilisateur_evenement", []) or []
     if assoc:
         db.session.execute(utilisateur_evenement.insert(), assoc)

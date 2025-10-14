@@ -225,6 +225,29 @@
                   </form>
                   {% endif %}
                 </div>
+                {% set metrics = share_metrics.get(l.id) if share_metrics else None %}
+                {% if metrics %}
+                  <div class="share-metrics" style="margin-top:12px; font-size:0.95rem; color:var(--muted);">
+                    <div><strong>Consultations :</strong> {{ metrics.total }} ({{ metrics.unique_ips }} IP uniques)</div>
+                    {% if metrics.last_access %}
+                      <div><strong>Dernier accès :</strong> {{ metrics.last_access.strftime('%d/%m/%Y %H:%M') }}</div>
+                    {% endif %}
+                    {% if metrics.recent %}
+                      <details style="margin-top:6px;">
+                        <summary>Historique récent</summary>
+                        <ul style="margin:6px 0 0 16px; padding:0; list-style:disc;">
+                          {% for entry in metrics.recent %}
+                            <li>
+                              {{ entry.at.strftime('%d/%m/%Y %H:%M') if entry.at else '—' }}
+                              — {{ entry.ip or 'IP inconnue' }}
+                              {% if entry.user_agent %}<br><span style="font-size:0.85rem;">{{ entry.user_agent }}</span>{% endif %}
+                            </li>
+                          {% endfor %}
+                        </ul>
+                      </details>
+                    {% endif %}
+                  </div>
+                {% endif %}
               {% else %}
                 <code class="share">Lien non récupérable (token affiché à la création)</code>
               {% endif %}
