@@ -10,73 +10,310 @@
 
   <style>
     :root{
-      --pc-blue:#003b71; --pc-blue-2:#0a2e55;
-      --pc-orange:#f58220; --pc-yellow:#ffcc00;
-      --bg:#0b2240; --bg2:#f6f8fc; --ink:#0b1523; --muted:#6b778b; --line:#e7edf5;
-      --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
-      --card:#ffffff; --radius:16px; --shadow:0 14px 36px rgba(17,29,56,.12);
+      --pc-blue:#0b2a55;
+      --pc-blue-dark:#071a33;
+      --pc-orange:#f58220;
+      --pc-sun:#ffb84d;
+      --bg-top:#0b2240;
+      --bg-body:#eef2f8;
+      --surface:#ffffff;
+      --surface-soft:#f7f9fc;
+      --border:#d6deed;
+      --shadow:0 18px 44px rgba(11,42,85,.12);
+      --text:#0f1f3d;
+      --muted:#5d6a7d;
+      --success:#16a34a;
+      --warning:#f59e0b;
+      --danger:#dc2626;
     }
     *{box-sizing:border-box}
-    html,body{margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif,system-ui;background:linear-gradient(180deg,var(--bg) 0%,var(--bg) 24%,var(--bg2) 24%);color:var(--ink);min-height:100dvh}
-
-    /* Topbar */
-    .topbar{position:sticky;top:0;z-index:50;background:linear-gradient(90deg,var(--pc-blue),#012e5a);color:#fff;border-bottom:3px solid var(--pc-orange);padding:12px 16px;box-shadow:0 8px 20px rgba(0,0,0,.18)}
-    .tb-inner{max-width:1200px;margin:0 auto;display:flex;gap:12px;align-items:center}
-    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--pc-orange),#ff9f49);display:grid;place-items:center;color:#112944;font-weight:900;box-shadow:inset 0 2px 8px rgba(0,0,0,.2)}
-    .tb-title{font-weight:900;letter-spacing:.2px}
-    .right{margin-left:auto;display:flex;gap:10px}
-    .btn-top{display:inline-flex;align-items:center;gap:8px;background:#ffeb8a;color:#00122a;border:1px solid rgba(0,0,0,.12);padding:10px 12px;border-radius:10px;font-weight:900}
-
-    /* Layout */
-    .wrap{max-width:1200px;margin:18px auto;padding:14px}
-    .hero{background:linear-gradient(135deg,rgba(0,47,108,.96),rgba(245,130,32,.92));color:#fff;border-radius:18px;padding:20px 18px;box-shadow:var(--shadow)}
-    .hero h2{margin:0 0 6px 0}
-    .hero .muted{color:#f1f5f9}
-
-    .board{display:grid;grid-template-columns:360px 1fr;gap:16px;margin-top:14px}
-    @media (max-width:1000px){.board{grid-template-columns:1fr}}
-
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-    .card h3{margin:0;padding:14px 16px;border-bottom:1px solid var(--line);background:#f8fbff;font-weight:900}
-    .card-content{padding:14px 16px}
-
-    /* Forms */
-    .field{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
-    .field label{font-weight:800;font-size:14px}
-    .field input[type="text"],
-    .field textarea,
-    .field select{border:1px solid #d8dee9;border-radius:12px;padding:10px 12px;font-size:14px;background:#fff}
-    .btn{display:inline-flex;align-items:center;gap:8px;border:1px solid transparent;padding:10px 12px;border-radius:10px;font-weight:900;cursor:pointer;background:var(--pc-yellow);color:#00122a;border-color:rgba(0,0,0,.12)}
-    .btn:hover{filter:brightness(.98)}
-    .btn-soft{display:inline-flex;align-items:center;gap:8px;border:1px solid #dfe7f1;background:#eef2f7;color:#111;padding:8px 10px;border-radius:10px;font-weight:800;cursor:pointer}
-    .btn-danger{background:var(--err);border-color:#e44e59;color:#fff}
-
-    /* Filters */
-    .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
-    .filters select,.filters input{border:1px solid #d8dee9;border-radius:10px;padding:10px;min-width:160px}
-
-    /* Tickets list */
-    .tickets{display:grid;gap:12px}
-    .ticket{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;box-shadow:0 10px 20px rgba(17,29,56,.06)}
-    .title{font-weight:900;font-size:16px;display:flex;gap:8px;align-items:center}
-    .desc{color:#1f2937}
-    .meta{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-    .chip{display:inline-flex;align-items:center;gap:6px;background:#f2f6fb;border:1px solid #dbe6f6;border-radius:999px;padding:6px 9px;font-weight:800;font-size:13px}
-
-    .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 9px;font-weight:900}
-    .st-ouvert{background:#eef5ff;border:1px solid #cfe0ff;color:#0b2a55}
-    .st-encours{background:#fff7e6;border:1px solid #ffe2b3;color:#8a4a00}
-    .st-termine{background:#eaf9f0;border:1px solid #c8efd7;color:#0f6848}
-    .st-archive{background:#f3f4f6;border:1px solid #e5e7eb;color:#374151}
-
-    .prio-haute{background:#ffefef;border-color:#ffd6d6;color:#8d0f0f}
-    .prio-normal{background:#eef7ff;border-color:#d9e6ff;color:#0b2a55}
-    .prio-basse{background:#ecfff2;border-color:#cbf7db;color:#0b5d2b}
-
-    /* Toast */
-    .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#111827;color:#fff;
-           padding:10px 14px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60}
-    .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+    html,body{
+      margin:0;
+      padding:0;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,ui-sans-serif;
+      background:linear-gradient(180deg,var(--bg-top) 0%,var(--bg-top) 24%,var(--bg-body) 24%);
+      color:var(--text);
+      min-height:100dvh;
+    }
+    a{text-decoration:none;color:inherit;}
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:60;
+      background:linear-gradient(90deg,var(--pc-blue),var(--pc-blue-dark));
+      color:#fff;
+      border-bottom:3px solid var(--pc-orange);
+      padding:12px 16px;
+      box-shadow:0 10px 26px rgba(0,0,0,.25);
+    }
+    .tb-inner{
+      max-width:1200px;
+      margin:0 auto;
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .logo{
+      width:48px;
+      height:48px;
+      border-radius:14px;
+      background:linear-gradient(135deg,var(--pc-orange),var(--pc-sun));
+      display:grid;
+      place-items:center;
+      color:#112944;
+      font-weight:900;
+      box-shadow:inset 0 2px 8px rgba(0,0,0,.2);
+    }
+    .tb-title{
+      font-weight:900;
+      letter-spacing:.3px;
+      font-size:1.1rem;
+    }
+    .right{
+      margin-left:auto;
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .btn-top{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      background:#ffefc2;
+      color:#06203d;
+      border:1px solid rgba(17,29,56,.12);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:800;
+      transition:transform .15s ease, filter .2s ease;
+    }
+    .btn-top:hover{filter:brightness(.96);transform:translateY(-1px);}
+    .wrap{
+      max-width:1200px;
+      margin:20px auto 40px;
+      padding:0 16px 40px;
+    }
+    .hero{
+      background:linear-gradient(135deg,rgba(11,42,85,.95),rgba(245,130,32,.92));
+      color:#fff;
+      border-radius:22px;
+      padding:24px 22px;
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .hero::after{
+      content:"";
+      position:absolute;
+      right:-60px;top:-60px;
+      width:160px;height:160px;
+      background:rgba(255,255,255,.12);
+      border-radius:50%;
+    }
+    .hero h2{margin:0 0 8px;font-size:1.5rem;}
+    .hero .muted{margin:0;font-size:1rem;max-width:640px;color:#f3f6ff;}
+    .flash-stack{
+      display:grid;
+      gap:10px;
+      margin:18px 0;
+    }
+    .flash{
+      padding:12px 16px;
+      border-radius:14px;
+      font-weight:700;
+      border:1px solid transparent;
+      box-shadow:0 12px 24px rgba(15,31,61,.08);
+      background:var(--surface);
+    }
+    .flash-success{background:#ecfdf3;border-color:#bbf7d0;color:#166534;}
+    .flash-info{background:#e8f1ff;border-color:#bfd6ff;color:#1e3a8a;}
+    .flash-warning{background:#fff9db;border-color:#fef08a;color:#854d0e;}
+    .flash-danger{background:#fef2f2;border-color:#fecaca;color:#b91c1c;}
+    .board{
+      margin-top:22px;
+      display:grid;
+      grid-template-columns:minmax(0,360px) minmax(0,1fr);
+      gap:20px;
+      align-items:start;
+    }
+    .card{
+      background:var(--surface);
+      border-radius:20px;
+      border:1px solid var(--border);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+    }
+    .card h3{
+      margin:0;
+      padding:16px 18px;
+      background:linear-gradient(180deg,#fff,#f7f9ff);
+      border-bottom:1px solid var(--border);
+      font-weight:900;
+      color:var(--pc-blue);
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .card-content{
+      padding:18px 20px 22px;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+    form{display:grid;gap:14px;}
+    .field{display:flex;flex-direction:column;gap:6px;}
+    .field label{font-weight:800;font-size:.9rem;color:var(--muted);}
+    .field input[type="text"],.field textarea,.field select{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px 14px;
+      font-size:.95rem;
+      font-family:inherit;
+      background:#fff;
+      transition:border .2s ease, box-shadow .2s ease;
+    }
+    .field textarea{resize:vertical;min-height:96px;}
+    .field input:focus,.field textarea:focus,.field select:focus{
+      outline:none;
+      border-color:var(--pc-blue);
+      box-shadow:0 0 0 3px rgba(11,42,85,.15);
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid transparent;
+      padding:12px 14px;
+      border-radius:12px;
+      font-weight:800;
+      cursor:pointer;
+      background:var(--pc-orange);
+      color:#fff;
+      transition:filter .2s ease, transform .15s ease;
+    }
+    .btn:hover{filter:brightness(.95);transform:translateY(-1px);}
+    .btn-soft{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--border);
+      background:var(--surface-soft);
+      color:var(--pc-blue);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:700;
+      cursor:pointer;
+      transition:filter .2s ease, transform .15s ease;
+    }
+    .btn-soft:hover{filter:brightness(.97);transform:translateY(-1px);}
+    .btn-danger{
+      background:var(--danger);
+      border-color:#fda4af;
+      color:#fff;
+    }
+    .filters{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+    }
+    .filters select,.filters input{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:10px 12px;
+      min-width:160px;
+      font-family:inherit;
+    }
+    .stats-grid{
+      display:grid;
+      grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+      gap:12px;
+    }
+    .stat-card{
+      background:var(--surface-soft);
+      border:1px solid var(--border);
+      border-radius:14px;
+      padding:14px 16px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      position:relative;
+      overflow:hidden;
+    }
+    .stat-card__value{font-size:1.6rem;font-weight:800;color:var(--pc-blue);}
+    .stat-card__label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;}
+    .stat-card__icon{position:absolute;right:14px;top:14px;font-size:1.1rem;opacity:.25;}
+    .stat-card--highlight{background:linear-gradient(135deg,rgba(245,130,32,.15),rgba(255,197,119,.3));border-color:rgba(245,130,32,.35);}
+    .stat-card--open{background:linear-gradient(135deg,rgba(16,185,129,.12),rgba(59,130,246,.1));border-color:rgba(59,130,246,.25);}
+    .stat-card--progress{background:linear-gradient(135deg,rgba(245,158,11,.14),rgba(253,224,71,.18));border-color:rgba(245,158,11,.32);}
+    .stat-card--done{background:linear-gradient(135deg,rgba(22,163,74,.16),rgba(187,247,208,.4));border-color:rgba(34,197,94,.35);}
+    .stat-card--archive{background:linear-gradient(135deg,rgba(107,114,128,.14),rgba(229,231,235,.28));border-color:rgba(148,163,184,.32);}
+    .stat-card--mine{background:linear-gradient(135deg,rgba(14,165,233,.16),rgba(191,219,254,.32));border-color:rgba(59,130,246,.32);}
+    .stat-card--filtered{background:linear-gradient(135deg,rgba(236,72,153,.16),rgba(244,114,182,.26));border-color:rgba(236,72,153,.32);}
+    .tickets{display:grid;gap:14px;}
+    .ticket{
+      background:var(--surface);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:16px 18px;
+      box-shadow:0 12px 26px rgba(11,31,61,.08);
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+    }
+    .ticket__header{display:flex;flex-direction:column;gap:8px;}
+    .ticket__heading{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    .ticket__title{font-weight:800;font-size:1.05rem;color:var(--pc-blue);margin:0;}
+    .ticket__badges{display:flex;flex-wrap:wrap;gap:8px;}
+    .ticket__meta{display:flex;flex-wrap:wrap;gap:8px;}
+    .ticket__meta .chip{background:var(--surface-soft);border:1px solid var(--border);border-radius:999px;padding:6px 10px;display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:.85rem;color:var(--pc-blue);}
+    .ticket__description{color:var(--text);line-height:1.5;margin:0;}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-weight:800;}
+    .st-ouvert{background:#eef5ff;border:1px solid #cfe0ff;color:#0b2a55;}
+    .st-encours{background:#fff4e5;border:1px solid #ffe1b0;color:#8a4a00;}
+    .st-termine{background:#ecfdf3;border:1px solid #bbf7d0;color:#0f6848;}
+    .st-archive{background:#f3f4f6;border:1px solid #e5e7eb;color:#374151;}
+    .chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 10px;font-weight:700;font-size:.82rem;background:var(--surface-soft);border:1px solid var(--border);color:var(--pc-blue);}
+    .chip--me{background:linear-gradient(135deg,rgba(34,197,94,.18),rgba(187,247,208,.4));border-color:rgba(34,197,94,.4);color:#166534;}
+    .prio-haute{background:#fff2f2;border-color:#fecaca;color:#9b1c1c;}
+    .prio-normal{background:#eef5ff;border-color:#d4e4ff;color:#0b2a55;}
+    .prio-basse{background:#ecfff2;border-color:#c8f3d7;color:#0b5d2b;}
+    .ticket .actions{display:flex;gap:10px;flex-wrap:wrap;}
+    .ticket .actions form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .ticket .actions select{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.85rem;}
+    .toast{
+      position:fixed;
+      left:50%;
+      bottom:24px;
+      transform:translateX(-50%);
+      background:#0f1f3d;
+      color:#fff;
+      padding:12px 18px;
+      border-radius:14px;
+      opacity:0;
+      pointer-events:none;
+      transition:opacity .2s ease, transform .2s ease;
+      z-index:80;
+      font-weight:700;
+      box-shadow:0 12px 24px rgba(15,31,61,.25);
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+    @media (max-width:1024px){
+      .board{grid-template-columns:1fr;}
+      .card{position:relative;}
+    }
+    @media (max-width:720px){
+      .tb-inner{flex-wrap:wrap;}
+      .right{width:100%;justify-content:flex-start;}
+      form{grid-template-columns:1fr;}
+      .filters{flex-direction:column;align-items:stretch;}
+      .filters select,.filters input{width:100%;}
+      .ticket .actions{flex-direction:column;align-items:flex-start;}
+      .ticket .actions form{width:100%;}
+      .ticket .actions select{flex:1;min-width:120px;}
+      .btn-soft,.btn{width:100%;justify-content:center;}
+    }
   </style>
 </head>
 <body>
@@ -100,6 +337,16 @@
       </h2>
       <div class="muted">Créez, assignez et suivez les demandes en temps réel. Filtrez par statut, priorité, catégorie ou personne assignée.</div>
     </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack" aria-live="assertive">
+          {% for category, message in messages %}
+            <div class="flash flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
 
     <div class="board">
       <!-- Colonne création -->
@@ -167,6 +414,8 @@
       <div class="card">
         <h3><i class="fa-solid fa-list-check"></i> Tous les tickets</h3>
         <div class="card-content">
+
+          <div id="ticket-stats" class="stats-grid" aria-live="polite"></div>
 
           <!-- Filtres -->
           <div class="filters">
@@ -257,12 +506,14 @@
     /* ===== Carte ticket ===== */
     function ticketCardHTML(t){
       const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
-      const meIcon = (String(t.assigned_to_id) === String(CURRENT_USER_ID)) ? `<i title="Assigné à moi" class="fa-solid fa-user-check" style="color:#22c55e"></i>` : "";
+      const meBadge = (String(t.assigned_to_id) === String(CURRENT_USER_ID))
+        ? `<span class="chip chip--me"><i class="fa-solid fa-user-check"></i> Assigné à moi</span>`
+        : "";
       const assigneeLabel = t.assigned_to || assigneeNameById(t.assigned_to_id);
 
       const managePart = CAN_MANAGE ? `
-        <div class="actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
-          <form onsubmit="return updateTicket(${t.id}, this);" style="display:flex; gap:8px; flex-wrap:wrap">
+        <div class="actions">
+          <form onsubmit="return updateTicket(${t.id}, this);">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="status">
               ${["Ouvert","En cours","Terminé","Archivé"].map(s=>`<option ${s===t.status?"selected":""}>${s}</option>`).join("")}
@@ -286,19 +537,26 @@
         </div>` : ``;
 
       return `
-        <div class="ticket" id="ticket-${t.id}">
-          <div class="title">${meIcon}${t.title}</div>
-          <div class="meta">
+        <article class="ticket" id="ticket-${t.id}">
+          <header class="ticket__header">
+            <div class="ticket__heading">
+              <h4 class="ticket__title">${t.title || 'Ticket'}</h4>
+              ${statusBadge(t.status)}
+            </div>
+            <div class="ticket__badges">
+              ${prChip}
+              <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
+              <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
+              ${meBadge}
+            </div>
+          </header>
+          ${t.description ? `<p class="ticket__description">${t.description}</p>`:``}
+          <div class="ticket__meta">
             <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${t.created_by||"—"}</span>
             <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel||"—"}</span>
-            ${prChip}
-            <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
-            <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
-            ${statusBadge(t.status)}
           </div>
-          ${t.description ? `<div class="desc" style="margin-top:6px">${t.description}</div>`:``}
           ${managePart}
-        </div>`;
+        </article>`;
     }
 
     /* ===== AJAX update (CSRF inclus) ===== */
@@ -348,6 +606,51 @@
       wrap.innerHTML = list.map(ticketCardHTML).join("");
     }
 
+    function renderStats(allTickets, filteredTickets){
+      const wrap = document.getElementById('ticket-stats');
+      if(!wrap) return { total: 0, open:0, progress:0, done:0, archived:0, mine:0, filtered:0 };
+
+      const totals = {
+        total: Array.isArray(allTickets) ? allTickets.length : 0,
+        open: 0,
+        progress: 0,
+        done: 0,
+        archived: 0,
+        mine: 0,
+        filtered: Array.isArray(filteredTickets) ? filteredTickets.length : 0,
+      };
+
+      const normalizedTickets = Array.isArray(allTickets) ? allTickets : [];
+      normalizedTickets.forEach(t=>{
+        const status = (t?.status || '').toLowerCase();
+        if(status === 'ouvert') totals.open += 1;
+        else if(status === 'en cours') totals.progress += 1;
+        else if(status === 'terminé' || status === 'termine') totals.done += 1;
+        else if(status === 'archivé' || status === 'archive') totals.archived += 1;
+        if(String(t?.assigned_to_id||'') === String(CURRENT_USER_ID)) totals.mine += 1;
+      });
+
+      const cards = [
+        { label: 'Tickets', value: totals.total, className: 'stat-card--highlight', icon: 'fa-solid fa-layer-group' },
+        { label: 'Ouverts', value: totals.open, className: 'stat-card--open', icon: 'fa-regular fa-circle' },
+        { label: 'En cours', value: totals.progress, className: 'stat-card--progress', icon: 'fa-solid fa-spinner' },
+        { label: 'Terminés', value: totals.done, className: 'stat-card--done', icon: 'fa-solid fa-check' },
+        { label: 'Archivés', value: totals.archived, className: 'stat-card--archive', icon: 'fa-solid fa-box-archive' },
+        { label: 'Assignés à moi', value: totals.mine, className: 'stat-card--mine', icon: 'fa-solid fa-user-check' },
+        { label: 'Affichés', value: totals.filtered, className: 'stat-card--filtered', icon: 'fa-solid fa-filter' },
+      ];
+
+      wrap.innerHTML = cards.map(card=>`
+        <div class="stat-card ${card.className}">
+          <div class="stat-card__icon"><i class="${card.icon}"></i></div>
+          <div class="stat-card__value">${card.value}</div>
+          <div class="stat-card__label">${card.label}</div>
+        </div>
+      `).join('');
+
+      return totals;
+    }
+
     /* ===== Polling ===== */
     let lastHash = "";
     const hash = (obj)=> JSON.stringify(obj);
@@ -359,7 +662,9 @@
         const data = await res.json();
         const list = Array.isArray(data.tickets) ? data.tickets : [];
         const filtered = applyFilters(list);
-        const h = hash(filtered);
+        const stats = renderStats(list, filtered);
+        const signature = { filtered, stats };
+        const h = hash(signature);
         if(h !== lastHash){
           renderTickets(filtered);
           if(lastHash) toast("🔔 Tickets actualisés");

@@ -562,12 +562,12 @@
   {% endif %}
 
   <!-- Filtres -->
-  <section class="filters-card" aria-label="Filtres de recherche">
+  <section class="filters-card is-collapsed" aria-label="Filtres de recherche">
     <div class="filters-card__header">
       <h3><i class="fa-solid fa-sliders"></i> Affiner la liste</h3>
-      <button type="button" class="btn-toggle" id="toggle-filters" aria-expanded="true" aria-controls="filters-grid">
-        <span class="btn-toggle__icon"><i class="fa-solid fa-chevron-up"></i></span>
-        <span class="btn-toggle__label">Réduire</span>
+      <button type="button" class="btn-toggle" id="toggle-filters" aria-expanded="false" aria-controls="filters-grid">
+        <span class="btn-toggle__icon"><i class="fa-solid fa-chevron-down"></i></span>
+        <span class="btn-toggle__label">Afficher</span>
       </button>
     </div>
     <div class="filters" id="filters-grid">
@@ -873,17 +873,24 @@
       const toggleFiltersLabel=toggleFiltersBtn?.querySelector('.btn-toggle__label');
       const toggleFiltersIcon=toggleFiltersBtn?.querySelector('.btn-toggle__icon i');
       if(filtersCard && toggleFiltersBtn){
-        toggleFiltersBtn.addEventListener('click',()=>{
-          const collapsed=filtersCard.classList.toggle('is-collapsed');
-          const expanded=!collapsed;
-          toggleFiltersBtn.setAttribute('aria-expanded',expanded ? 'true':'false');
+        const syncFiltersToggle=(expanded)=>{
+          toggleFiltersBtn.setAttribute('aria-expanded', expanded ? 'true':'false');
           if(toggleFiltersLabel){
-            toggleFiltersLabel.textContent=expanded ? 'Réduire':'Afficher';
+            toggleFiltersLabel.textContent = expanded ? 'Réduire' : 'Afficher';
           }
           if(toggleFiltersIcon){
-            toggleFiltersIcon.classList.toggle('fa-chevron-up', expanded);
-            toggleFiltersIcon.classList.toggle('fa-chevron-down', collapsed);
+            toggleFiltersIcon.classList.remove('fa-chevron-up','fa-chevron-down');
+            toggleFiltersIcon.classList.add(expanded ? 'fa-chevron-up' : 'fa-chevron-down');
           }
+        };
+
+        // État initial : filtres repliés
+        filtersCard.classList.add('is-collapsed');
+        syncFiltersToggle(false);
+
+        toggleFiltersBtn.addEventListener('click',()=>{
+          const collapsed = filtersCard.classList.toggle('is-collapsed');
+          syncFiltersToggle(!collapsed);
         });
       }
 
