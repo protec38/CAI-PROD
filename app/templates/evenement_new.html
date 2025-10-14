@@ -195,6 +195,75 @@
       font-size: 20px;
     }
 
+    .event-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 10px;
+      align-items: flex-end;
+    }
+
+    .event-tools .field {
+      margin-bottom: 0;
+      flex: 1 1 220px;
+      min-width: 190px;
+    }
+
+    .event-tools input,
+    .event-tools select {
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #f8fbff;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .event-tools input:focus,
+    .event-tools select:focus {
+      outline: none;
+      border-color: var(--pc-blue);
+      box-shadow: 0 0 0 3px rgba(0, 59, 113, 0.12);
+    }
+
+    .event-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .event-counter {
+      background: rgba(0, 59, 113, 0.06);
+      color: var(--pc-blue);
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .event-summary .event-slider {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .event-summary .event-slider label {
+      margin: 0;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .event-summary .event-slider input[type="range"] {
+      width: 170px;
+    }
+
+    .event-summary .event-slider span {
+      font-weight: 600;
+      color: var(--pc-blue);
+    }
+
     .field {
       display: grid;
       gap: 8px;
@@ -262,6 +331,10 @@
       gap: 18px;
     }
 
+    .event-card.is-hidden {
+      display: none !important;
+    }
+
     .event-card {
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -321,6 +394,10 @@
       font-weight: 600;
     }
 
+    .empty-state.is-hidden {
+      display: none !important;
+    }
+
     footer.page-footer {
       margin: 32px 0 48px;
       text-align: center;
@@ -335,6 +412,7 @@
       .event-card header { flex-direction: column; align-items: flex-start; }
       .event-cta { width: 100%; }
       .event-cta button { width: 100%; justify-content: center; }
+      .event-tools { flex-direction: column; align-items: stretch; gap: 12px; }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -405,10 +483,15 @@
           </div>
         </div>
 
-        <div class="event-slider" id="event-slider-wrap" hidden>
-          <label for="event-page">Page</label>
-          <input type="range" id="event-page" min="1" max="1" value="1" step="1" aria-describedby="event-page-label">
-          <span id="event-page-label" aria-live="polite">1 / 1</span>
+        <div class="event-summary">
+          <p class="event-counter" id="event-counter" aria-live="polite">
+            {{ evenements|length }} évènement{{ 's' if evenements|length > 1 else '' }}
+          </p>
+          <div class="event-slider" id="event-slider-wrap" hidden>
+            <label for="event-page">Page</label>
+            <input type="range" id="event-page" min="1" max="1" value="1" step="1" aria-describedby="event-page-label">
+            <span id="event-page-label" aria-live="polite">1 / 1</span>
+          </div>
         </div>
 
         <div class="event-list" role="list">
@@ -504,6 +587,7 @@
       const sliderWrap = document.getElementById("event-slider-wrap");
       const slider = document.getElementById("event-page");
       const sliderLabel = document.getElementById("event-page-label");
+      const counter = document.getElementById("event-counter");
       const eventCards = Array.from(document.querySelectorAll(".event-card"));
       const noEventMessage = document.getElementById("no-event-message");
       const EVENTS_PER_PAGE = 5;
@@ -513,6 +597,21 @@
       }
 
       let filteredCards = [...eventCards];
+
+      const updateCounter = () => {
+        if (!counter) {
+          return;
+        }
+        const total = filteredCards.length;
+        const overall = eventCards.length;
+        const plural = total > 1 ? "évènements" : "évènement";
+        let text = `${total} ${plural}`;
+        if (overall !== total) {
+          const pluralAll = overall > 1 ? "évènements" : "évènement";
+          text += ` sur ${overall} ${pluralAll}`;
+        }
+        counter.textContent = text;
+      };
 
       const applyFilters = () => {
         const term = (searchInput?.value || "").trim().toLowerCase();
@@ -544,6 +643,7 @@
           sliderWrap.hidden = totalPages <= 1;
         }
 
+        updateCounter();
         renderPage();
       };
 

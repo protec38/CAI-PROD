@@ -40,6 +40,21 @@ input, select, textarea {
 select[multiple] { min-height: 150px; }
 small { font-size: 13px; color: #777; }
 textarea { resize: vertical; }
+.required { color: #d92d20; font-weight: 700; }
+.birth-row { display: flex; align-items: center; gap: 12px; }
+.birth-row input { flex: 1; }
+.age-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 72px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(0, 47, 108, 0.1);
+    color: #002f6c;
+    font-weight: 700;
+    font-size: 0.9rem;
+}
 button {
     background-color: #ff6f00; color: white; padding: 14px 25px; font-size: 16px;
     border: none; border-radius: 6px; cursor: pointer; width: 100%;
@@ -86,19 +101,22 @@ button:hover { background-color: #e65c00; }
         <input type="text" name="prenom" maxlength="40" required>
       </div>
 
-      <!-- 🔁 Date de naissance — champ “facile” + optionnel -->
+      <!-- 🔁 Date de naissance obligatoire avec aperçu de l'âge -->
       <div class="form-group">
         <label for="date_naissance_display">
-          <i class="fa-regular fa-calendar"></i> Date de naissance <small>(optionnel)</small>
+          <i class="fa-regular fa-calendar"></i> Date de naissance <span class="required">*</span>
         </label>
-        <!-- Champ visible, facile à saisir sur mobile -->
-        <input
-          type="text"
-          id="date_naissance_display"
-          placeholder="ex : 31/12/1990 ou 1990-12-31"
-          inputmode="numeric"
-          autocomplete="bday"
-        >
+        <div class="birth-row">
+          <input
+            type="text"
+            id="date_naissance_display"
+            placeholder="ex : 31/12/1990 ou 1990-12-31"
+            inputmode="numeric"
+            autocomplete="bday"
+            required
+          >
+          <span class="age-badge" id="age-preview" aria-live="polite">—</span>
+        </div>
         <small>Formats acceptés : <b>31/12/1990</b>, <b>31-12-1990</b>, <b>1990-12-31</b> ou <b>31121990</b>.</small>
         <!-- Champ réellement envoyé au serveur (format ISO, attendu par le backend) -->
         <input type="hidden" name="date_naissance" id="date_naissance">
@@ -166,126 +184,211 @@ button:hover { background-color: #e65c00; }
 </div>
 
 <script>
-/* === Utilities date: normalise vers YYYY-MM-DD (ou vide) === */
-function normalizeBirthDate(inputStr){
-  if(!inputStr) return "";
-  const s = String(inputStr).trim();
-  if(!s) return "";
-
-  // 1) YYYY-MM-DD
-  let m = s.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})$/);
-  if(m){
-    const [_, y, mo, d] = m;
-    return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  }
-
-  // 2) DD/MM/YYYY ou DD-MM-YYYY ou DD.MM.YYYY
-  m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
-  if(m){
-    const [_, d, mo, y] = m;
-    return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
-  }
-
-  // 3) 8 chiffres denses: DDMMYYYY
-  m = s.match(/^(\d{2})(\d{2})(\d{4})$/);
-  if(m){
-    const [_, d, mo, y] = m;
-    return `${y}-${mo}-${d}`;
-  }
-
-  // 4) 8 chiffres denses: YYYYMMDD
-  m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
-  if(m){
-    const [_, y, mo, d] = m;
-    return `${y}-${mo}-${d}`;
-  }
-
-  // sinon: invalide -> renvoyer null pour signaler une erreur
-  return null;
+function isValidIsoDate(iso) {
+    if (!iso) return false;
+    const parts = iso.split("-");
+    if (parts.length !== 3) return false;
+    const [yearStr, monthStr, dayStr] = parts;
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+        return false;
+    }
+    const candidate = new Date(year, month - 1, day);
+    if (
+        candidate.getFullYear() !== year ||
+        candidate.getMonth() !== month - 1 ||
+        candidate.getDate() !== day
+    ) {
+        return false;
+    }
+    const today = new Date();
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    return candidate <= todayMidnight;
 }
 
-document.querySelector("form").addEventListener("submit", function (e) {
-    /* Heure d'arrivée (inchangée) */
-    const now = new Date();
-    now.setHours(now.getHours() + 2);
-    const formatted = now.getFullYear() + '-' +
-        String(now.getMonth() + 1).padStart(2, '0') + '-' +
-        String(now.getDate()).padStart(2, '0') + ' ' +
-        String(now.getHours()).padStart(2, '0') + ':' +
-        String(now.getMinutes()).padStart(2, '0') + ':' +
-        String(now.getSeconds()).padStart(2, '0');
-    document.getElementById("heure_arrivee_js").value = formatted;
+function normalizeBirthDate(inputStr) {
+    if (!inputStr) return null;
+    const s = String(inputStr).trim();
+    if (!s) return null;
 
-    /* 👉 Date de naissance : rendre optionnel + normaliser si rempli */
-    const vis = document.getElementById('date_naissance_display');
-    const hidden = document.getElementById('date_naissance');
-    const raw = (vis?.value || "").trim();
+    let iso = null;
 
-    if(!raw){
-      // utilisateur n'a rien saisi → on envoie vide (optionnel)
-      if(hidden) hidden.value = "";
-    }else{
-      const iso = normalizeBirthDate(raw);
-      if(iso === null){
-        e.preventDefault();
-        alert("Format de date invalide. Exemples acceptés : 31/12/1990, 31-12-1990, 1990-12-31 ou 31121990.");
-        vis.focus();
-        return;
-      }
-      if(hidden) hidden.value = iso; // ex: 1990-12-31
+    let m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})$/);
+    if (m) {
+        const [, y, mo, d] = m;
+        iso = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    } else {
+        m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/);
+        if (m) {
+            const [, d, mo, y] = m;
+            iso = `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        } else if ((m = s.match(/^(\d{2})(\d{2})(\d{4})$/))) {
+            const [, d, mo, y] = m;
+            iso = `${y}-${mo}-${d}`;
+        } else if ((m = s.match(/^(\d{4})(\d{2})(\d{2})$/))) {
+            const [, y, mo, d] = m;
+            iso = `${y}-${mo}-${d}`;
+        }
     }
 
-    /* Compétences (inchangé) */
+    if (iso && isValidIsoDate(iso)) {
+        return iso;
+    }
+    return null;
+}
+
+function computeAgeFromIso(iso) {
+    if (!iso) return null;
+    const parts = iso.split("-");
+    if (parts.length !== 3) return null;
+    const [yearStr, monthStr, dayStr] = parts;
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+        return null;
+    }
+    const today = new Date();
+    const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const candidate = new Date(year, month - 1, day);
+    if (
+        candidate.getFullYear() !== year ||
+        candidate.getMonth() !== month - 1 ||
+        candidate.getDate() !== day ||
+        candidate > todayMidnight
+    ) {
+        return null;
+    }
+    let age = today.getFullYear() - year;
+    const currentMonth = today.getMonth() + 1;
+    const currentDay = today.getDate();
+    if (currentMonth < month || (currentMonth === month && currentDay < day)) {
+        age -= 1;
+    }
+    return age >= 0 ? age : null;
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+    const form = document.querySelector("form");
+    const visibleBirthInput = document.getElementById("date_naissance_display");
+    const hiddenBirthInput = document.getElementById("date_naissance");
+    const agePreview = document.getElementById("age-preview");
+    const heureArriveeField = document.getElementById("heure_arrivee_js");
     const select = document.getElementById('competences');
-    const autreOption = Array.from(select.options).find(o => o.value === 'Autre');
-    const autreInput = document.getElementById('competence_autre');
-    const autreTxt = (autreInput?.value || '').trim();
 
-    if (autreOption && autreOption.selected) {
-        if (!autreTxt) {
-            e.preventDefault();
-            alert("Merci de préciser l’autre compétence (20 caractères max).");
-            autreInput?.focus();
-            return;
+    const ensureBirthDate = (showAlert = false) => {
+        const raw = (visibleBirthInput?.value || "").trim();
+        if (!raw) {
+            if (hiddenBirthInput) hiddenBirthInput.value = "";
+            if (agePreview) agePreview.textContent = "—";
+            if (showAlert) {
+                alert("La date de naissance est obligatoire.");
+                visibleBirthInput?.focus();
+            }
+            return false;
         }
-        if (autreTxt.length > 20) {
-            e.preventDefault();
-            alert("La compétence 'Autre' ne doit pas dépasser 20 caractères.");
-            autreInput.focus();
-            return;
+        const iso = normalizeBirthDate(raw);
+        if (!iso) {
+            if (hiddenBirthInput) hiddenBirthInput.value = "";
+            if (agePreview) agePreview.textContent = "—";
+            if (showAlert) {
+                alert("Format de date invalide. Exemples acceptés : 31/12/1990, 31-12-1990, 1990-12-31 ou 31121990.");
+                visibleBirthInput?.focus();
+            }
+            return false;
         }
-        let existing = Array.from(select.options).find(o => o.value === autreTxt);
-        if (!existing) {
-            const opt = new Option(autreTxt, autreTxt, true, true);
-            select.add(opt);
-        } else {
-            existing.selected = true;
+        if (hiddenBirthInput) hiddenBirthInput.value = iso;
+        if (agePreview) {
+            const age = computeAgeFromIso(iso);
+            agePreview.textContent = age !== null ? `${age} ans` : "—";
         }
-        autreOption.selected = false;
+        return true;
+    };
 
-        const selectedCount = Array.from(select.selectedOptions).length;
-        if (selectedCount > 4) {
+    visibleBirthInput?.addEventListener("input", () => ensureBirthDate(false));
+    visibleBirthInput?.addEventListener("change", () => ensureBirthDate(false));
+
+    form?.addEventListener("submit", (e) => {
+        if (!ensureBirthDate(true)) {
             e.preventDefault();
-            alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum (y compris 'Autre').");
             return;
         }
+
+        if (heureArriveeField) {
+            const now = new Date();
+            now.setHours(now.getHours() + 2);
+            const formatted =
+                `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ` +
+                `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+            heureArriveeField.value = formatted;
+        }
+
+        const autreOption = select ? Array.from(select.options).find(o => o.value === 'Autre') : null;
+        const autreInput = document.getElementById('competence_autre');
+        const autreTxt = (autreInput?.value || '').trim();
+
+        if (select) {
+            const totalSelected = Array.from(select.selectedOptions).length;
+            if (totalSelected > 4) {
+                e.preventDefault();
+                alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
+                return;
+            }
+        }
+
+        if (select && autreOption && autreOption.selected) {
+            if (!autreTxt) {
+                e.preventDefault();
+                alert("Merci de préciser l’autre compétence (20 caractères max).");
+                autreInput?.focus();
+                return;
+            }
+            if (autreTxt.length > 20) {
+                e.preventDefault();
+                alert("La compétence 'Autre' ne doit pas dépasser 20 caractères.");
+                autreInput.focus();
+                return;
+            }
+            let existing = Array.from(select.options).find(o => o.value === autreTxt);
+            if (!existing) {
+                const opt = new Option(autreTxt, autreTxt, true, true);
+                select.add(opt);
+            } else {
+                existing.selected = true;
+            }
+            autreOption.selected = false;
+
+            const selectedCount = Array.from(select.selectedOptions).length;
+            if (selectedCount > 4) {
+                e.preventDefault();
+                alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum (y compris 'Autre').");
+                return;
+            }
+        }
+    });
+
+    const bloc = document.getElementById('bloc-competence-autre');
+    if (select && bloc) {
+        const showAutre = Array.from(select.selectedOptions).some(o => o.value === 'Autre');
+        bloc.style.display = showAutre ? 'block' : 'none';
     }
+
+    ensureBirthDate(false);
 });
 
 function onCompetencesChange(select) {
-    // Limite 4 compétences
     const selected = Array.from(select.selectedOptions);
     if (selected.length > 4) {
         alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
         selected[selected.length - 1].selected = false;
     }
 
-    // Affiche/masque le champ 'Autre'
     const showAutre = selected.some(o => o.value === 'Autre');
     const bloc = document.getElementById('bloc-competence-autre');
     if (bloc) bloc.style.display = showAutre ? 'block' : 'none';
 
-    // Reset si 'Autre' décoché
     if (!showAutre) {
         const autreInput = document.getElementById('competence_autre');
         if (autreInput) autreInput.value = '';

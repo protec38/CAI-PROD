@@ -1,6 +1,6 @@
 # app/filters.py
 from __future__ import annotations
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Union
 from zoneinfo import ZoneInfo
 
@@ -49,3 +49,33 @@ def fr_time(value: Union[datetime, int, float, str, None], include_seconds: bool
     dt = _to_dt(value)
     fmt = "%H:%M:%S" if include_seconds else "%H:%M"
     return dt.strftime(fmt) if dt else ""
+
+
+def age_in_years(value: Union[datetime, date, str, None], reference: Union[datetime, date, None] = None) -> Optional[int]:
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        birth = value.date()
+    elif isinstance(value, date):
+        birth = value
+    elif isinstance(value, str):
+        try:
+            birth = datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+    else:
+        return None
+
+    ref = reference or date.today()
+    if isinstance(ref, datetime):
+        ref = ref.date()
+
+    if birth > ref:
+        return None
+
+    years = ref.year - birth.year
+    if (ref.month, ref.day) < (birth.month, birth.day):
+        years -= 1
+
+    return years if years >= 0 else None

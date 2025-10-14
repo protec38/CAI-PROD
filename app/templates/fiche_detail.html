@@ -75,6 +75,20 @@ body{
   background:#0f223d;border:1px solid var(--line);color:#cfe0ff;font-weight:700;
 }
 
+.age-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:rgba(255,211,106,.18);
+  color:#ffd36a;
+  font-weight:800;
+  font-size:0.85rem;
+  margin-left:8px;
+  white-space:nowrap;
+}
+
 /* ===== Wrap ===== */
 .wrapper{max-width:var(--container); margin:20px auto; padding:0 20px;}
 
@@ -272,7 +286,20 @@ body{
     <div class="tiles">
       <div class="tile">
         <div class="ico">🎂</div>
-        <div><div class="k">Naissance</div><div class="v">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else '—' }}</div></div>
+        <div>
+          <div class="k">Naissance</div>
+          <div class="v">
+            {% if fiche.date_naissance %}
+              {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
+              {% set age_val = fiche.date_naissance|age %}
+              {% if age_val is not none %}
+                <span class="age-badge" aria-label="Âge estimé">{{ age_val }} ans</span>
+              {% endif %}
+            {% else %}
+              —
+            {% endif %}
+          </div>
+        </div>
       </div>
       <div class="tile">
         <div class="ico">🏷️</div>
@@ -299,7 +326,20 @@ body{
         <div class="fields">
           <div class="field"><div class="label">Nom</div><div class="value">{{ fiche.nom }}</div></div>
           <div class="field"><div class="label">Prénom</div><div class="value">{{ fiche.prenom }}</div></div>
-          <div class="field"><div class="label">Date de naissance</div><div class="value">{{ fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else 'Non renseignée' }}</div></div>
+          <div class="field">
+            <div class="label">Date de naissance</div>
+            <div class="value">
+              {% if fiche.date_naissance %}
+                {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
+                {% set age_field = fiche.date_naissance|age %}
+                {% if age_field is not none %}
+                  <span class="age-badge">{{ age_field }} ans</span>
+                {% endif %}
+              {% else %}
+                Non renseignée
+              {% endif %}
+            </div>
+          </div>
           <div class="field"><div class="label">Code Sinus</div><div class="value">{{ fiche.code_sinus or 'Non renseigné' }}</div></div>
 
           <div class="field full"><div class="label">Adresse</div><div class="value">{{ fiche.adresse or 'Non renseignée' }}</div></div>
