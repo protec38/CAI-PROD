@@ -64,59 +64,105 @@ def get_current_user():
 # 🔐 Page de connexion
 LOGIN_LOCK_THRESHOLD = 3
 LOGIN_LOCK_DURATION = timedelta(minutes=5)
-login_attempts: dict[str, dict[str, datetime | int]] = {}
+client_login_attempts: dict[str, dict[str, datetime | int]] = {}
 
 
-def _cleanup_login_attempts(username: str) -> None:
+def _get_client_identifier() -> str:
+    """Retourne un identifiant de client basé sur l'adresse IP (prend en compte X-Forwarded-For)."""
+    forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if forwarded_for:
+        return forwarded_for
+    return request.remote_addr or "unknown"
+
+
+def _cleanup_login_attempts(client_id: str) -> None:
     """Réinitialise les tentatives lorsque le verrou a expiré."""
-    record = login_attempts.get(username)
+    record = client_login_attempts.get(client_id)
     if not record:
         return
 
     lock_until = record.get("lock_until")
     if lock_until and datetime.utcnow() >= lock_until:
-        login_attempts.pop(username, None)
+        client_login_attempts.pop(client_id, None)
+
+
+def _get_lock_remaining(client_id: str) -> timedelta | None:
+    """Retourne le temps restant avant la fin du verrouillage pour un client donné."""
+    record = client_login_attempts.get(client_id)
+    if not record:
+        return None
+
+    lock_until = record.get("lock_until")
+    if not lock_until:
+        return None
+
+    remaining = lock_until - datetime.utcnow()
+    if remaining.total_seconds() <= 0:
+        client_login_attempts.pop(client_id, None)
+        return None
+
+    return remaining
+
+
+def _build_lock_context(client_id: str) -> dict:
+    """Construit le contexte utilisé par la page de connexion pour afficher le statut du verrouillage."""
+    remaining = _get_lock_remaining(client_id)
+    if not remaining:
+        return {
+            "lock_active": False,
+            "lock_message": None,
+            "lock_minutes": 0,
+            "lock_seconds": 0,
+            "lock_remaining_seconds": 0,
+        }
+
+    total_seconds = int(max(remaining.total_seconds(), 0))
+    minutes, seconds = divmod(total_seconds, 60)
+    message = (
+        "Trop de tentatives infructueuses. Le formulaire est bloqué pendant 5 minutes. "
+        f"Réessayez dans {minutes} minute(s) et {seconds} seconde(s)."
+    )
+
+    return {
+        "lock_active": True,
+        "lock_message": message,
+        "lock_minutes": minutes,
+        "lock_seconds": seconds,
+        "lock_remaining_seconds": total_seconds,
+    }
 
 
 @main_bp.route("/", methods=["GET", "POST"])
 def login():
+    client_id = _get_client_identifier()
+    _cleanup_login_attempts(client_id)
+    context = _build_lock_context(client_id)
+
     if request.method == "POST":
+        if context["lock_active"]:
+            return render_template("login.html", **context)
+
         nom_utilisateur = request.form.get("username", "").strip()
         mot_de_passe = request.form.get("password", "")
-
-        _cleanup_login_attempts(nom_utilisateur)
-
-        record = login_attempts.get(nom_utilisateur)
-        if record and record.get("lock_until"):
-            remaining = record["lock_until"] - datetime.utcnow()
-            total_seconds = int(max(remaining.total_seconds(), 0))
-            minutes, seconds = divmod(total_seconds, 60)
-            flash(
-                f"Compte temporairement bloqué après plusieurs tentatives. "
-                f"Réessayez dans {minutes} minute(s) et {seconds} seconde(s).",
-                "danger",
-            )
-            return render_template("login.html")
 
         user = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
         if user and user.check_password(mot_de_passe):
             session["user_id"] = user.id
             log_action("login_success", "utilisateur", user.id)
-            login_attempts.pop(nom_utilisateur, None)
+            client_login_attempts.pop(client_id, None)
             return redirect(url_for("main_bp.evenement_new"))
         else:
-            record = login_attempts.setdefault(
-                nom_utilisateur,
+            record = client_login_attempts.setdefault(
+                client_id,
                 {"count": 0},
             )
             record["count"] = int(record.get("count", 0)) + 1
 
             if record["count"] >= LOGIN_LOCK_THRESHOLD:
                 record["lock_until"] = datetime.utcnow() + LOGIN_LOCK_DURATION
-                flash(
-                    "Trop de tentatives infructueuses. Le compte est bloqué pendant 5 minutes.",
-                    "danger",
-                )
+                context = _build_lock_context(client_id)
+                if context["lock_message"]:
+                    flash(context["lock_message"], "danger")
             else:
                 remaining_attempts = LOGIN_LOCK_THRESHOLD - record["count"]
                 flash(
@@ -124,7 +170,9 @@ def login():
                     f"Il vous reste {remaining_attempts} tentative(s) avant le blocage.",
                     "danger",
                 )
-    return render_template("login.html")
+            context = _build_lock_context(client_id)
+
+    return render_template("login.html", **context)
 # 🔓 Déconnexion
 @main_bp.route("/logout")
 def logout():
