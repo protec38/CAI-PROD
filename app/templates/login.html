@@ -38,6 +38,7 @@
       box-shadow:0 2px 6px rgba(0,0,0,.12);
     }
     .btn:hover{ filter:brightness(1.03) }
+    .btn[disabled]{ cursor:not-allowed; opacity:0.6; filter:none }
     .flash{ padding:12px 16px; border-radius:10px; margin:8px 0; text-align:center; font-weight:700 }
     .flash-danger{ background:#f8d7da; color:#721c24 }
     .flash-success{ background:#d4edda; color:#155724 }
@@ -52,13 +53,16 @@
       <div>Protection&nbsp;Civile</div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="flash flash-{{ category }}">{{ message }}</div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
+    {% set flashed_messages = get_flashed_messages(with_categories=true) %}
+    {% if flashed_messages %}
+      {% for category, message in flashed_messages %}
+        <div class="flash flash-{{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+
+    {% if lock_active and lock_message and not flashed_messages %}
+      <div class="flash flash-danger" id="lock-message">{{ lock_message }}</div>
+    {% endif %}
 
     <h1><i class="fa-solid fa-right-to-bracket"></i> Connexion</h1>
 
@@ -72,8 +76,14 @@
       <label for="password">Mot de passe</label>
       <input id="password" name="password" type="password" autocomplete="current-password" required>
 
-      <button type="submit" class="btn"><i class="fa-solid fa-unlock"></i> Se connecter</button>
+      <button type="submit" class="btn" {% if lock_active %}disabled aria-disabled="true"{% endif %}>
+        <i class="fa-solid fa-unlock"></i> Se connecter
+      </button>
     </form>
+
+    {% if lock_active and lock_message and flashed_messages %}
+      <div class="flash flash-danger" id="lock-message">{{ lock_message }}</div>
+    {% endif %}
 
     <div class="footer">
       3 tentatives autorisées avant blocage temporaire de 5 minutes. En cas de souci, contactez l’administrateur.
@@ -82,5 +92,42 @@
 
   <!-- CSRF helper (pour fetch / formulaires dynamiques si besoin) -->
   <script src="{{ url_for('static', filename='csrf.js') }}"></script>
+
+  {% if lock_active and lock_remaining_seconds %}
+  <script>
+    (function() {
+      const button = document.querySelector('.btn');
+      const messageEl = document.getElementById('lock-message');
+      if (!button || !messageEl) {
+        return;
+      }
+
+      let remaining = {{ lock_remaining_seconds }};
+
+      function updateMessage() {
+        if (remaining <= 0) {
+          messageEl.textContent = "Vous pouvez réessayer de vous connecter.";
+          button.removeAttribute('disabled');
+          button.removeAttribute('aria-disabled');
+          return;
+        }
+
+        const minutes = Math.floor(remaining / 60);
+        const seconds = remaining % 60;
+        messageEl.textContent = `Trop de tentatives infructueuses. Le formulaire est bloqué pendant 5 minutes. Réessayez dans ${minutes} minute(s) et ${seconds.toString().padStart(2, '0')} seconde(s).`;
+      }
+
+      updateMessage();
+
+      const timer = setInterval(() => {
+        remaining -= 1;
+        updateMessage();
+        if (remaining <= 0) {
+          clearInterval(timer);
+        }
+      }, 1000);
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>
