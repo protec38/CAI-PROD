@@ -198,6 +198,12 @@ class ShareLink(db.Model):
 
     # si tu veux: backrefs
     evenement   = db.relationship("Evenement", backref=db.backref("share_links", lazy="dynamic"))
+    access_logs = db.relationship(
+        "ShareLinkAccessLog",
+        backref="share_link",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+    )
 
     def is_active(self) -> bool:
         # pas d'expiration → juste non révoqué
@@ -216,6 +222,20 @@ class ShareLink(db.Model):
             return None
         tz = pytz.timezone("Europe/Paris")
         return self.created_at.astimezone(tz)
+
+
+class ShareLinkAccessLog(db.Model):
+    __tablename__ = "share_link_access_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    share_link_id = db.Column(db.Integer, db.ForeignKey("share_link.id"), nullable=False, index=True)
+    accessed_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+    referer = db.Column(db.String(255), nullable=True)
+
+    def __repr__(self):
+        return f"<ShareLinkAccessLog link={self.share_link_id} at={self.accessed_at}>"
 
 # ======================
 # Tickets (logistique/technique)
