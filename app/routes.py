@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort
 from .models import Utilisateur, Evenement, FicheImplique, Bagage, ShareLink, Ticket, Animal, AuditLog, TimelineEntry, utilisateur_evenement, EventNews
-from .extensions import db, limiter
+from .extensions import db
 from werkzeug.security import check_password_hash
 from functools import wraps
 from .audit import log_action
@@ -62,19 +62,68 @@ def get_current_user():
 
 
 # 🔐 Page de connexion
+LOGIN_LOCK_THRESHOLD = 3
+LOGIN_LOCK_DURATION = timedelta(minutes=5)
+login_attempts: dict[str, dict[str, datetime | int]] = {}
+
+
+def _cleanup_login_attempts(username: str) -> None:
+    """Réinitialise les tentatives lorsque le verrou a expiré."""
+    record = login_attempts.get(username)
+    if not record:
+        return
+
+    lock_until = record.get("lock_until")
+    if lock_until and datetime.utcnow() >= lock_until:
+        login_attempts.pop(username, None)
+
+
 @main_bp.route("/", methods=["GET", "POST"])
-@limiter.limit("5 per 3 minutes")
 def login():
     if request.method == "POST":
-        nom_utilisateur = request.form.get("username", "")
+        nom_utilisateur = request.form.get("username", "").strip()
         mot_de_passe = request.form.get("password", "")
+
+        _cleanup_login_attempts(nom_utilisateur)
+
+        record = login_attempts.get(nom_utilisateur)
+        if record and record.get("lock_until"):
+            remaining = record["lock_until"] - datetime.utcnow()
+            total_seconds = int(max(remaining.total_seconds(), 0))
+            minutes, seconds = divmod(total_seconds, 60)
+            flash(
+                f"Compte temporairement bloqué après plusieurs tentatives. "
+                f"Réessayez dans {minutes} minute(s) et {seconds} seconde(s).",
+                "danger",
+            )
+            return render_template("login.html")
+
         user = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
         if user and user.check_password(mot_de_passe):
             session["user_id"] = user.id
             log_action("login_success", "utilisateur", user.id)
+            login_attempts.pop(nom_utilisateur, None)
             return redirect(url_for("main_bp.evenement_new"))
         else:
-            flash("Nom d'utilisateur ou mot de passe invalide.", "danger")
+            record = login_attempts.setdefault(
+                nom_utilisateur,
+                {"count": 0},
+            )
+            record["count"] = int(record.get("count", 0)) + 1
+
+            if record["count"] >= LOGIN_LOCK_THRESHOLD:
+                record["lock_until"] = datetime.utcnow() + LOGIN_LOCK_DURATION
+                flash(
+                    "Trop de tentatives infructueuses. Le compte est bloqué pendant 5 minutes.",
+                    "danger",
+                )
+            else:
+                remaining_attempts = LOGIN_LOCK_THRESHOLD - record["count"]
+                flash(
+                    f"Nom d'utilisateur ou mot de passe invalide. "
+                    f"Il vous reste {remaining_attempts} tentative(s) avant le blocage.",
+                    "danger",
+                )
     return render_template("login.html")
 # 🔓 Déconnexion
 @main_bp.route("/logout")
