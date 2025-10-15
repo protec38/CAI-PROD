@@ -85,6 +85,14 @@ class Evenement(db.Model):
         cascade="all, delete-orphan"
     )
 
+    share_links = db.relationship(
+        'ShareLink',
+        back_populates='evenement',
+        lazy=True,
+        cascade="all, delete-orphan",
+        passive_deletes=True
+    )
+
     @property
     def date_ouverture_locale(self):
         return convertir_heure_locale(self.date_ouverture)
@@ -186,7 +194,11 @@ class ShareLink(db.Model):
     __tablename__ = "share_link"
 
     id = db.Column(db.Integer, primary_key=True)
-    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False)
+    evenement_id = db.Column(
+        db.Integer,
+        db.ForeignKey("evenement.id", ondelete="CASCADE"),
+        nullable=False
+    )
     created_by   = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
 
     # on garde le token en clair pour l'afficher (OPERATIONNEL et pratique)
@@ -197,7 +209,7 @@ class ShareLink(db.Model):
     revoked     = db.Column(db.Boolean, default=False, nullable=False)
 
     # si tu veux: backrefs
-    evenement   = db.relationship("Evenement", backref=db.backref("share_links", lazy="dynamic"))
+    evenement   = db.relationship("Evenement", back_populates="share_links")
     access_logs = db.relationship(
         "ShareLinkAccessLog",
         backref="share_link",
