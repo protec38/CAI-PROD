@@ -6,6 +6,64 @@ from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFError
 
 from .extensions import db, login_manager, csrf, limiter
+from sqlalchemy import inspect, text
+
+
+def _ensure_database_schema(app: Flask) -> None:
+    """Ensure critical columns exist when the app boots.
+
+    Older deployments might miss newer columns because ``db.create_all``
+    does not alter existing tables.  We patch the schema at runtime so the
+    application can start even on an outdated database.
+    """
+
+    with app.app_context():
+        try:
+            inspector = inspect(db.engine)
+        except Exception as exc:  # pragma: no cover - safety net for startup
+            app.logger.warning("Unable to inspect database schema: %s", exc)
+            return
+
+        if "utilisateur" not in inspector.get_table_names():
+            return
+
+        columns = {col["name"] for col in inspector.get_columns("utilisateur")}
+        if "created_at" in columns:
+            return
+
+        app.logger.info("Adding missing utilisateur.created_at column")
+        with db.engine.begin() as conn:
+            conn.execute(
+                text(
+                    """
+                    ALTER TABLE utilisateur
+                    ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE
+                    DEFAULT (NOW() AT TIME ZONE 'UTC')
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    UPDATE utilisateur
+                    SET created_at = NOW() AT TIME ZONE 'UTC'
+                    WHERE created_at IS NULL
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "ALTER TABLE utilisateur ALTER COLUMN created_at SET NOT NULL"
+                )
+            )
+            conn.execute(
+                text(
+                    """
+                    CREATE INDEX IF NOT EXISTS ix_utilisateur_created_at
+                    ON utilisateur (created_at)
+                    """
+                )
+            )
 
 
 def create_app(config_name: str | None = None) -> Flask:
@@ -45,6 +103,7 @@ def create_app(config_name: str | None = None) -> Flask:
 
     # --- Extensions ---
     db.init_app(app)
+    _ensure_database_schema(app)
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
