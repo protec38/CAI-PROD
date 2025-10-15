@@ -82,7 +82,13 @@ def _ensure_provisional_expiry_column():
     if not inspector.has_table("utilisateur"):
         return
 
-    if not inspector.has_column("utilisateur", "provisional_expires_at"):
+    def _has_column(table_name: str, column_name: str) -> bool:
+        return any(
+            column.get("name") == column_name
+            for column in inspector.get_columns(table_name)
+        )
+
+    if not _has_column("utilisateur", "provisional_expires_at"):
         with engine.begin() as connection:
             connection.execute(
                 text(
