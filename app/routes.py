@@ -18,6 +18,7 @@ from werkzeug.security import check_password_hash
 from functools import wraps
 from .audit import log_action
 from datetime import datetime, timedelta, date, timezone
+from collections import Counter
 from flask_login import current_user
 from flask import make_response
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -430,6 +431,172 @@ def dashboard(evenement_id):
         peut_modifier_statut=peut_modifier_statut,
         competence_colors=COMPETENCE_COLORS
     )
+
+
+
+
+def _format_duration(delta: timedelta | None) -> str:
+    if not delta:
+        return "—"
+
+    total_seconds = int(delta.total_seconds())
+    if total_seconds < 0:
+        total_seconds = 0
+
+    days, remainder = divmod(total_seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes, _ = divmod(remainder, 60)
+
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days} jour{'s' if days > 1 else ''}")
+    if hours:
+        parts.append(f"{hours} h")
+    if minutes:
+        parts.append(f"{minutes} min")
+
+    if not parts:
+        return "moins d'une minute"
+
+    return " ".join(parts)
+
+
+@main_bp.route("/evenement/<int:evenement_id>/panorama")
+@login_required
+def evenement_panorama(evenement_id: int):
+    user = get_current_user()
+    evenement = Evenement.query.get_or_404(evenement_id)
+
+    if not user_can_access_event(user, evenement):
+        flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
+        return redirect(url_for("main_bp.evenement_new"))
+
+    fiches = FicheImplique.query.filter_by(evenement_id=evenement.id).all()
+
+    now_utc = datetime.utcnow()
+
+    def _is_present(fiche: FicheImplique) -> bool:
+        return (fiche.statut or "").strip().lower() == "présent"
+
+    def _is_sorti(fiche: FicheImplique) -> bool:
+        return (fiche.statut or "").strip().lower() == "sorti"
+
+    personnes_presentes = sum(1 for f in fiches if not getattr(f, "est_animal", False) and _is_present(f))
+    animaux_presents = sum(1 for f in fiches if getattr(f, "est_animal", False) and _is_present(f))
+
+    personnes_sorties = sum(1 for f in fiches if not getattr(f, "est_animal", False) and _is_sorti(f))
+    animaux_sortis = sum(1 for f in fiches if getattr(f, "est_animal", False) and _is_sorti(f))
+
+    durations: list[timedelta] = []
+    for fiche in fiches:
+        arrivee = fiche.heure_arrivee
+        sortie = fiche.heure_sortie or now_utc
+        if arrivee:
+            try:
+                delta = sortie - arrivee
+                if isinstance(delta, timedelta):
+                    durations.append(delta)
+            except Exception:
+                continue
+
+    avg_presence = None
+    if durations:
+        avg_seconds = sum(d.total_seconds() for d in durations) / len(durations)
+        avg_presence = timedelta(seconds=avg_seconds)
+
+    competence_counts: Counter[str] = Counter()
+    for fiche in fiches:
+        raw = (fiche.competences or "").strip()
+        if not raw:
+            continue
+        for item in re.split(r"[,;\\n]+", raw):
+            label = item.strip()
+            if label:
+                competence_counts[label] += 1
+
+    competence_summary = sorted(
+        (
+            {"label": label, "count": count}
+            for label, count in competence_counts.items()
+        ),
+        key=lambda entry: (-entry["count"], entry["label"].lower()),
+    )
+
+    recherches: list[dict[str, typing.Any]] = []
+    for fiche in fiches:
+        details: list[str] = []
+        if fiche.recherche_personne:
+            for segment in re.split(r"[\\n;]+", fiche.recherche_personne):
+                seg = segment.strip()
+                if seg:
+                    details.append(seg)
+        if fiche.numero_recherche:
+            details.append(f"Numéro: {fiche.numero_recherche}")
+        if details:
+            identite = " ".join(filter(None, [fiche.prenom, fiche.nom])).strip()
+            if not identite:
+                identite = fiche.numero or f"Fiche #{fiche.id}"
+            recherches.append(
+                {
+                    "identite": identite,
+                    "statut": fiche.statut or "",
+                    "details": details,
+                }
+            )
+
+    recherches.sort(key=lambda entry: entry["identite"].lower())
+
+    tickets = Ticket.query.filter_by(evenement_id=evenement.id).all()
+    tickets_open = sum(1 for t in tickets if (t.status or "").strip().lower() == "ouvert")
+    tickets_in_progress = sum(1 for t in tickets if (t.status or "").strip().lower() == "en cours")
+
+    date_ouverture_locale = getattr(evenement, "date_ouverture_locale", None)
+    fonctionnement = None
+    if evenement.date_ouverture:
+        try:
+            fonctionnement = now_utc - evenement.date_ouverture
+        except Exception:
+            fonctionnement = None
+
+    stats = {
+        "personnes_presentes": personnes_presentes,
+        "animaux_presents": animaux_presents,
+        "personnes_sorties": personnes_sorties,
+        "animaux_sortis": animaux_sortis,
+        "avg_presence": _format_duration(avg_presence),
+        "tickets_open": tickets_open,
+        "tickets_in_progress": tickets_in_progress,
+        "tickets_total": tickets_open + tickets_in_progress,
+        "date_ouverture": date_ouverture_locale,
+        "date_ouverture_txt": date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if date_ouverture_locale else "—",
+        "fonctionnement": _format_duration(fonctionnement),
+        "statut": evenement.statut or "—",
+    }
+
+    try:
+        import pytz  # type: ignore
+        paris = pytz.timezone("Europe/Paris")
+    except Exception:
+        paris = None
+
+    if date_ouverture_locale and date_ouverture_locale.tzinfo:
+        generated_at = datetime.now(date_ouverture_locale.tzinfo)
+    elif paris:
+        generated_at = datetime.now(paris)
+    else:
+        generated_at = datetime.utcnow()
+
+    return render_template(
+        "evenement_panorama.html",
+        user=user,
+        evenement=evenement,
+        stats=stats,
+        competence_summary=competence_summary,
+        recherches=recherches,
+        total_fiches=len(fiches),
+        generated_at=generated_at,
+    )
+
 
 
 

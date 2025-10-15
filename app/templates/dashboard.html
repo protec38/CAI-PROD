@@ -493,6 +493,7 @@
 
     <div class="actions-toolbar">
       <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
+      <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-chart-pie"></i> Vue synthétique</a>
       <a href="{{ url_for('main_bp.fiche_new') }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
       {% if user.is_admin or user.role in ["codep", "responsable"] %}
         <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>

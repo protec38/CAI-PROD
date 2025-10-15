@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panorama du centre — {{ evenement.nom }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS4GAK6+JQw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    :root {
+      --bg: radial-gradient(120% 120% at 50% 0%, #e7f0ff 0%, #f8f9fe 42%, #ffffff 100%);
+      --surface: #ffffff;
+      --surface-muted: #f2f4ff;
+      --ink: #0f172a;
+      --muted: #475467;
+      --accent: #f58220;
+      --accent-soft: #ffe6d1;
+      --blue: #0c2f63;
+      --green: #027a48;
+      --red: #b42318;
+      --amber: #b54708;
+      --border: #d0d7ee;
+      --shadow: 0 24px 50px rgba(15, 39, 90, 0.12);
+      --radius-lg: 26px;
+      --radius-md: 18px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      min-height: 100vh;
+      padding: 20px clamp(16px, 4vw, 48px) 60px;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 24px;
+      background: var(--blue);
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: top 0.2s ease;
+      z-index: 1000;
+    }
+    .skip-link:focus { top: 16px; }
+
+    .layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      gap: 32px;
+    }
+
+    .page-header {
+      background: linear-gradient(135deg, rgba(12,47,99,0.95), rgba(12,47,99,0.78));
+      color: #fff;
+      padding: 32px clamp(24px, 4vw, 40px);
+      border-radius: var(--radius-lg);
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .page-header::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(120% 140% at 80% 20%, rgba(245,130,32,0.25), transparent 55%);
+      pointer-events: none;
+    }
+    .page-header__eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.12);
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .page-header__title {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 42px);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+    .page-header__meta {
+      margin: 14px 0 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      color: rgba(255,255,255,0.82);
+      font-weight: 500;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255,255,255,0.16);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .header-actions {
+      margin-top: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      padding: 12px 18px;
+      border-radius: 14px;
+      font-weight: 600;
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.22);
+      backdrop-filter: blur(6px);
+      transition: transform 0.15s ease, box-shadow 0.25s ease;
+    }
+    .btn--primary {
+      background: linear-gradient(135deg, #f58220, #ff9f4d);
+      color: #1f2937;
+      border: none;
+      box-shadow: 0 18px 32px rgba(245,130,32,0.28);
+    }
+    .btn:hover { transform: translateY(-2px); }
+
+    main {
+      display: grid;
+      gap: 28px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 22px 24px;
+      border: 1px solid rgba(208,215,238,0.6);
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: radial-gradient(90% 90% at 85% 15%, rgba(245,130,32,0.16), transparent 60%);
+      pointer-events: none;
+    }
+    .stat-card__label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stat-card__value {
+      font-size: clamp(32px, 4vw, 42px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--ink);
+    }
+    .stat-card__meta {
+      margin-top: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .stat-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--blue);
+      font-weight: 600;
+      font-size: 0.82rem;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 18px;
+    }
+    .info-card {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: 20px 22px;
+      border: 1px solid rgba(208,215,238,0.6);
+      box-shadow: var(--shadow);
+    }
+    .info-card h3 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+      color: var(--blue);
+    }
+    .info-card p {
+      margin: 0;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    section.block {
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      padding: clamp(22px, 3vw, 28px);
+      border: 1px solid rgba(208,215,238,0.6);
+      box-shadow: var(--shadow);
+    }
+    section.block h2 {
+      margin: 0 0 16px;
+      font-size: 1.3rem;
+      color: var(--blue);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    section.block p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .chip-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--blue);
+      font-weight: 600;
+      border: 1px solid rgba(208,215,238,0.8);
+    }
+    .chip span {
+      background: rgba(12,47,99,0.12);
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      color: var(--blue);
+    }
+
+    .research-list {
+      display: grid;
+      gap: 14px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .research-card {
+      border: 1px solid rgba(208,215,238,0.6);
+      border-radius: 16px;
+      padding: 16px 18px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(242,245,255,0.95));
+      display: grid;
+      gap: 10px;
+    }
+    .research-card__title {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--ink);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .badge-status {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: var(--accent-soft);
+      color: var(--amber);
+    }
+    .detail-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .detail-pill {
+      padding: 6px 10px;
+      border-radius: 12px;
+      background: var(--surface-muted);
+      color: var(--blue);
+      font-weight: 500;
+      font-size: 0.85rem;
+    }
+
+    .footer-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .footer-meta i {
+      color: var(--accent);
+    }
+
+    @media (max-width: 720px) {
+      .page-header {
+        padding: 28px 22px;
+      }
+      .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <a href="#contenu-principal" class="skip-link">Aller au contenu</a>
+  <div class="layout">
+    <header class="page-header">
+      <span class="page-header__eyebrow"><i class="fa-solid fa-signal"></i> Panorama du centre</span>
+      <h1 class="page-header__title">{{ evenement.nom }}</h1>
+      <div class="page-header__meta">
+        {% if evenement.numero %}<span><i class="fa-solid fa-hashtag"></i> {{ evenement.numero }}</span>{% endif %}
+        {% if evenement.adresse %}<span><i class="fa-solid fa-location-dot"></i> {{ evenement.adresse }}</span>{% endif %}
+        <span class="status-badge"><i class="fa-solid fa-circle"></i> {{ stats.statut }}</span>
+      </div>
+      <div class="header-actions">
+        <a href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn btn--primary"><i class="fa-solid fa-chart-simple"></i> Tableau opérationnel</a>
+        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-rectangle-list"></i> Liste des évènements</a>
+      </div>
+    </header>
+
+    <main id="contenu-principal">
+      <section class="stats-grid" aria-label="Indicateurs clés">
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-user-check"></i> Personnes présentes</div>
+          <div class="stat-card__value">{{ stats.personnes_presentes }}</div>
+          <div class="stat-card__meta">
+            <span class="stat-chip"><i class="fa-solid fa-users"></i> Total fiches : {{ total_fiches }}</span>
+          </div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-paw"></i> Animaux présents</div>
+          <div class="stat-card__value">{{ stats.animaux_presents }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Personnes sorties</div>
+          <div class="stat-card__value">{{ stats.personnes_sorties }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-dog"></i> Animaux sortis</div>
+          <div class="stat-card__value">{{ stats.animaux_sortis }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-clock"></i> Temps moyen de présence</div>
+          <div class="stat-card__value">{{ stats.avg_presence }}</div>
+        </article>
+        <article class="stat-card">
+          <div class="stat-card__label"><i class="fa-solid fa-ticket"></i> Tickets en cours</div>
+          <div class="stat-card__value">{{ stats.tickets_total }}</div>
+          <div class="stat-card__meta">
+            <span class="stat-chip"><i class="fa-solid fa-circle-dot"></i> Nouveaux : {{ stats.tickets_open }}</span>
+            <span class="stat-chip"><i class="fa-solid fa-spinner"></i> Pris en compte : {{ stats.tickets_in_progress }}</span>
+          </div>
+        </article>
+      </section>
+
+      <section class="info-grid" aria-label="Informations sur le centre">
+        <div class="info-card">
+          <h3><i class="fa-solid fa-door-open"></i> Ouverture du centre</h3>
+          <p>{{ stats.date_ouverture_txt }}</p>
+        </div>
+        <div class="info-card">
+          <h3><i class="fa-solid fa-stopwatch"></i> Temps de fonctionnement</h3>
+          <p>{{ stats.fonctionnement }}</p>
+        </div>
+        <div class="info-card">
+          <h3><i class="fa-solid fa-sitemap"></i> Statut opérationnel</h3>
+          <p>{{ stats.statut }}</p>
+        </div>
+      </section>
+
+      <section class="block" aria-labelledby="competences-title">
+        <h2 id="competences-title"><i class="fa-solid fa-graduation-cap"></i> Compétences disponibles</h2>
+        {% if competence_summary %}
+          <div class="chip-list">
+            {% for item in competence_summary %}
+              <span class="chip">{{ item.label }} <span>{{ item.count }}</span></span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p>Aucune compétence n'est renseignée pour le moment.</p>
+        {% endif %}
+      </section>
+
+      <section class="block" aria-labelledby="recherche-title">
+        <h2 id="recherche-title"><i class="fa-solid fa-person-circle-question"></i> Synthèse des personnes recherchées</h2>
+        {% if recherches %}
+          <ul class="research-list">
+            {% for item in recherches %}
+              <li class="research-card">
+                <div class="research-card__title">
+                  <i class="fa-solid fa-user"></i> {{ item.identite }}
+                  {% if item.statut %}<span class="badge-status">{{ item.statut }}</span>{% endif %}
+                </div>
+                <div class="detail-pills">
+                  {% for detail in item.details %}
+                    <span class="detail-pill">{{ detail }}</span>
+                  {% endfor %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p>Aucune fiche ne comporte actuellement de demande de recherche.</p>
+        {% endif %}
+      </section>
+
+      <div class="footer-meta">
+        <span><i class="fa-solid fa-clock-rotate-left"></i> Mise à jour :
+          {% if generated_at %}
+            {{ generated_at.strftime('%d/%m/%Y %H:%M') }}
+          {% else %}
+            —
+          {% endif %}
+        </span>
+        <span><i class="fa-solid fa-users"></i> Total d'implications : {{ total_fiches }}</span>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
