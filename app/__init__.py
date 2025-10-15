@@ -114,7 +114,7 @@ def create_app(config_name: str | None = None) -> Flask:
     login_manager.login_message_category = "info"
 
     # --- Loader utilisateur ---
-    from .models import Utilisateur as UserModel
+    from .models import Utilisateur as UserModel, BroadcastNotification
 
     @login_manager.user_loader
     def load_user(user_id: str):
@@ -123,6 +123,19 @@ def create_app(config_name: str | None = None) -> Flask:
         except Exception:
             # Compat si la PK n'est pas un int
             return UserModel.query.get(user_id)
+
+    @app.context_processor
+    def inject_broadcast_banner():
+        active = None
+        try:
+            active = (
+                BroadcastNotification.query.filter_by(is_active=True)
+                .order_by(BroadcastNotification.created_at.desc())
+                .first()
+            )
+        except Exception:
+            active = None
+        return {"active_broadcast": active}
 
     # --- Filtres Jinja (fr_datetime / fr_date / fr_time) ---
     # Assure-toi d'avoir créé app/filters.py avec les fonctions fr_datetime, fr_date, fr_time

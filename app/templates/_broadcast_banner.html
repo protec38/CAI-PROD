@@ -1,0 +1,115 @@
+{% if active_broadcast and not (hide_broadcast | default(false)) %}
+<div id="cai-broadcast-banner" class="cai-broadcast" role="alert" aria-live="assertive" data-duration="8000">
+  <div class="cai-broadcast__content">
+    <div class="cai-broadcast__icon" aria-hidden="true">⚠️</div>
+    <div class="cai-broadcast__body">
+      <p class="cai-broadcast__title">Information centre</p>
+      <p class="cai-broadcast__message">{{ active_broadcast.message | e | replace('\n', '<br>') | safe }}</p>
+    </div>
+    <button type="button" class="cai-broadcast__close" data-broadcast-close aria-label="Fermer la notification">×</button>
+  </div>
+</div>
+<style>
+  #cai-broadcast-banner {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translate(-50%, -40px);
+    background: #111827;
+    color: #f9fafb;
+    padding: 16px 20px;
+    border-radius: 18px;
+    box-shadow: 0 18px 36px rgba(15, 23, 42, 0.3);
+    max-width: min(640px, calc(100vw - 32px));
+    width: max-content;
+    opacity: 0;
+    transition: opacity .25s ease, transform .25s ease;
+    z-index: 9999;
+  }
+  #cai-broadcast-banner.is-visible {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  #cai-broadcast-banner.is-hidden {
+    opacity: 0;
+    transform: translate(-50%, -40px);
+    pointer-events: none;
+  }
+  .cai-broadcast__content {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .cai-broadcast__icon {
+    font-size: 1.8rem;
+    line-height: 1;
+  }
+  .cai-broadcast__body {
+    flex: 1 1 auto;
+  }
+  .cai-broadcast__title {
+    margin: 0 0 4px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.75);
+  }
+  .cai-broadcast__message {
+    margin: 0;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+  .cai-broadcast__close {
+    background: rgba(255, 255, 255, 0.1);
+    color: #f9fafb;
+    border: none;
+    border-radius: 999px;
+    width: 32px;
+    height: 32px;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .2s ease;
+  }
+  .cai-broadcast__close:hover,
+  .cai-broadcast__close:focus-visible {
+    background: rgba(255, 255, 255, 0.24);
+    outline: none;
+  }
+  @media (max-width: 480px) {
+    #cai-broadcast-banner {
+      padding: 14px 16px;
+    }
+    .cai-broadcast__content {
+      gap: 12px;
+    }
+  }
+</style>
+<script>
+(function(){
+  const banner = document.getElementById('cai-broadcast-banner');
+  if (!banner) { return; }
+  const closeButton = banner.querySelector('[data-broadcast-close]');
+  const duration = parseInt(banner.getAttribute('data-duration') || '8000', 10);
+
+  const hide = () => {
+    if (!banner.classList.contains('is-hidden')) {
+      banner.classList.add('is-hidden');
+      window.setTimeout(() => {
+        if (banner && banner.parentElement) {
+          banner.parentElement.removeChild(banner);
+        }
+      }, 320);
+    }
+  };
+
+  if (closeButton) {
+    closeButton.addEventListener('click', hide);
+  }
+
+  window.setTimeout(hide, Math.max(2000, duration));
+  window.requestAnimationFrame(() => banner.classList.add('is-visible'));
+})();
+</script>
+{% endif %}
