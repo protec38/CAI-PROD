@@ -850,36 +850,7 @@
     </section>
 
     {% if user.is_admin or user.role == "codep" %}
-      {% set broadcast_level_labels = {
-        'info': 'Information',
-        'success': 'Succès',
-        'warning': 'Alerte',
-        'danger': 'Urgence',
-        'critical': 'Critique'
-      } %}
-      <section class="card broadcast-summary" aria-labelledby="broadcast-title">
-        <div class="broadcast-summary__header">
-          <h3 id="broadcast-title">Notifier tous les utilisateurs</h3>
-          {% if active_broadcast %}
-            <span id="broadcast-summary-status" class="broadcast-summary__status" data-level="{{ active_broadcast.level }}">
-              {{ broadcast_level_labels.get(active_broadcast.level, 'Alerte') }} active depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}
-            </span>
-          {% else %}
-            <span id="broadcast-summary-status" class="broadcast-summary__status is-idle" data-level="">Aucune notification active</span>
-          {% endif %}
-        </div>
-        <p>Utilisez le bouton situé en haut de la page pour diffuser une alerte visible pendant environ {{ broadcast_auto_clear_seconds | default(15) }} secondes sur l'ensemble des espaces internes.</p>
-        <div id="broadcast-summary-current" class="broadcast-summary__current{% if not active_broadcast %} is-hidden{% endif %}" role="status" data-level="{{ active_broadcast.level if active_broadcast else '' }}">
-          <strong>Message actuel</strong>
-          <span id="broadcast-summary-message">
-            {% if active_broadcast %}
-              <span aria-hidden="true">{{ active_broadcast.emoji }}</span>
-              <span class="visually-hidden">Emoji :</span>
-              {{ active_broadcast.message | e }}
-            {% endif %}
-          </span>
-        </div>
-      </section>
+      {# La carte récapitulative des notifications a été retirée pour ne conserver que le bouton d'alerte dans l'en-tête. #}
     {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
