@@ -106,6 +106,10 @@
   .r-admin{ color:#7a1a00; background:#fff0e5; border-color:#ffd8bd; }
   .r-codep{ color:#0b3d77; background:#eaf2ff; border-color:#d6e7ff; }
   .r-user{ color:#0b6b3a; background:#e9f7ef; border-color:#cfeede; }
+  .r-provisional{ color:#b54708; background:#fff4e6; border-color:#ffddb0; }
+  .muted{ color: var(--muted); }
+  .provisional-info{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
+  .provisional-countdown{ font-size:0.85rem; color:#b54708; font-weight:700; }
 
   /* Actions table */
   .table-actions{ display:flex; gap:8px; flex-wrap:wrap; }
@@ -125,9 +129,20 @@
       white-space: nowrap;
     }
   }
+  .info-banner{
+    margin:16px;
+    background:#fff7ed;
+    border:1px solid #ffddb0;
+    color:#7a3410;
+    padding:12px 16px;
+    border-radius:12px;
+    font-weight:600;
+  }
 </style>
 </head>
 <body>
+
+  {% include "_flashes.html" %}
 
   <!-- Header -->
   <header class="header">
@@ -160,8 +175,10 @@
     <!-- Table -->
     <section class="card">
       <div class="hd">Liste des utilisateurs</div>
-      <div class="bd table-wrap">
+      <div class="bd">
+        <div class="info-banner">⏳ Les comptes provisoires sont supprimés automatiquement après {{ provisional_lifetime_days }} jours.</div>
         {% if utilisateurs %}
+        <div class="table-wrap">
         <table id="user-table">
           <thead>
             <tr>
@@ -170,6 +187,7 @@
               <th>Rôle</th>
               <th>Type</th>
               <th>Statut</th>
+              <th>Expiration provisoire</th>
               <th>Évènements associés</th>
               <th>Actions</th>
             </tr>
@@ -198,6 +216,23 @@
                 {% endif %}
               </td>
               <td>
+                {% if u.is_provisional %}
+                  {% set remaining = u.provisional_time_left %}
+                  <div class="provisional-info">
+                    <span class="badge r-provisional">Provisoire</span>
+                    <span class="provisional-countdown">
+                      {% if remaining and remaining.total_seconds() > 0 %}
+                        {{ remaining | humanize_timedelta }} restants
+                      {% else %}
+                        Expiré
+                      {% endif %}
+                    </span>
+                  </div>
+                {% else %}
+                  <span class="muted">—</span>
+                {% endif %}
+              </td>
+              <td>
                 {% for evt in u.evenements %}
                   <div>{{ evt.nom }} ({{ evt.numero }})</div>
                 {% else %}
@@ -222,6 +257,7 @@
             {% endfor %}
           </tbody>
         </table>
+        </div>
         {% if pagination and pagination.pages > 1 %}
           <nav class="pagination" aria-label="Pagination utilisateurs">
             {% if pagination.has_prev %}

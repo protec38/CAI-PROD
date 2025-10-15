@@ -83,9 +83,11 @@
   .b-full{ color:#7a0916; background:#ffe8ec; border-color:#ffd1d9; }
   .b-setup{ color:#0b3d77; background:#eaf2ff; border-color:#d6e7ff; }
   .b-closed{ color:#374151; background:#f2f4f7; border-color:#e5e7eb; }
+  .b-archived{ color:#344054; background:#f3f4f6; border-color:#e4e7ec; }
 
   /* Actions */
   .actions{ display:flex; gap:8px; flex-wrap:wrap; }
+  .actions form{ margin:0; }
   .btn{
     display:inline-flex; align-items:center; gap:8px;
     padding:8px 12px; border-radius:10px; font-weight:800; text-decoration:none;
@@ -93,6 +95,9 @@
     cursor:pointer; transition: transform .04s ease, filter .15s ease;
   }
   .btn:active{ transform: translateY(1px); }
+  .btn.access{ background:#e8f4ff; border-color:#bfdbfe; color:#0b5394; }
+  .btn.archive{ background:#fff4e6; border-color:#ffe0b5; color:#b25e09; }
+  .btn.restore{ background:#ecfdf3; border-color:#bbf7d0; color:#027a48; }
   .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
   .btn.del{ background:#ffe3e6; border-color:#ffcbd2; color:#9a1a2a; }
 
@@ -122,6 +127,8 @@
 </style>
 </head>
 <body>
+
+  {% include "_flashes.html" %}
 
   <!-- Header -->
   <header class="header">
@@ -164,6 +171,8 @@
                   <span class="badge b-full">Complet</span>
                 {% elif s == 'Fermé' %}
                   <span class="badge b-closed">Fermé</span>
+                {% elif evt.archived %}
+                  <span class="badge b-archived">Archivé</span>
                 {% else %}
                   <span class="badge b-setup">{{ s if s else '—' }}</span>
                 {% endif %}
@@ -171,6 +180,11 @@
               <td>
                 {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
                   <div class="actions">
+                    <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
+                    <form method="POST" action="{{ url_for('main_bp.archive_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Archiver cet évènement ?');">
+                      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                      <button type="submit" class="btn archive">📦 Archiver</button>
+                    </form>
                     <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn edit">📝 Modifier</a>
 
                     <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Supprimer cet évènement ?');" style="display:inline;">
@@ -192,6 +206,51 @@
     <div class="footer-actions">
       <a href="{{ url_for('main_bp.evenement_new') }}" class="btn-back">⬅ Retour</a>
     </div>
+
+    {% if archived_evenements %}
+    <section class="card" style="margin-top:24px;">
+      <div class="hd">Évènements archivés</div>
+      <div class="bd table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nom</th>
+              <th>Type</th>
+              <th>Adresse</th>
+              <th>Archivé le</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for evt in archived_evenements %}
+            <tr>
+              <td>{{ evt.id }}</td>
+              <td>{{ evt.nom }}</td>
+              <td>{{ evt.type_evt }}</td>
+              <td>{{ evt.adresse }}</td>
+              <td>{{ evt.archived_at|fr_datetime if evt.archived_at else '—' }}</td>
+              <td>
+                <div class="actions">
+                  <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
+                  <form method="POST" action="{{ url_for('main_bp.restore_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Restaurer cet évènement archivé ?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn restore">🔁 Restaurer</button>
+                  </form>
+                  <a href="{{ url_for('main_bp.edit_evenement', evenement_id=evt.id) }}" class="btn edit">📝 Modifier</a>
+                  <form method="POST" action="{{ url_for('main_bp.delete_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Supprimer définitivement cet évènement ?');" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn del">🗑 Supprimer</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
 
   </main>
 

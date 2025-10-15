@@ -71,6 +71,8 @@ button:hover { background-color: #e65c00; }
 </head>
 <body>
 
+{% include "_flashes.html" %}
+
 {% set role_lower = (user.role or '')|lower %}
 {% set numero_pec_disabled = (not user.is_admin) and role_lower in ['technicien', 'logisticien'] %}
 

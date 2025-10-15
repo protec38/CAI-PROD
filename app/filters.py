@@ -1,6 +1,6 @@
 # app/filters.py
 from __future__ import annotations
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional, Union
 from zoneinfo import ZoneInfo
 
@@ -79,3 +79,29 @@ def age_in_years(value: Union[datetime, date, str, None], reference: Union[datet
         years -= 1
 
     return years if years >= 0 else None
+
+
+def humanize_timedelta(value: Optional[timedelta]) -> str:
+    if value is None:
+        return ""
+
+    total_seconds = int(value.total_seconds())
+    if total_seconds <= 0:
+        return "Expiré"
+
+    days, remainder = divmod(total_seconds, 86400)
+    hours, remainder = divmod(remainder, 3600)
+    minutes = remainder // 60
+
+    parts: list[str] = []
+    if days:
+        parts.append(f"{days} jour{'s' if days > 1 else ''}")
+    if hours:
+        parts.append(f"{hours} h")
+    if minutes and days == 0:
+        parts.append(f"{minutes} min")
+
+    if not parts:
+        return "Moins d’une minute"
+
+    return " ".join(parts)

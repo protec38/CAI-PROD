@@ -1,0 +1,35 @@
+{% set flash_messages = get_flashed_messages(with_categories=true) %}
+{% if flash_messages %}
+  <div class="cai-flash-stack" role="status" aria-live="polite">
+    {% for category, message in flash_messages %}
+      <div class="cai-flash cai-flash--{{ category }}">
+        <span class="cai-flash__icon" aria-hidden="true">
+          {% if category == 'success' %}
+            ✅
+          {% elif category in ['warning', 'danger'] %}
+            ⚠️
+          {% else %}
+            ℹ️
+          {% endif %}
+        </span>
+        <span class="cai-flash__text">{{ message|safe }}</span>
+      </div>
+    {% endfor %}
+  </div>
+  <style>
+    .cai-flash-stack{display:grid;gap:10px;margin:16px auto;max-width:min(960px,100%);padding:0 16px;}
+    .cai-flash{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;font-weight:600;box-shadow:0 6px 20px rgba(15,23,42,0.08);border:1px solid transparent;background:#fff;color:#0f172a;}
+    .cai-flash__icon{font-size:1.2rem;line-height:1;}
+    .cai-flash--success{background:#ecfdf3;border-color:#abefc6;color:#027a48;}
+    .cai-flash--info{background:#eff8ff;border-color:#b6e0fe;color:#026aa2;}
+    .cai-flash--warning{background:#fffaeb;border-color:#fedf89;color:#b54708;}
+    .cai-flash--danger{background:#fef3f2;border-color:#fda29b;color:#b42318;}
+    .cai-flash--info .cai-flash__icon{color:#026aa2;}
+    .cai-flash--warning .cai-flash__icon{color:#b54708;}
+    .cai-flash--danger .cai-flash__icon{color:#b42318;}
+    @media (prefers-reduced-motion: no-preference){
+      .cai-flash{animation:cai-flash-in .2s ease-out;}
+      @keyframes cai-flash-in{from{transform:translateY(-6px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    }
+  </style>
+{% endif %}

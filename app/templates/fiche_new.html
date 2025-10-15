@@ -71,6 +71,8 @@ button:hover { background-color: #e65c00; }
 </head>
 <body>
 
+{% include "_flashes.html" %}
+
 <div class="container">
     <a href="{{ url_for('main_bp.dashboard', evenement_id=session.get('evenement_id')) }}" class="btn-retour">
        <i class="fas fa-arrow-left"></i> Retour au tableau de bord
