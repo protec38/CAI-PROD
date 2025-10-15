@@ -1719,6 +1719,10 @@ def delete_evenement(evenement_id):
     for ticket in list(evt.tickets):
         db.session.delete(ticket)
 
+    # 🧹 Supprime les actualités liées à l'évènement
+    for news in list(evt.news):
+        db.session.delete(news)
+
     # 🧹 Supprime les liens de partage liés à l'évènement
     for share_link in list(evt.share_links):
         db.session.delete(share_link)
