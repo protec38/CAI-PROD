@@ -115,7 +115,8 @@
       gap: 12px;
     }
 
-    nav.top-actions a {
+    nav.top-actions a,
+    nav.top-actions .broadcast-trigger {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -400,31 +401,117 @@
       color: var(--pc-blue);
     }
 
-    .broadcast-card {
-      display: grid;
-      gap: 12px;
+    .broadcast-trigger {
+      background: #ffffff;
+      color: var(--pc-blue);
+      border: 1px solid rgba(0, 59, 113, 0.25);
+      box-shadow: 0 6px 16px rgba(2, 24, 56, 0.12);
+      font-weight: 700;
     }
 
-    .broadcast-card__header {
+    .broadcast-trigger:hover,
+    .broadcast-trigger:focus-visible {
+      background: var(--pc-blue);
+      color: #ffffff;
+      border-color: var(--pc-blue);
+    }
+
+    .broadcast-trigger__indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+      font-size: 0.85rem;
+      color: inherit;
+    }
+
+    .broadcast-trigger__dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--pc-orange);
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85);
+    }
+
+    .broadcast-modal[hidden] {
+      display: none;
+    }
+
+    .broadcast-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1200;
+      background: rgba(15, 23, 42, 0.45);
       display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: baseline;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
     }
 
-    .broadcast-card__header h3 {
+    .broadcast-modal__dialog {
+      position: relative;
+      width: min(520px, 100%);
+      max-height: calc(100vh - 80px);
+      overflow-y: auto;
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 24px 48px rgba(15, 23, 42, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .broadcast-modal__header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .broadcast-modal__title {
       margin: 0;
       color: var(--pc-blue);
+      font-size: 1.35rem;
     }
 
-    .broadcast-card__status {
-      font-size: 0.9rem;
+    .broadcast-modal__close {
+      background: none;
+      border: none;
       color: var(--muted);
-      background: rgba(0, 59, 113, 0.08);
-      padding: 4px 10px;
+      font-size: 1.5rem;
+      line-height: 1;
+      padding: 4px;
       border-radius: 999px;
-      font-weight: 600;
+    }
+
+    .broadcast-modal__close:hover,
+    .broadcast-modal__close:focus-visible {
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--pc-blue);
+      outline: none;
+    }
+
+    .broadcast-modal__body {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .broadcast-modal__status {
+      background: rgba(0, 59, 113, 0.08);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--pc-blue);
+      font-size: 0.95rem;
+    }
+
+    .broadcast-modal__status strong {
+      display: block;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      font-size: 0.82rem;
+      margin-bottom: 4px;
     }
 
     .broadcast-form textarea {
@@ -450,12 +537,75 @@
       justify-content: flex-end;
     }
 
-    .broadcast-card__current {
+    .broadcast-modal__footer {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .broadcast-modal__helper {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .broadcast-summary {
+      display: grid;
+      gap: 12px;
+    }
+
+    .broadcast-summary__header {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .broadcast-summary__header h3 {
+      margin: 0;
+      color: var(--pc-blue);
+    }
+
+    .broadcast-summary__status {
+      font-size: 0.9rem;
+      color: var(--pc-blue);
+      background: rgba(0, 59, 113, 0.08);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .broadcast-summary__status.is-idle {
+      background: rgba(15, 23, 42, 0.06);
+      color: var(--muted);
+    }
+
+    .broadcast-summary__current {
       background: rgba(0, 59, 113, 0.06);
       border-radius: 12px;
       padding: 12px 14px;
       font-size: 0.95rem;
       color: var(--pc-blue);
+    }
+
+    .broadcast-summary__current strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    @media (max-width: 600px) {
+      .broadcast-modal {
+        padding: 16px;
+      }
+
+      .broadcast-modal__dialog {
+        padding: 20px;
+        max-height: calc(100vh - 48px);
+      }
     }
 
     .broadcast-card__current strong {
@@ -614,6 +764,16 @@
     {% if user.is_admin or user.role == "codep" %}
       <a href="{{ url_for('main_bp.admin_utilisateurs') }}">👥 Gérer les utilisateurs</a>
       <a href="{{ url_for('main_bp.admin_evenements') }}">🛠️ Administrer les évènements</a>
+      <button type="button" class="broadcast-trigger" data-broadcast-open>
+        📣 Notifier tous les utilisateurs
+        {% if active_broadcast %}
+          <span class="broadcast-trigger__indicator" aria-hidden="true">
+            <span class="broadcast-trigger__dot"></span>
+            Message actif
+          </span>
+          <span class="visually-hidden">Une notification est actuellement active.</span>
+        {% endif %}
+      </button>
     {% endif %}
   </nav>
 
@@ -624,27 +784,18 @@
     </section>
 
     {% if user.is_admin or user.role == "codep" %}
-      <section class="card broadcast-card" aria-labelledby="broadcast-title">
-        <div class="broadcast-card__header">
+      <section class="card broadcast-summary" aria-labelledby="broadcast-title">
+        <div class="broadcast-summary__header">
           <h3 id="broadcast-title">Notifier tous les utilisateurs</h3>
           {% if active_broadcast %}
-            <span class="broadcast-card__status">Message actif depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}</span>
+            <span class="broadcast-summary__status">Message actif depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}</span>
+          {% else %}
+            <span class="broadcast-summary__status is-idle">Aucune notification active</span>
           {% endif %}
         </div>
-        <p>Diffusez une alerte visible pendant quelques secondes sur toutes les pages internes afin de prévenir d'un incident ou d'une consigne importante.</p>
-        <form method="post" action="{{ url_for('main_bp.create_broadcast') }}" class="broadcast-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <label for="broadcast-message">Message (280 caractères max)</label>
-          <textarea id="broadcast-message" name="message" maxlength="280" required placeholder="Ex. : Incident réseau en cours, merci de rester vigilants sur les transmissions."></textarea>
-          <div class="broadcast-form__actions">
-            <button type="submit">📣 Envoyer la notification</button>
-            {% if active_broadcast %}
-              <button type="submit" name="action" value="clear" class="btn-secondary" formnovalidate>🧹 Retirer la notification</button>
-            {% endif %}
-          </div>
-        </form>
+        <p>Utilisez le bouton situé en haut de la page pour diffuser une alerte visible pendant environ {{ broadcast_auto_clear_seconds | default(15) }} secondes sur l'ensemble des espaces internes.</p>
         {% if active_broadcast %}
-          <div class="broadcast-card__current" role="status">
+          <div class="broadcast-summary__current" role="status">
             <strong>Message actuel</strong>
             <span>{{ active_broadcast.message | e }}</span>
           </div>
@@ -785,6 +936,40 @@
     {% endif %}
   </main>
 
+  {% if user.is_admin or user.role == "codep" %}
+    <div class="broadcast-modal" id="broadcast-modal" role="dialog" aria-modal="true" aria-labelledby="broadcast-modal-title" hidden>
+      <div class="broadcast-modal__dialog" role="document">
+        <div class="broadcast-modal__header">
+          <h2 id="broadcast-modal-title" class="broadcast-modal__title">Notifier tous les utilisateurs</h2>
+          <button type="button" class="broadcast-modal__close" data-broadcast-dismiss aria-label="Fermer la fenêtre">×</button>
+        </div>
+        <div class="broadcast-modal__body">
+          <p>Rédigez un message court pour alerter les équipes connectées. L'alerte est retirée automatiquement après {{ broadcast_auto_clear_seconds | default(15) }} secondes.</p>
+          <form method="post" action="{{ url_for('main_bp.create_broadcast') }}" class="broadcast-form">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label for="broadcast-modal-message">Message (280 caractères max)</label>
+            <textarea id="broadcast-modal-message" name="message" maxlength="280" required placeholder="Ex. : Incident réseau en cours, merci de rester vigilants sur les transmissions."></textarea>
+            <div class="broadcast-form__actions">
+              <button type="submit">📣 Envoyer la notification</button>
+              {% if active_broadcast %}
+                <button type="submit" name="action" value="clear" class="btn-secondary" formnovalidate>🧹 Retirer la notification</button>
+              {% endif %}
+            </div>
+          </form>
+          {% if active_broadcast %}
+            <div class="broadcast-modal__status" role="status">
+              <strong>Message actif</strong>
+              <span>{{ active_broadcast.message | e }}</span>
+            </div>
+          {% endif %}
+        </div>
+        <div class="broadcast-modal__footer">
+          <p class="broadcast-modal__helper">Les notifications sont visibles sur toutes les pages pour les utilisateurs connectés et disparaissent automatiquement au bout de {{ broadcast_auto_clear_seconds | default(15) }} secondes.</p>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
   <footer class="page-footer">
     © Protection Civile — Portail évènementiel
   </footer>
@@ -800,7 +985,102 @@
       const counter = document.getElementById("event-counter");
       const eventCards = Array.from(document.querySelectorAll(".event-card"));
       const noEventMessage = document.getElementById("no-event-message");
+      const broadcastModal = document.getElementById("broadcast-modal");
+      const broadcastOpenButton = document.querySelector("[data-broadcast-open]");
+      const broadcastDismissButtons = broadcastModal ? Array.from(broadcastModal.querySelectorAll("[data-broadcast-dismiss]")) : [];
+      const focusableSelectors = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+      let focusableModalElements = [];
+      let previouslyFocusedElement = null;
+      let bodyPreviousOverflow = "";
+
       const EVENTS_PER_PAGE = 3;
+
+      const refreshModalFocusables = () => {
+        if (!broadcastModal) {
+          focusableModalElements = [];
+          return;
+        }
+        focusableModalElements = Array.from(broadcastModal.querySelectorAll(focusableSelectors)).filter((el) => !el.hasAttribute("disabled"));
+      };
+
+      const focusFirstElement = () => {
+        if (!focusableModalElements.length) {
+          return;
+        }
+        const preferred = broadcastModal?.querySelector("#broadcast-modal-message");
+        if (preferred && typeof preferred.focus === "function") {
+          preferred.focus();
+          return;
+        }
+        focusableModalElements[0].focus();
+      };
+
+      const closeBroadcastModal = () => {
+        if (!broadcastModal || broadcastModal.hasAttribute("hidden")) {
+          return;
+        }
+        broadcastModal.setAttribute("hidden", "hidden");
+        document.removeEventListener("keydown", handleModalKeydown, true);
+        focusableModalElements = [];
+        document.body.style.overflow = bodyPreviousOverflow;
+        if (previouslyFocusedElement && typeof previouslyFocusedElement.focus === "function") {
+          previouslyFocusedElement.focus();
+        }
+      };
+
+      const handleModalKeydown = (event) => {
+        if (!broadcastModal || broadcastModal.hasAttribute("hidden")) {
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          closeBroadcastModal();
+          return;
+        }
+        if (event.key !== "Tab" || !focusableModalElements.length) {
+          return;
+        }
+        const first = focusableModalElements[0];
+        const last = focusableModalElements[focusableModalElements.length - 1];
+        if (event.shiftKey) {
+          if (document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          }
+        } else if (document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+
+      const openBroadcastModal = () => {
+        if (!broadcastModal) {
+          return;
+        }
+        previouslyFocusedElement = document.activeElement;
+        bodyPreviousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+        broadcastModal.removeAttribute("hidden");
+        refreshModalFocusables();
+        window.requestAnimationFrame(focusFirstElement);
+        document.addEventListener("keydown", handleModalKeydown, true);
+      };
+
+      broadcastOpenButton?.addEventListener("click", () => {
+        openBroadcastModal();
+      });
+
+      broadcastDismissButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          closeBroadcastModal();
+        });
+      });
+
+      broadcastModal?.addEventListener("click", (event) => {
+        if (event.target === broadcastModal) {
+          closeBroadcastModal();
+        }
+      });
 
       if (!eventCards.length) {
         return;

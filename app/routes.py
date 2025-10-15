@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, Response, stream_with_context, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, Response, stream_with_context, jsonify, current_app
 from .models import (
     Utilisateur,
     Evenement,
@@ -41,8 +41,43 @@ import redis
 from sqlalchemy import text, func, or_
 import typing
 import unicodedata
+import threading
 
 main_bp = Blueprint("main_bp", __name__)
+
+
+BROADCAST_AUTO_CLEAR_SECONDS = 15
+
+
+def schedule_broadcast_expiration(notification_id: int, delay: int = BROADCAST_AUTO_CLEAR_SECONDS) -> None:
+    app = current_app._get_current_object()
+
+    def _clear() -> None:
+        with app.app_context():
+            try:
+                updated = (
+                    BroadcastNotification.query.filter_by(id=notification_id, is_active=True)
+                    .update({"is_active": False})
+                )
+                if updated:
+                    db.session.commit()
+                    app.logger.info(
+                        "Broadcast notification %s automatically cleared after %s seconds",
+                        notification_id,
+                        delay,
+                    )
+                else:
+                    db.session.rollback()
+            except Exception:
+                db.session.rollback()
+                app.logger.exception(
+                    "Unable to auto-clear broadcast notification %s",
+                    notification_id,
+                )
+
+    timer = threading.Timer(delay, _clear)
+    timer.daemon = True
+    timer.start()
 
 
 COMPETENCES_CAI: list[str] = [
@@ -509,7 +544,15 @@ def create_broadcast():
         flash("Impossible d'enregistrer la notification. Merci de réessayer.", "danger")
     else:
         log_action("broadcast_created")
-        flash("Notification envoyée à tous les utilisateurs connectés.", "success")
+        timeout_seconds = current_app.config.get(
+            "BROADCAST_AUTO_CLEAR_SECONDS",
+            BROADCAST_AUTO_CLEAR_SECONDS,
+        )
+        schedule_broadcast_expiration(notification.id, delay=timeout_seconds)
+        flash(
+            f"Notification envoyée à tous les utilisateurs connectés. Elle sera retirée automatiquement dans {timeout_seconds} secondes.",
+            "success",
+        )
 
     return redirect(url_for("main_bp.evenement_new"))
 
