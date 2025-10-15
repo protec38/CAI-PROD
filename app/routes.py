@@ -78,6 +78,84 @@ def get_current_user():
     return Utilisateur.query.get(session["user_id"])
 
 
+AUDIT_LOG_RETENTION = timedelta(days=40)
+PROVISIONAL_ACCOUNT_LIFETIME = timedelta(days=5)
+_HOUSEKEEPING_STATE: dict[str, datetime | None] = {"last_run": None}
+
+
+def _purge_old_audit_logs() -> int:
+    cutoff = datetime.utcnow() - AUDIT_LOG_RETENTION
+    deleted = AuditLog.query.filter(AuditLog.created_at < cutoff).delete(synchronize_session=False)
+    if deleted:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            deleted = 0
+    return deleted
+
+
+def _ensure_provisional_deadlines() -> int:
+    # Ensure every provisional account has an expiration
+    updated = 0
+    query = Utilisateur.query.filter(
+        func.lower(Utilisateur.type_utilisateur) == "provisoire",
+        Utilisateur.provisional_expires_at.is_(None),
+    )
+    now = datetime.utcnow()
+    for account in query:
+        base = account.created_at or now
+        account.provisional_expires_at = base + PROVISIONAL_ACCOUNT_LIFETIME
+        updated += 1
+    if updated:
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            updated = 0
+    return updated
+
+
+def _purge_expired_provisional_accounts() -> int:
+    now = datetime.utcnow()
+    expired = Utilisateur.query.filter(
+        func.lower(Utilisateur.type_utilisateur) == "provisoire",
+        Utilisateur.provisional_expires_at.isnot(None),
+        Utilisateur.provisional_expires_at <= now,
+    ).all()
+
+    if not expired:
+        return 0
+
+    removed = 0
+    for account in expired:
+        removed += 1
+        db.session.delete(account)
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return 0
+
+    return removed
+
+
+@main_bp.before_app_request
+def _run_housekeeping():
+    now = datetime.utcnow()
+    last_run = _HOUSEKEEPING_STATE.get("last_run")
+    if last_run and (now - last_run) < timedelta(hours=1):
+        return
+
+    try:
+        _ensure_provisional_deadlines()
+        _purge_expired_provisional_accounts()
+        _purge_old_audit_logs()
+    finally:
+        _HOUSEKEEPING_STATE["last_run"] = now
+
+
 # 🔐 Page de connexion
 LOGIN_LOCK_THRESHOLD = 3
 LOGIN_LOCK_DURATION = timedelta(minutes=5)
@@ -292,13 +370,21 @@ def evenement_new():
 
     # 🔁 Méthode GET
     if user.is_admin or user.role == "codep":
-        evenements = Evenement.query.order_by(Evenement.date_ouverture.desc()).all()
-    else:
-        evenements = sorted(
-            user.evenements,
-            key=lambda evt: evt.date_ouverture or datetime.min,
-            reverse=True,
+        evenements = (
+            Evenement.query.filter_by(archived=False)
+            .order_by(Evenement.date_ouverture.desc())
+            .all()
         )
+    else:
+        evenements = [
+            evt
+            for evt in sorted(
+                user.evenements,
+                key=lambda evt: evt.date_ouverture or datetime.min,
+                reverse=True,
+            )
+            if not getattr(evt, "archived", False)
+        ]
 
     statuts_disponibles = sorted({evt.statut for evt in evenements if evt.statut})
 
@@ -573,6 +659,7 @@ def admin_utilisateurs():
         utilisateurs=pagination.items,
         pagination=pagination,
         user=user,
+        provisional_lifetime_days=PROVISIONAL_ACCOUNT_LIFETIME.days,
     )
 
 
@@ -651,14 +738,19 @@ def utilisateur_create():
             flash("Nom d'utilisateur déjà utilisé.", "danger")
             return redirect(url_for("main_bp.utilisateur_create"))
 
+        created_now = datetime.utcnow()
         new_user = Utilisateur(
             nom=nom,
             nom_utilisateur=nom_utilisateur,
             role=role,
             type_utilisateur=type_utilisateur,
             is_admin=wants_admin if user.is_admin else False,
+            created_at=created_now,
         )
         new_user.set_password(password)
+
+        if new_user.is_provisional:
+            new_user.provisional_expires_at = created_now + PROVISIONAL_ACCOUNT_LIFETIME
 
         for evt_id in evenement_ids:
             evt = Evenement.query.get(int(evt_id))
@@ -714,10 +806,18 @@ def utilisateur_edit(id):
         else:
             utilisateur.is_admin = wants_admin
 
+        previous_type = utilisateur.type_utilisateur
+
         utilisateur.nom = request.form["nom"].strip()
         utilisateur.nom_utilisateur = request.form["nom_utilisateur"].strip()
         utilisateur.role = role or utilisateur.role
         utilisateur.type_utilisateur = type_utilisateur or utilisateur.type_utilisateur
+
+        if utilisateur.is_provisional:
+            if utilisateur.provisional_expires_at is None or (previous_type or "").lower() != "provisoire":
+                utilisateur.provisional_expires_at = datetime.utcnow() + PROVISIONAL_ACCOUNT_LIFETIME
+        else:
+            utilisateur.provisional_expires_at = None
 
         if password:
             if user.is_admin:
@@ -1337,8 +1437,22 @@ def admin_evenements():
         flash("⛔ Accès interdit.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    evenements = Evenement.query.order_by(Evenement.id.desc()).all()
-    return render_template("admin_evenements.html", evenements=evenements, user=user)
+    evenements = (
+        Evenement.query.filter_by(archived=False)
+        .order_by(Evenement.id.desc())
+        .all()
+    )
+    archived_evenements = (
+        Evenement.query.filter_by(archived=True)
+        .order_by(Evenement.id.desc())
+        .all()
+    )
+    return render_template(
+        "admin_evenements.html",
+        evenements=evenements,
+        archived_evenements=archived_evenements,
+        user=user,
+    )
 
 
 ####################################
@@ -1399,6 +1513,58 @@ def delete_evenement(evenement_id):
 
     flash("✅ L’évènement et ses fiches ont été supprimés.", "success")
     return redirect(url_for("main_bp.evenement_new"))
+
+
+@main_bp.route("/evenements/<int:evenement_id>/archiver", methods=["POST"])
+@login_required
+def archive_evenement(evenement_id: int):
+    user = get_current_user()
+    evt = Evenement.query.get_or_404(evenement_id)
+
+    if not (user.is_admin or user.role == "codep"):
+        abort(403)
+
+    if not evt.archived:
+        evt.archived = True
+        evt.archived_at = datetime.utcnow()
+        db.session.commit()
+        log_action(
+            "evenement_archived",
+            "evenement",
+            evt.id,
+            extra=json.dumps({"by": user.id}, ensure_ascii=False),
+        )
+        flash("📦 L’évènement a été archivé.", "info")
+    else:
+        flash("L’évènement est déjà archivé.", "warning")
+
+    return redirect(url_for("main_bp.admin_evenements"))
+
+
+@main_bp.route("/evenements/<int:evenement_id>/restaurer", methods=["POST"])
+@login_required
+def restore_evenement(evenement_id: int):
+    user = get_current_user()
+    evt = Evenement.query.get_or_404(evenement_id)
+
+    if not (user.is_admin or user.role == "codep"):
+        abort(403)
+
+    if evt.archived:
+        evt.archived = False
+        evt.archived_at = None
+        db.session.commit()
+        log_action(
+            "evenement_restored",
+            "evenement",
+            evt.id,
+            extra=json.dumps({"by": user.id}, ensure_ascii=False),
+        )
+        flash("✅ L’évènement a été restauré.", "success")
+    else:
+        flash("L’évènement est déjà actif.", "info")
+
+    return redirect(url_for("main_bp.admin_evenements"))
 
 
 
@@ -1842,12 +2008,16 @@ def create_share_link(evenement_id):
     import secrets, hashlib
     token = secrets.token_urlsafe(24)  # clair
     token_hash = hashlib.sha256(token.encode()).hexdigest()
+    label = (request.form.get("label") or "").strip()
+    if label:
+        label = label[:120]
 
     link = ShareLink(
         token=token,                # ✅ sauvegarde du clair
         token_hash=token_hash,      # ✅ sauvegarde du hash
         evenement_id=evt.id,
-        created_by=user.id
+        created_by=user.id,
+        label=label or None,
     )
     db.session.add(link)
     db.session.commit()
@@ -2498,6 +2668,12 @@ def admin_logs_delete():
     if not getattr(user, "is_admin", False):
         flash("⛔ Accès réservé à l'administrateur.", "danger")
         return redirect(url_for("main_bp.dashboard"))
+
+    if request.form.get("delete_all"):
+        deleted = AuditLog.query.delete()
+        db.session.commit()
+        flash("🧹 L’intégralité du journal d’audit a été supprimée.", "info")
+        return redirect(request.form.get("next") or url_for("main_bp.admin_logs"))
 
     ids = []
     for raw in request.form.getlist("log_ids"):

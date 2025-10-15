@@ -34,6 +34,9 @@ class Utilisateur(db.Model, UserMixin):
     type_utilisateur = db.Column(db.String(20), nullable=False)
     niveau = db.Column(db.String(20), nullable=True)
 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    provisional_expires_at = db.Column(db.DateTime, nullable=True, index=True)
+
     fiches = db.relationship('FicheImplique', backref='createur', lazy=True)
 
     is_admin = db.Column(db.Boolean, default=False)
@@ -54,6 +57,16 @@ class Utilisateur(db.Model, UserMixin):
     def __repr__(self):
         return f'<Utilisateur {self.nom_utilisateur}>'
 
+    @property
+    def is_provisional(self) -> bool:
+        return (self.type_utilisateur or "").lower() == "provisoire"
+
+    @property
+    def provisional_time_left(self):
+        if not self.is_provisional or not self.provisional_expires_at:
+            return None
+        return self.provisional_expires_at - datetime.utcnow()
+
 
 # ======================
 # Évènement
@@ -66,6 +79,9 @@ class Evenement(db.Model):
     statut = db.Column(db.String(50), nullable=True)
     type_evt = db.Column(db.String(50), nullable=True)
     date_ouverture = db.Column(db.DateTime, default=datetime.utcnow)
+
+    archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
 
     createur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True)
     createur = db.relationship('Utilisateur', backref='evenements_crees', foreign_keys=[createur_id])
@@ -93,12 +109,24 @@ class Evenement(db.Model):
         passive_deletes=True
     )
 
+    news = db.relationship(
+        'EventNews',
+        back_populates='evenement',
+        lazy=True,
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
     @property
     def date_ouverture_locale(self):
         return convertir_heure_locale(self.date_ouverture)
 
     def __repr__(self):
         return f'<Evenement {self.nom}>'
+
+    @property
+    def is_archived(self) -> bool:
+        return bool(self.archived)
 
 
 # ======================
@@ -204,6 +232,7 @@ class ShareLink(db.Model):
     # on garde le token en clair pour l'afficher (OPERATIONNEL et pratique)
     token       = db.Column(db.String(64), unique=True, index=True, nullable=False)
     token_hash  = db.Column(db.String(128), unique=True, index=True, nullable=False)
+    label       = db.Column(db.String(120), nullable=True)
 
     created_at  = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     revoked     = db.Column(db.Boolean, default=False, nullable=False)
@@ -325,7 +354,12 @@ class TimelineEntry(db.Model):
 class EventNews(db.Model):
     __tablename__ = "event_news"
     id = db.Column(db.Integer, primary_key=True)
-    evenement_id = db.Column(db.Integer, db.ForeignKey("evenement.id"), nullable=False, index=True)
+    evenement_id = db.Column(
+        db.Integer,
+        db.ForeignKey("evenement.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     created_by   = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
     created_at   = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -339,4 +373,4 @@ class EventNews(db.Model):
     # affichage
     is_active    = db.Column(db.Boolean, nullable=False, default=True)
 
-    evenement    = db.relationship("Evenement", backref=db.backref("news", lazy="dynamic"))
+    evenement    = db.relationship("Evenement", back_populates="news")

@@ -107,6 +107,9 @@
     .btn-danger{background:var(--err);color:#fff;border-color:#e44e59}
     .btn:hover{filter:brightness(.98)}
     .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+    .field-inline{display:flex;flex-direction:column;gap:6px;min-width:220px;flex:1 1 220px;}
+    .field-inline label{font-size:0.85rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;}
+    .field-inline input{padding:10px 12px;border-radius:10px;border:1px solid var(--line);font:inherit;}
     .sp{height:8px}
     .muted{color:var(--muted);font-size:13px}
     code.share{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fafcff;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
@@ -126,6 +129,7 @@
   </style>
 </head>
 <body>
+  {% include "_flashes.html" %}
   <!-- Topbar -->
   <header class="topbar">
     <div class="tb-inner">
@@ -201,6 +205,10 @@
       <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field-inline">
+          <label for="share-label">Nom du lien</label>
+          <input type="text" id="share-label" name="label" maxlength="120" placeholder="Ex : Préfecture, Mairie, Protection civile">
+        </div>
         <button class="btn btn-primary" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
         <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
       </form>
@@ -214,6 +222,10 @@
                 <strong>Créé :</strong>
                 {{ l.created_at_locale.strftime('%d/%m/%Y %H:%M') if l.created_at else '—' }}
                 {% if l.revoked %}<span class="muted"> — (révoqué)</span>{% endif %}
+              </div>
+              <div>
+                <strong>Destinataire :</strong>
+                {{ l.label or '—' }}
               </div>
               {% if l.token %}
                 <div style="height:6px"></div>

@@ -20,7 +20,7 @@
     --shadow:0 10px 24px rgba(16,24,40,.06);
   }
   *{box-sizing:border-box}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial;min-height:100%}
 
   header{
     background:linear-gradient(135deg,var(--pc-blue),var(--pc-blue-dark));
@@ -28,7 +28,7 @@
     padding:22px 16px 26px;
     border-bottom:4px solid var(--pc-orange);
   }
-  .header-wrap{max-width:1100px;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+  .header-wrap{width:100%;max-width:none;margin:0 auto;display:flex;gap:18px;align-items:center;flex-wrap:wrap;justify-content:space-between;padding:0 clamp(16px,4vw,48px)}
   .brand{display:flex;align-items:center;gap:14px}
   .brand .logo{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;font-weight:900;background:linear-gradient(135deg,var(--pc-orange),var(--pc-amber));color:#132c4a;box-shadow:inset 0 4px 16px rgba(0,0,0,.18)}
   .brand h1{margin:0;font-size:clamp(22px,3vw,30px);letter-spacing:.3px}
@@ -37,12 +37,14 @@
   .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.45);background:rgba(255,255,255,.15);color:#fff;font-weight:700;text-decoration:none}
   .btn:hover{background:rgba(255,255,255,.25)}
 
-  main{max-width:1100px;margin:24px auto 36px;padding:0 16px;display:grid;gap:22px}
+  main{width:100%;max-width:none;margin:24px 0 36px;padding:0 clamp(16px,4vw,48px);display:grid;gap:22px}
   .card{background:var(--card);border-radius:var(--radius);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
-  .card .hd{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fff,#f8fbff);color:var(--pc-blue-dark);font-weight:900;letter-spacing:.02em}
-  .summary{color:var(--muted);font-size:.95rem}
+  .card .hd{padding:18px clamp(20px,4vw,40px);border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;background:linear-gradient(180deg,#fff,#f8fbff);color:var(--pc-blue-dark);font-weight:900;letter-spacing:.02em}
+  .summary{color:var(--muted);font-size:.95rem;display:flex;flex-direction:column;gap:4px}
+  .summary span{display:block}
+  .summary .auto-clean{font-size:.85rem;color:#475467;font-weight:600}
 
-  form.filters{padding:18px 20px;border-bottom:1px solid var(--line);display:grid;gap:14px;background:#fbfdff}
+  form.filters{padding:18px clamp(20px,4vw,40px);border-bottom:1px solid var(--line);display:grid;gap:14px;background:#fbfdff}
   .filters-row{display:flex;flex-wrap:wrap;gap:12px}
   .field{display:flex;flex-direction:column;min-width:160px;flex:1}
   .field label{font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:800;margin-bottom:6px}
@@ -51,7 +53,7 @@
   .filters-actions{display:flex;gap:10px;flex-wrap:wrap}
   .btn-secondary{background:#eef3ff;border-color:#d7e2ff;color:var(--pc-blue)}
   .btn-outline{background:#fff;border-color:var(--line);color:var(--pc-blue)}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 20px 16px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 clamp(20px,4vw,40px) 16px}
   .chip{background:#eef3ff;border:1px solid #d7e2ff;color:var(--pc-blue);padding:6px 10px;border-radius:999px;font-size:.85rem;font-weight:700;display:inline-flex;align-items:center;gap:8px}
 
   .table-wrap{overflow-x:auto}
@@ -66,8 +68,9 @@
   .u-id{color:var(--muted);font-size:.9rem;margin-left:.25rem}
   .extra{color:var(--muted);font-size:.85rem}
 
-  .table-actions{padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);background:#fafcff}
+  .table-actions{padding:16px clamp(20px,4vw,40px);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-top:1px solid var(--line);background:#fafcff}
   .table-actions .info{color:var(--muted);font-size:.9rem}
+  .table-actions .actions{display:flex;gap:10px;flex-wrap:wrap}
   .btn-danger{background:#fee4e2;border-color:#fca5a5;color:#b42318}
   .btn-danger[disabled]{opacity:.5;cursor:not-allowed}
 
@@ -86,6 +89,7 @@
 </style>
 </head>
 <body>
+  {% include "_flashes.html" %}
   <header>
     <div class="header-wrap">
       <div class="brand">
@@ -105,7 +109,10 @@
     <section class="card">
       <div class="hd">
         <span>Historique détaillé</span>
-        <span class="summary">{{ logs.page }} / {{ logs.pages }} · {{ per_page }} éléments par page</span>
+        <span class="summary">
+          <span>{{ logs.page }} / {{ logs.pages }} · {{ per_page }} éléments par page</span>
+          <span class="auto-clean">Purge automatique des entrées de plus de 40 jours.</span>
+        </span>
       </div>
       <form class="filters" method="get" action="{{ url_for('main_bp.admin_logs') }}">
         <div class="filters-row">
@@ -207,7 +214,10 @@
         </div>
         <div class="table-actions">
           <div class="info"><span id="selected-count">0</span> sélectionnée(s)</div>
-          <button type="submit" class="btn btn-danger" id="delete-btn" disabled><i class="fa-solid fa-trash-can"></i> Supprimer la sélection</button>
+          <div class="actions">
+            <button type="submit" class="btn btn-danger" id="delete-btn" disabled><i class="fa-solid fa-trash-can"></i> Supprimer la sélection</button>
+            <button type="submit" class="btn btn-danger" name="delete_all" value="1" onclick="return confirm('Supprimer toutes les entrées du journal ?');"><i class="fa-solid fa-broom"></i> Tout supprimer</button>
+          </div>
         </div>
       </form>
       <div class="pagination">
