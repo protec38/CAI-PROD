@@ -624,8 +624,17 @@ def dashboard(evenement_id):
         return redirect(url_for("main_bp.evenement_new"))
 
     fiches = FicheImplique.query.filter_by(evenement_id=evenement.id).all()
-    nb_present = FicheImplique.query.filter_by(evenement_id=evenement.id, statut="présent").count()
-    nb_total = len(fiches)
+
+    humains = [f for f in fiches if not getattr(f, "est_animal", False)]
+    animaux = [f for f in fiches if getattr(f, "est_animal", False)]
+
+    def _is_present(fiche: FicheImplique) -> bool:
+        return (fiche.statut or "").strip().lower() == "présent"
+
+    nb_present = sum(1 for f in humains if _is_present(f))
+    nb_total = len(humains)
+    nb_present_animaux = sum(1 for f in animaux if _is_present(f))
+    nb_total_animaux = len(animaux)
 
     peut_modifier_statut = (
         user.is_admin or
@@ -641,6 +650,8 @@ def dashboard(evenement_id):
         fiches=fiches,
         nb_present=nb_present,
         nb_total=nb_total,
+        nb_present_animaux=nb_present_animaux,
+        nb_total_animaux=nb_total_animaux,
         peut_modifier_statut=peut_modifier_statut,
         competence_colors=COMPETENCE_COLORS
     )
@@ -684,6 +695,9 @@ def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
 
     def _is_sorti(fiche: FicheImplique) -> bool:
         return (fiche.statut or "").strip().lower() == "sorti"
+
+    total_personnes = sum(1 for f in fiches if not getattr(f, "est_animal", False))
+    total_animaux = sum(1 for f in fiches if getattr(f, "est_animal", False))
 
     personnes_presentes = sum(1 for f in fiches if not getattr(f, "est_animal", False) and _is_present(f))
     animaux_presents = sum(1 for f in fiches if getattr(f, "est_animal", False) and _is_present(f))
@@ -773,7 +787,9 @@ def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
 
     stats = {
         "personnes_presentes": personnes_presentes,
+        "personnes_total": total_personnes,
         "animaux_presents": animaux_presents,
+        "animaux_total": total_animaux,
         "personnes_sorties": personnes_sorties,
         "animaux_sortis": animaux_sortis,
         "avg_presence": _format_duration(avg_presence),
@@ -1859,13 +1875,23 @@ def fiches_json(evenement_id):
     }
 
     # Compteurs live
-    nb_present = sum(1 for f in fiches if (f.statut or "").lower() == "présent")
-    nb_total   = len(fiches)
+    humains = [f for f in fiches if not getattr(f, "est_animal", False)]
+    animaux = [f for f in fiches if getattr(f, "est_animal", False)]
+
+    def _is_present(fiche: FicheImplique) -> bool:
+        return (fiche.statut or "").strip().lower() == "présent"
+
+    nb_present = sum(1 for f in humains if _is_present(f))
+    nb_total = len(humains)
+    nb_present_animaux = sum(1 for f in animaux if _is_present(f))
+    nb_total_animaux = len(animaux)
 
     return json_nocache({
         "fiches": fiches_data,
         "nb_present": nb_present,
         "nb_total": nb_total,
+        "nb_present_animaux": nb_present_animaux,
+        "nb_total_animaux": nb_total_animaux,
         "evenement": evt_payload,
     })
 
@@ -2873,18 +2899,23 @@ def autorite_json(evenement_id):
             abort(401)
         ev = Evenement.query.get_or_404(evenement_id)
 
-    nb_total   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id).count()
-    nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
-    nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
-    nb_animaux_present = (
-        db.session.query(func.count(FicheImplique.id))
-        .filter(
-            FicheImplique.evenement_id == evenement_id,
-            FicheImplique.est_animal.is_(True),
-            FicheImplique.statut == "présent",
-        )
-        .scalar()
+    fiches = (
+        db.session.query(FicheImplique)
+        .filter_by(evenement_id=evenement_id)
+        .all()
     )
+
+    def _is_status(fiche: FicheImplique, statut: str) -> bool:
+        return (fiche.statut or "").strip().lower() == statut
+
+    humains = [f for f in fiches if not getattr(f, "est_animal", False)]
+    animaux = [f for f in fiches if getattr(f, "est_animal", False)]
+
+    nb_total = len(humains)
+    nb_present = sum(1 for f in humains if _is_status(f, "présent"))
+    nb_sorti = sum(1 for f in humains if _is_status(f, "sorti"))
+    nb_animaux_total = len(animaux)
+    nb_animaux_present = sum(1 for f in animaux if _is_status(f, "présent"))
 
     # 🔥 ACTUS actives avec heure locale Paris
     news_q = (EventNews.query
@@ -2949,6 +2980,7 @@ def autorite_json(evenement_id):
             "nb_present": nb_present,
             "nb_sorti": nb_sorti,
             "nb_animaux_present": nb_animaux_present,
+            "nb_animaux_total": nb_animaux_total,
             "temps_fonctionnement": temps_fonctionnement,
         },
         "news": news_items
