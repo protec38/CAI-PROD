@@ -1,6 +1,7 @@
 import os
 import click
 from flask import Flask
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash
 
 from app import create_app
@@ -46,6 +47,7 @@ def cli():
 def init_db():
     with app.app_context():
         db.create_all()
+        _ensure_provisional_expiry_column()
         Model = _find_user_model()
         # Existence de admin ?
         fil = _get_username_filter(Model, "admin")
@@ -71,6 +73,38 @@ def init_db():
             print("[init-db] admin/admin créé avec succès")
         else:
             print("[init-db] admin existe déjà")
+
+
+def _ensure_provisional_expiry_column():
+    """Ensure legacy databases receive the provisional expiry column and index."""
+    engine = db.engine
+    inspector = inspect(engine)
+    if not inspector.has_table("utilisateur"):
+        return
+
+    if not inspector.has_column("utilisateur", "provisional_expires_at"):
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE utilisateur "
+                    "ADD COLUMN provisional_expires_at TIMESTAMP NULL"
+                )
+            )
+    # Refresh inspector to avoid cached metadata after ALTER TABLE
+    inspector = inspect(engine)
+    existing_indexes = {
+        index["name"] for index in inspector.get_indexes("utilisateur")
+    }
+    index_name = "ix_utilisateur_provisional_expires_at"
+    if index_name not in existing_indexes:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "CREATE INDEX "
+                    f"{index_name} ON utilisateur (provisional_expires_at)"
+                )
+            )
+
 
 if __name__ == "__main__":
     cli()
