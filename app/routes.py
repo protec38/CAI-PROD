@@ -461,8 +461,6 @@ def _format_duration(delta: timedelta | None) -> str:
     return " ".join(parts)
 
 
-@main_bp.route("/evenement/<int:evenement_id>/panorama")
-@login_required
 def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
     fiches = FicheImplique.query.filter_by(evenement_id=evenement.id).all()
 
