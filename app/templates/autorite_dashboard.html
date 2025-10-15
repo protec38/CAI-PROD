@@ -169,19 +169,21 @@
       <div class="tiles" aria-live="polite">
         <div class="tile">
           <div class="ico"><i class="fa-solid fa-user-check"></i></div>
-          <div><div class="k">Présents</div><div class="v" id="stat-present">—</div></div>
+          <div>
+            <div class="k">Présents (humains)</div>
+            <div class="v"><span id="stat-present">—</span> / <span id="stat-total">—</span></div>
+          </div>
         </div>
         <div class="tile">
           <div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
           <div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div>
         </div>
         <div class="tile">
-          <div class="ico"><i class="fa-solid fa-people-group"></i></div>
-          <div><div class="k">Total</div><div class="v" id="stat-total">—</div></div>
-        </div>
-        <div class="tile">
           <div class="ico"><i class="fa-solid fa-paw"></i></div>
-          <div><div class="k">Animaux présents</div><div class="v" id="stat-animaux">—</div></div>
+          <div>
+            <div class="k">Présents (animaux)</div>
+            <div class="v"><span id="stat-animaux-present">—</span> / <span id="stat-animaux-total">—</span></div>
+          </div>
         </div>
         <div class="tile">
           <div class="ico"><i class="fa-solid fa-hourglass-half"></i></div>
@@ -440,9 +442,10 @@
           }
           if(d.stats){
             setTxt('stat-present', d.stats.nb_present);
-            setTxt('stat-sorti', d.stats.nb_sorti);
             setTxt('stat-total', d.stats.nb_total);
-            setTxt('stat-animaux', d.stats.nb_animaux_present);
+            setTxt('stat-sorti', d.stats.nb_sorti);
+            setTxt('stat-animaux-present', d.stats.nb_animaux_present);
+            setTxt('stat-animaux-total', d.stats.nb_animaux_total);
             setTxt('stat-uptime', d.stats.temps_fonctionnement);
           }
           if(Array.isArray(d.news)){ renderNews(d.news); }

@@ -529,7 +529,8 @@
         <span id="evt-adresse">{{ evenement.adresse }}</span>
       </span>
       <span class="event-chip"><i class="fa-solid fa-clock"></i> Créé le {{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span>
-      <span class="event-chip"><i class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> présents</span>
+      <span class="event-chip"><i class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
+      <span class="event-chip"><i class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
@@ -951,6 +952,10 @@
         const nbt = document.getElementById("nb_total");
         if(nbp) setTextIfChanged(nbp, String(data.nb_present || 0));
         if(nbt) setTextIfChanged(nbt, String(data.nb_total || 0));
+        const nbpAni = document.getElementById("nb_present_animaux");
+        const nbtAni = document.getElementById("nb_total_animaux");
+        if(nbpAni) setTextIfChanged(nbpAni, String(data.nb_present_animaux || 0));
+        if(nbtAni) setTextIfChanged(nbtAni, String(data.nb_total_animaux || 0));
 
         if (data.evenement && data.evenement.adresse) {
           const adrEl = document.getElementById("evt-adresse");

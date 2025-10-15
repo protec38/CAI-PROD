@@ -370,14 +370,14 @@
       <section class="stats-grid" aria-label="Indicateurs clés">
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-user-check"></i> Personnes présentes</div>
-          <div class="stat-card__value" id="stat-personnes-presentes">{{ stats.personnes_presentes }}</div>
+          <div class="stat-card__value" id="stat-personnes-presentes">{{ stats.personnes_presentes }}/{{ stats.personnes_total }}</div>
           <div class="stat-card__meta">
             <span class="stat-chip"><i class="fa-solid fa-users"></i> Total fiches : <span id="stat-total-fiches">{{ total_fiches }}</span></span>
           </div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-paw"></i> Animaux présents</div>
-          <div class="stat-card__value" id="stat-animaux-presentes">{{ stats.animaux_presents }}</div>
+          <div class="stat-card__value" id="stat-animaux-presentes">{{ stats.animaux_presents }}/{{ stats.animaux_total }}</div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Personnes sorties</div>
@@ -493,6 +493,19 @@
       }
     }
 
+    function setRatio(id, value, total, placeholder = '0 / 0') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const hasValue = value !== null && value !== undefined;
+      const hasTotal = total !== null && total !== undefined;
+      const next = (hasValue && hasTotal)
+        ? `${value} / ${total}`
+        : placeholder;
+      if (el.textContent.trim() !== next.trim()) {
+        el.textContent = next;
+      }
+    }
+
     function updateMeta(wrapperId, textId, value) {
       const wrapper = document.getElementById(wrapperId);
       const textEl = document.getElementById(textId);
@@ -555,8 +568,8 @@
     function applyPanoramaData(data) {
       if (!data) return;
       const stats = data.stats || {};
-      setText('stat-personnes-presentes', stats.personnes_presentes ?? '0', '0');
-      setText('stat-animaux-presentes', stats.animaux_presents ?? '0', '0');
+      setRatio('stat-personnes-presentes', stats.personnes_presentes, stats.personnes_total);
+      setRatio('stat-animaux-presentes', stats.animaux_presents, stats.animaux_total);
       setText('stat-personnes-sorties', stats.personnes_sorties ?? '0', '0');
       setText('stat-animaux-sortis', stats.animaux_sortis ?? '0', '0');
       setText('stat-avg-presence', stats.avg_presence);
