@@ -24,46 +24,71 @@ def _ensure_database_schema(app: Flask) -> None:
             app.logger.warning("Unable to inspect database schema: %s", exc)
             return
 
-        if "utilisateur" not in inspector.get_table_names():
-            return
+        table_names = set(inspector.get_table_names())
 
-        columns = {col["name"] for col in inspector.get_columns("utilisateur")}
-        if "created_at" in columns:
-            return
+        if "utilisateur" in table_names:
+            columns = {col["name"] for col in inspector.get_columns("utilisateur")}
+            if "created_at" not in columns:
+                app.logger.info("Adding missing utilisateur.created_at column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE utilisateur
+                            ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE
+                            DEFAULT (NOW() AT TIME ZONE 'UTC')
+                            """
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            """
+                            UPDATE utilisateur
+                            SET created_at = NOW() AT TIME ZONE 'UTC'
+                            WHERE created_at IS NULL
+                            """
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "ALTER TABLE utilisateur ALTER COLUMN created_at SET NOT NULL"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            """
+                            CREATE INDEX IF NOT EXISTS ix_utilisateur_created_at
+                            ON utilisateur (created_at)
+                            """
+                        )
+                    )
 
-        app.logger.info("Adding missing utilisateur.created_at column")
-        with db.engine.begin() as conn:
-            conn.execute(
-                text(
-                    """
-                    ALTER TABLE utilisateur
-                    ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE
-                    DEFAULT (NOW() AT TIME ZONE 'UTC')
-                    """
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                    UPDATE utilisateur
-                    SET created_at = NOW() AT TIME ZONE 'UTC'
-                    WHERE created_at IS NULL
-                    """
-                )
-            )
-            conn.execute(
-                text(
-                    "ALTER TABLE utilisateur ALTER COLUMN created_at SET NOT NULL"
-                )
-            )
-            conn.execute(
-                text(
-                    """
-                    CREATE INDEX IF NOT EXISTS ix_utilisateur_created_at
-                    ON utilisateur (created_at)
-                    """
-                )
-            )
+        if "broadcast_notification" in table_names:
+            columns = {col["name"] for col in inspector.get_columns("broadcast_notification")}
+
+            if "emoji" not in columns:
+                app.logger.info("Adding missing broadcast_notification.emoji column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE broadcast_notification
+                            ADD COLUMN emoji VARCHAR(8) NOT NULL DEFAULT '⚠️'
+                            """
+                        )
+                    )
+
+            if "level" not in columns:
+                app.logger.info("Adding missing broadcast_notification.level column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE broadcast_notification
+                            ADD COLUMN level VARCHAR(20) NOT NULL DEFAULT 'warning'
+                            """
+                        )
+                    )
 
 
 def create_app(config_name: str | None = None) -> Flask:
