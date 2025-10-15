@@ -47,6 +47,7 @@ def cli():
 def init_db():
     with app.app_context():
         db.create_all()
+        _ensure_evenement_archive_columns()
         _ensure_provisional_expiry_column()
         Model = _find_user_model()
         # Existence de admin ?
@@ -109,6 +110,49 @@ def _ensure_provisional_expiry_column():
                     "CREATE INDEX "
                     f"{index_name} ON utilisateur (provisional_expires_at)"
                 )
+            )
+
+
+def _ensure_evenement_archive_columns():
+    """Ensure legacy databases have archived flags for events."""
+
+    engine = db.engine
+    inspector = inspect(engine)
+
+    if not inspector.has_table("evenement"):
+        return
+
+    def _has_column(table_name: str, column_name: str) -> bool:
+        return any(
+            column.get("name") == column_name
+            for column in inspector.get_columns(table_name)
+        )
+
+    if not _has_column("evenement", "archived"):
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE evenement "
+                    "ADD COLUMN archived BOOLEAN NOT NULL DEFAULT FALSE"
+                )
+            )
+
+    if not _has_column("evenement", "archived_at"):
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE evenement "
+                    "ADD COLUMN archived_at TIMESTAMP NULL"
+                )
+            )
+
+    inspector = inspect(engine)
+    existing_indexes = {index["name"] for index in inspector.get_indexes("evenement")}
+    index_name = "ix_evenement_archived"
+    if index_name not in existing_indexes:
+        with engine.begin() as connection:
+            connection.execute(
+                text(f"CREATE INDEX {index_name} ON evenement (archived)")
             )
 
 
