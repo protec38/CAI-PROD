@@ -28,9 +28,10 @@ body {
 h1 {
     text-align: center;
     color: #002f6c;
-    margin-bottom: 30px;
+    margin-bottom: 18px;
 }
-form { display: flex; flex-wrap: wrap; gap: 20px; }
+form { display: flex; flex-direction: column; gap: 24px; }
+.form-grid { display: flex; flex-wrap: wrap; gap: 20px; }
 .form-group { flex: 1 1 45%; display: flex; flex-direction: column; }
 .form-group-full { flex: 1 1 100%; }
 label { font-weight: bold; margin-bottom: 5px; color: #002f6c; }
@@ -67,6 +68,92 @@ button:hover { background-color: #e65c00; }
 .btn-retour:hover { background-color:#004a99; }
 @media (max-width: 768px) { .form-group { flex: 1 1 100%; } }
 #bloc-competence-autre { display:none; }
+
+.fiche-type-switch {
+    display: inline-flex;
+    align-self: center;
+    background: rgba(0,47,108,0.08);
+    border-radius: 999px;
+    padding: 6px;
+    gap: 6px;
+}
+.fiche-type-switch__btn {
+    border: none;
+    background: transparent;
+    color: #002f6c;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .2s ease, color .2s ease;
+}
+.fiche-type-switch__btn.is-active {
+    background: #002f6c;
+    color: #fff;
+}
+.fiche-section {
+    display: none;
+}
+.fiche-section.is-active {
+    display: block;
+}
+.fiche-section .form-grid {
+    margin-top: 10px;
+}
+.referent-picker {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.referent-picker__results {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 30;
+    box-shadow: 0 12px 24px rgba(15,23,42,0.15);
+}
+.referent-picker__results li {
+    padding: 10px 14px;
+    cursor: pointer;
+}
+.referent-picker__results li:hover,
+.referent-picker__results li:focus {
+    background: rgba(0,47,108,0.08);
+}
+.referent-picker__selection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: rgba(0,47,108,0.08);
+    border-radius: 10px;
+    padding: 10px 14px;
+}
+.referent-picker__label {
+    font-weight: 600;
+    color: #002f6c;
+}
+.referent-picker__clear {
+    border: none;
+    background: transparent;
+    color: #002f6c;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+.helper-text {
+    font-size: 0.9rem;
+    color: #4b5563;
+}
 </style>
 </head>
 <body>
@@ -79,105 +166,153 @@ button:hover { background-color: #e65c00; }
     </a>
 
     <h1><i class="fas fa-user-plus"></i> Nouvelle fiche impliqué</h1>
-    <form method="POST">
+    <p class="helper-text" style="text-align:center; margin-bottom: 0;">Sélectionnez le type de fiche à créer.</p>
+
+    <form method="POST" data-initial-type="{{ fiche_type or 'humain' }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="type_fiche" id="type_fiche" value="{{ fiche_type or 'humain' }}">
 
-      <div class="form-group">
-        <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
-        <input type="text" id="numero" name="numero" value="{{ numero_prevu }}" readonly>
-      </div>
-
-      <!-- Code Sinus -->
-      <div class="form-group">
-        <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
-        <input type="text" id="code_sinus" name="code_sinus" maxlength="30" placeholder="Ex : SINUS-ABC123...">
-      </div>
-
-      <div class="form-group">
-        <label for="nom">Nom <span style="color: red">*</span></label>
-        <input type="text" name="nom" maxlength="40" required>
-      </div>
-
-      <div class="form-group">
-        <label for="prenom">Prénom <span style="color: red">*</span></label>
-        <input type="text" name="prenom" maxlength="40" required>
-      </div>
-
-      <!-- 🔁 Date de naissance obligatoire avec aperçu de l'âge -->
-      <div class="form-group">
-        <label for="date_naissance_display">
-          <i class="fa-regular fa-calendar"></i> Date de naissance <span class="required">*</span>
-        </label>
-        <div class="birth-row">
-          <input
-            type="text"
-            id="date_naissance_display"
-            placeholder="ex : 31/12/1990 ou 1990-12-31"
-            inputmode="numeric"
-            autocomplete="bday"
-            required
-          >
-          <span class="age-badge" id="age-preview" aria-live="polite">—</span>
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
+          <input type="text" id="numero" name="numero" value="{{ numero_prevu }}" readonly>
         </div>
-        <small>Formats acceptés : <b>31/12/1990</b>, <b>31-12-1990</b>, <b>1990-12-31</b> ou <b>31121990</b>.</small>
-        <!-- Champ réellement envoyé au serveur (format ISO, attendu par le backend) -->
-        <input type="hidden" name="date_naissance" id="date_naissance">
+        <div class="form-group" style="align-items:center; justify-content:flex-end;">
+          <div class="fiche-type-switch" role="group" aria-label="Type de fiche">
+            <button type="button" class="fiche-type-switch__btn" data-fiche-type="humain">👤 Humain</button>
+            <button type="button" class="fiche-type-switch__btn" data-fiche-type="animal">🐾 Animal</button>
+          </div>
+        </div>
       </div>
 
-      <div class="form-group-full">
-        <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
-        <input type="text" name="adresse" maxlength="100">
+      <div class="fiche-section" data-section="humain">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
+            <input type="text" id="code_sinus" name="code_sinus" maxlength="30" placeholder="Ex : SINUS-ABC123...">
+          </div>
+
+          <div class="form-group">
+            <label for="nom">Nom <span class="required">*</span></label>
+            <input type="text" name="nom" maxlength="40" data-required-for="humain">
+          </div>
+
+          <div class="form-group">
+            <label for="prenom">Prénom <span class="required">*</span></label>
+            <input type="text" name="prenom" maxlength="40" data-required-for="humain">
+          </div>
+
+          <div class="form-group">
+            <label for="date_naissance_display">
+              <i class="fa-regular fa-calendar"></i> Date de naissance <span class="required">*</span>
+            </label>
+            <div class="birth-row">
+              <input
+                type="text"
+                id="date_naissance_display"
+                placeholder="ex : 31/12/1990 ou 1990-12-31"
+                inputmode="numeric"
+                autocomplete="bday"
+                data-required-for="humain"
+              >
+              <span class="age-badge" id="age-preview" aria-live="polite">—</span>
+            </div>
+            <small>Formats acceptés : <b>31/12/1990</b>, <b>31-12-1990</b>, <b>1990-12-31</b> ou <b>31121990</b>.</small>
+            <input type="hidden" name="date_naissance" id="date_naissance" data-required-for="humain">
+          </div>
+
+          <div class="form-group-full">
+            <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
+            <input type="text" name="adresse" maxlength="100">
+          </div>
+
+          <div class="form-group">
+            <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
+            <input type="text" name="telephone" maxlength="15">
+          </div>
+
+          <div class="form-group">
+            <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
+            <input type="text" name="personne_a_prevenir" maxlength="50">
+          </div>
+
+          <div class="form-group">
+            <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
+            <input type="text" name="tel_personne_a_prevenir" maxlength="15">
+          </div>
+
+          <div class="form-group">
+            <label for="recherche_personne"><i class="fas fa-search"></i> Recherche de personne</label>
+            <textarea name="recherche_personne" rows="2" maxlength="200"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
+            <textarea name="difficulte" rows="2" maxlength="200"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
+            <select name="competences" id="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
+              {% for c in competences_list %}
+                <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+              <option value="Autre">Autre</option>
+            </select>
+            <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+          </div>
+
+          <div id="bloc-competence-autre" class="form-group">
+            <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
+            <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
+            <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
+          </div>
+
+          <div class="form-group-full">
+            <label for="autres_informations">Autres informations</label>
+            <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici..."></textarea>
+          </div>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
-        <input type="text" name="telephone" maxlength="15">
+      <div class="fiche-section" data-section="animal">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="animal_nom">Nom de l’animal <span class="required">*</span></label>
+            <input type="text" id="animal_nom" name="animal_nom" maxlength="80" data-required-for="animal">
+          </div>
+          <div class="form-group">
+            <label for="animal_espece">Espèce</label>
+            <input type="text" id="animal_espece" name="animal_espece" maxlength="120">
+          </div>
+
+          <div class="form-group-full">
+            <label for="animal_particularites">Particularités / comportement</label>
+            <textarea id="animal_particularites" name="animal_particularites" rows="3" maxlength="200" placeholder="Saisir les éléments importants (caractère, contraintes médicales…)"></textarea>
+          </div>
+
+          <div class="form-group-full">
+            <label for="animal_notes">Notes complémentaires</label>
+            <textarea id="animal_notes" name="animal_notes" rows="3" maxlength="200" placeholder="Ajoutez toute information utile pour les équipes"></textarea>
+          </div>
+
+          <div class="form-group-full">
+            <label for="animal_referent_search">Rattacher à une personne</label>
+            <div class="referent-picker" data-lookup-url="{{ referent_lookup_url }}">
+              <input type="text" id="animal_referent_search" placeholder="Cherchez par prénom, nom ou numéro" autocomplete="off">
+              <input type="hidden" name="animal_referent_id" id="animal_referent_id">
+              <ul class="referent-picker__results" id="animal_referent_results" hidden role="listbox"></ul>
+              <div class="referent-picker__selection" id="animal_referent_selection" hidden>
+                <span class="referent-picker__label"></span>
+                <button type="button" class="referent-picker__clear" aria-label="Retirer la personne sélectionnée">&times;</button>
+              </div>
+              <small>Commencez à taper (au moins 2 lettres) pour rechercher un impliqué humain à associer.</small>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
-        <input type="text" name="personne_a_prevenir" maxlength="50">
-      </div>
-
-      <div class="form-group">
-        <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
-        <input type="text" name="tel_personne_a_prevenir" maxlength="15">
-      </div>
-
-      <div class="form-group">
-        <label for="recherche_personne"><i class="fas fa-search"></i> Recherche de personne</label>
-        <textarea name="recherche_personne" rows="2" maxlength="200"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
-        <textarea name="difficulte" rows="2" maxlength="200"></textarea>
-      </div>
-
-      <div class="form-group">
-        <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
-        <select name="competences" id="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
-          {% for c in competences_list %}
-            <option value="{{ c }}">{{ c }}</option>
-          {% endfor %}
-          <option value="Autre">Autre</option>
-        </select>
-        <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
-      </div>
-
-      <div id="bloc-competence-autre" class="form-group">
-        <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
-        <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
-        <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
-      </div>
-
-      <div class="form-group">
-        <label for="autres_informations">Autres informations</label>
-        <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici..."></textarea>
-      </div>
-
-      <!-- (on laisse tel quel) -->
-      <input type="hidden" name="heure_arrivee" id="heure_arrivee_js">
+      <input type="hidden" name="heure_arrivee_js" id="heure_arrivee_js">
 
       <div class="form-group-full">
         <button type="submit"><i class="fas fa-save"></i> Enregistrer la fiche</button>
@@ -272,6 +407,22 @@ function computeAgeFromIso(iso) {
     return age >= 0 ? age : null;
 }
 
+function toggleRequiredFields(activeType) {
+    const fields = document.querySelectorAll('[data-required-for]');
+    fields.forEach(field => {
+        const dataset = field.dataset.requiredFor || '';
+        const shouldRequire = dataset.split(',').map(v => v.trim()).includes(activeType);
+        if (shouldRequire) {
+            field.setAttribute('required', 'required');
+        } else {
+            field.removeAttribute('required');
+            if (typeof field.setCustomValidity === 'function') {
+                field.setCustomValidity('');
+            }
+        }
+    });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("form");
     const visibleBirthInput = document.getElementById("date_naissance_display");
@@ -279,6 +430,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const agePreview = document.getElementById("age-preview");
     const heureArriveeField = document.getElementById("heure_arrivee_js");
     const select = document.getElementById('competences');
+    const typeInput = document.getElementById('type_fiche');
+    const toggleButtons = document.querySelectorAll('.fiche-type-switch__btn');
+    const sections = document.querySelectorAll('.fiche-section');
+    const initialType = (form?.dataset?.initialType || 'humain').toLowerCase();
 
     const ensureBirthDate = (showAlert = false) => {
         const raw = (visibleBirthInput?.value || "").trim();
@@ -309,11 +464,35 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     };
 
+    const setActiveType = (nextType) => {
+        const type = (nextType || 'humain').toLowerCase();
+        typeInput.value = type;
+        toggleButtons.forEach(btn => {
+            const isActive = (btn.dataset.ficheType || '').toLowerCase() === type;
+            btn.classList.toggle('is-active', isActive);
+            btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+        sections.forEach(section => {
+            const isActive = (section.dataset.section || '') === type;
+            section.classList.toggle('is-active', isActive);
+        });
+        toggleRequiredFields(type);
+    };
+
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            setActiveType(btn.dataset.ficheType || 'humain');
+        });
+    });
+
+    setActiveType(initialType);
+
     visibleBirthInput?.addEventListener("input", () => ensureBirthDate(false));
     visibleBirthInput?.addEventListener("change", () => ensureBirthDate(false));
 
     form?.addEventListener("submit", (e) => {
-        if (!ensureBirthDate(true)) {
+        const activeType = (typeInput.value || 'humain').toLowerCase();
+        if (activeType === 'humain' && !ensureBirthDate(true)) {
             e.preventDefault();
             return;
         }
@@ -327,45 +506,55 @@ document.addEventListener("DOMContentLoaded", () => {
             heureArriveeField.value = formatted;
         }
 
-        const autreOption = select ? Array.from(select.options).find(o => o.value === 'Autre') : null;
-        const autreInput = document.getElementById('competence_autre');
-        const autreTxt = (autreInput?.value || '').trim();
+        if (activeType === 'humain') {
+            if (select) {
+                const totalSelected = Array.from(select.selectedOptions).length;
+                if (totalSelected > 4) {
+                    e.preventDefault();
+                    alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
+                    return;
+                }
+            }
 
-        if (select) {
-            const totalSelected = Array.from(select.selectedOptions).length;
-            if (totalSelected > 4) {
-                e.preventDefault();
-                alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.");
-                return;
-            }
-        }
+            const autreOption = select ? Array.from(select.options).find(o => o.value === 'Autre') : null;
+            const autreInput = document.getElementById('competence_autre');
+            const autreTxt = (autreInput?.value || '').trim();
 
-        if (select && autreOption && autreOption.selected) {
-            if (!autreTxt) {
-                e.preventDefault();
-                alert("Merci de préciser l’autre compétence (20 caractères max).");
-                autreInput?.focus();
-                return;
-            }
-            if (autreTxt.length > 20) {
-                e.preventDefault();
-                alert("La compétence 'Autre' ne doit pas dépasser 20 caractères.");
-                autreInput.focus();
-                return;
-            }
-            let existing = Array.from(select.options).find(o => o.value === autreTxt);
-            if (!existing) {
-                const opt = new Option(autreTxt, autreTxt, true, true);
-                select.add(opt);
-            } else {
-                existing.selected = true;
-            }
-            autreOption.selected = false;
+            if (select && autreOption && autreOption.selected) {
+                if (!autreTxt) {
+                    e.preventDefault();
+                    alert("Merci de préciser l’autre compétence (20 caractères max).");
+                    autreInput?.focus();
+                    return;
+                }
+                if (autreTxt.length > 20) {
+                    e.preventDefault();
+                    alert("La compétence 'Autre' ne doit pas dépasser 20 caractères.");
+                    autreInput.focus();
+                    return;
+                }
+                let existing = Array.from(select.options).find(o => o.value === autreTxt);
+                if (!existing) {
+                    const opt = new Option(autreTxt, autreTxt, true, true);
+                    select.add(opt);
+                } else {
+                    existing.selected = true;
+                }
+                autreOption.selected = false;
 
-            const selectedCount = Array.from(select.selectedOptions).length;
-            if (selectedCount > 4) {
+                const selectedCount = Array.from(select.selectedOptions).length;
+                if (selectedCount > 4) {
+                    e.preventDefault();
+                    alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum (y compris 'Autre').");
+                    return;
+                }
+            }
+        } else {
+            const animalName = (document.getElementById('animal_nom')?.value || '').trim();
+            if (!animalName) {
                 e.preventDefault();
-                alert("⛔ Vous ne pouvez sélectionner que 4 compétences maximum (y compris 'Autre').");
+                alert("Le nom de l’animal est obligatoire.");
+                document.getElementById('animal_nom')?.focus();
                 return;
             }
         }
@@ -378,6 +567,93 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     ensureBirthDate(false);
+
+    const referentPicker = document.querySelector('.referent-picker');
+    if (referentPicker) {
+        const lookupUrl = referentPicker.dataset.lookupUrl;
+        const searchInput = document.getElementById('animal_referent_search');
+        const hiddenInput = document.getElementById('animal_referent_id');
+        const resultsList = document.getElementById('animal_referent_results');
+        const selectionBox = document.getElementById('animal_referent_selection');
+        const selectionLabel = selectionBox?.querySelector('.referent-picker__label');
+        const clearBtn = selectionBox?.querySelector('.referent-picker__clear');
+        let debounceTimer = null;
+
+        const clearSelection = () => {
+            if (hiddenInput) hiddenInput.value = '';
+            if (selectionBox) selectionBox.hidden = true;
+            if (selectionLabel) selectionLabel.textContent = '';
+        };
+
+        const applySelection = (id, label) => {
+            if (hiddenInput) hiddenInput.value = id || '';
+            if (selectionLabel) selectionLabel.textContent = label || '';
+            if (selectionBox) selectionBox.hidden = !(id && label);
+            if (resultsList) {
+                resultsList.innerHTML = '';
+                resultsList.hidden = true;
+            }
+            if (searchInput) searchInput.value = '';
+        };
+
+        const renderResults = (items) => {
+            if (!resultsList) return;
+            resultsList.innerHTML = '';
+            if (!items.length) {
+                resultsList.hidden = true;
+                return;
+            }
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.textContent = `${item.label} — ${item.numero}`;
+                li.tabIndex = 0;
+                li.addEventListener('click', () => applySelection(item.id, `${item.label} (${item.numero})`));
+                li.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        applySelection(item.id, `${item.label} (${item.numero})`);
+                    }
+                });
+                resultsList.appendChild(li);
+            });
+            resultsList.hidden = false;
+        };
+
+        const fetchResults = async (term) => {
+            if (!lookupUrl || term.length < 2) {
+                renderResults([]);
+                return;
+            }
+            try {
+                const response = await fetch(`${lookupUrl}?term=${encodeURIComponent(term)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include'
+                });
+                const payload = await response.json();
+                renderResults((payload && Array.isArray(payload.results)) ? payload.results : []);
+            } catch (_err) {
+                renderResults([]);
+            }
+        };
+
+        searchInput?.addEventListener('input', () => {
+            const term = (searchInput.value || '').trim();
+            window.clearTimeout(debounceTimer);
+            debounceTimer = window.setTimeout(() => fetchResults(term), 180);
+        });
+
+        clearBtn?.addEventListener('click', () => {
+            clearSelection();
+            if (searchInput) searchInput.focus();
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!resultsList || resultsList.hidden) return;
+            if (!referentPicker.contains(event.target)) {
+                resultsList.hidden = true;
+            }
+        });
+    }
 });
 
 function onCompetencesChange(select) {
@@ -398,6 +674,5 @@ function onCompetencesChange(select) {
 }
 </script>
 
-<script src="{{ url_for('static', filename='csrf.js') }}"></script>
 </body>
 </html>

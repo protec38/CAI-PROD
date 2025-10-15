@@ -1098,3 +1098,84 @@ body {
 .timeline-content{ font-size:14px; }
 .timeline-meta{ font-size:12px; color:#99a3af; }
 
+
+/* === Animaux === */
+.fiche-animal-flag {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.8em;
+    height: 1.8em;
+    margin-right: 6px;
+    border-radius: 999px;
+    background: #f97316;
+    color: #fff;
+    font-size: 0.85rem;
+    box-shadow: 0 2px 4px rgba(249, 115, 22, 0.3);
+}
+
+.chip-animal {
+    background: rgba(249, 115, 22, 0.18);
+    color: #b45309;
+}
+
+.link-inline {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.link-inline:hover,
+.link-inline:focus {
+    text-decoration: underline;
+}
+
+.animal-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.animal-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 14px;
+    background: rgba(241, 245, 249, 0.6);
+}
+
+.animal-list__icon {
+    font-size: 1.4rem;
+}
+
+.animal-list__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.animal-list__name {
+    color: #1f2937;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.animal-list__name:hover,
+.animal-list__name:focus {
+    text-decoration: underline;
+}
+
+.animal-list__meta {
+    font-size: 0.9rem;
+    color: #6b7280;
+}
+
+.fiche-animal-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}

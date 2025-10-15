@@ -90,6 +90,66 @@ def _ensure_database_schema(app: Flask) -> None:
                         )
                     )
 
+        if "fiche_implique" in table_names:
+            columns = {col["name"] for col in inspector.get_columns("fiche_implique")}
+
+            if "type_fiche" not in columns:
+                app.logger.info("Adding missing fiche_implique.type_fiche column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE fiche_implique
+                            ADD COLUMN type_fiche VARCHAR(20) NOT NULL DEFAULT 'humain'
+                            """
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            """
+                            UPDATE fiche_implique
+                            SET type_fiche = CASE WHEN est_animal IS TRUE THEN 'animal' ELSE 'humain' END
+                            WHERE type_fiche IS NULL
+                            """
+                        )
+                    )
+
+            if "animal_espece" not in columns:
+                app.logger.info("Adding missing fiche_implique.animal_espece column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE fiche_implique
+                            ADD COLUMN animal_espece VARCHAR(120)
+                            """
+                        )
+                    )
+
+            if "animal_details" not in columns:
+                app.logger.info("Adding missing fiche_implique.animal_details column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE fiche_implique
+                            ADD COLUMN animal_details TEXT
+                            """
+                        )
+                    )
+
+            if "referent_humain_id" not in columns:
+                app.logger.info("Adding missing fiche_implique.referent_humain_id column")
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            """
+                            ALTER TABLE fiche_implique
+                            ADD COLUMN referent_humain_id INTEGER REFERENCES fiche_implique(id)
+                            """
+                        )
+                    )
+
 
 def create_app(config_name: str | None = None) -> Flask:
     app = Flask(__name__)

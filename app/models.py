@@ -168,6 +168,7 @@ class FicheImplique(db.Model):
 
     nom = db.Column(db.String(100))
     prenom = db.Column(db.String(100))
+    type_fiche = db.Column(db.String(20), nullable=False, default="humain")
     date_naissance = db.Column(db.Date, nullable=True)
     nationalite = db.Column(db.String(50), nullable=True)
     adresse = db.Column(db.String(200), nullable=True)
@@ -186,6 +187,15 @@ class FicheImplique(db.Model):
 
     est_animal = db.Column(db.Boolean, default=False)
     humain = db.Column(db.Boolean, default=True)
+    animal_espece = db.Column(db.String(120), nullable=True)
+    animal_details = db.Column(db.Text, nullable=True)
+    referent_humain_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id'), nullable=True)
+    referent_humain = db.relationship(
+        'FicheImplique',
+        remote_side=[id],
+        backref=db.backref('animaux_rattaches', lazy='select'),
+        foreign_keys=[referent_humain_id],
+    )
     heure_sortie = db.Column(db.DateTime, nullable=True)
     numero_recherche = db.Column(db.String(20), nullable=True)
 
