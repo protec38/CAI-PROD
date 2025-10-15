@@ -71,6 +71,9 @@ button:hover { background-color: #e65c00; }
 </head>
 <body>
 
+{% set role_lower = (user.role or '')|lower %}
+{% set numero_pec_disabled = (not user.is_admin) and role_lower in ['technicien', 'logisticien'] %}
+
 <div class="container">
     <h1><i class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
 
@@ -96,8 +99,11 @@ button:hover { background-color: #e65c00; }
       <!-- 🆕 Numéro prise en charge (Argos/AEP) -->
       <div class="form-group">
         <label for="numero_pec"><i class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
-        <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001">
-        <small>Référence de prise en charge secouriste (Argos / AEP).</small>
+        <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001" {% if numero_pec_disabled %}disabled aria-disabled="true"{% endif %}>
+        <small>
+          Référence de prise en charge secouriste (Argos / AEP).
+          {% if numero_pec_disabled %}<strong>Champ réservé aux responsables, CODEP et administrateurs.</strong>{% endif %}
+        </small>
       </div>
 
       <div class="form-group">
