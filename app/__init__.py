@@ -73,6 +73,7 @@ def create_app(config_name: str | None = None) -> Flask:
     from config import config_by_name, ProductionConfig
     cfg_cls = config_by_name.get(config_name or os.environ.get("FLASK_CONFIG", "prod"), ProductionConfig)
     app.config.from_object(cfg_cls)
+    app.config.setdefault("BROADCAST_AUTO_CLEAR_SECONDS", 15)
 
     # ===== CSRF (Flask-WTF) =====
     # Seules les méthodes d'écriture sont protégées
@@ -135,7 +136,10 @@ def create_app(config_name: str | None = None) -> Flask:
             )
         except Exception:
             active = None
-        return {"active_broadcast": active}
+        return {
+            "active_broadcast": active,
+            "broadcast_auto_clear_seconds": app.config.get("BROADCAST_AUTO_CLEAR_SECONDS", 15),
+        }
 
     # --- Filtres Jinja (fr_datetime / fr_date / fr_time) ---
     # Assure-toi d'avoir créé app/filters.py avec les fonctions fr_datetime, fr_date, fr_time

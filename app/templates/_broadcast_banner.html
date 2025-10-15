@@ -1,5 +1,5 @@
 {% if active_broadcast and not (hide_broadcast | default(false)) %}
-<div id="cai-broadcast-banner" class="cai-broadcast" role="alert" aria-live="assertive" data-duration="8000">
+<div id="cai-broadcast-banner" class="cai-broadcast" role="alert" aria-live="assertive" data-duration="{{ (broadcast_auto_clear_seconds | default(15)) * 1000 }}">
   <div class="cai-broadcast__content">
     <div class="cai-broadcast__icon" aria-hidden="true">⚠️</div>
     <div class="cai-broadcast__body">
