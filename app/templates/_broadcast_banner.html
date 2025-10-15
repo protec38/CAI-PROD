@@ -8,9 +8,9 @@
 <style>
   #cai-broadcast-banner {
     position: fixed;
-    top: 20px;
+    top: 50%;
     left: 50%;
-    transform: translate(-50%, -40px);
+    transform: translate(-50%, -60%);
     background: #111827;
     color: #f9fafb;
     padding: 16px 20px;
@@ -24,11 +24,11 @@
   }
   #cai-broadcast-banner.is-visible {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translate(-50%, -50%);
   }
   #cai-broadcast-banner.is-hidden {
     opacity: 0;
-    transform: translate(-50%, -40px);
+    transform: translate(-50%, -70%);
     pointer-events: none;
   }
   #cai-broadcast-banner[data-level="info"] {

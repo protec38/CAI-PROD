@@ -732,6 +732,22 @@
       return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${n}</span>`).join(' ');
     }
 
+    function formatNomCell(f){
+      const base = (f.nom || '').trim();
+      if(f.est_animal){
+        const label = base || '(Sans nom)';
+        return `<span class="fiche-animal-label"><span class="fiche-animal-flag" title="Animal">🐾</span><span>${label}</span></span>`;
+      }
+      return base;
+    }
+
+    function formatPrenomCell(f){
+      if(f.est_animal){
+        return (f.animal_espece || '').trim();
+      }
+      return f.prenom || '';
+    }
+
     function normalizeStatutValue(raw){
       return (raw ?? '').toString().trim().toLowerCase();
     }
@@ -778,8 +794,8 @@
       return `
         <tr id="fiche-row-${f.id}">
           <td data-col="numero">${f.numero}</td>
-          <td data-col="nom">${f.nom}</td>
-          <td data-col="prenom">${f.prenom}</td>
+          <td data-col="nom">${formatNomCell(f)}</td>
+          <td data-col="prenom">${formatPrenomCell(f)}</td>
           <td data-col="statut">${getStatutHtml(f.statut)}</td>
           <td data-col="heure_arrivee">${f.heure_arrivee}</td>
           <td data-col="difficultes">${f.difficultes || ""}</td>
@@ -799,8 +815,8 @@
         tr=document.getElementById(`fiche-row-${f.id}`);
       }else{
         setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero);
-        setTextIfChanged(tr.querySelector('[data-col="nom"]'), f.nom);
-        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), f.prenom);
+        setHTMLIfChanged(tr.querySelector('[data-col="nom"]'), formatNomCell(f));
+        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), formatPrenomCell(f));
         setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
         const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee);
         const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
@@ -809,6 +825,7 @@
       if(tr){
         tr.dataset.statut = normalizeStatutValue(f.statut);
         tr.dataset.competences = buildCompetenceDataset(f.competences);
+        tr.dataset.typeFiche = (f.type_fiche || (f.est_animal ? 'animal' : 'humain'));
       }
       rowsCache.set(f.id, f);
       majBagagesCell(f.id);

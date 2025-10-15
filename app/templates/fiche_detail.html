@@ -267,6 +267,9 @@ body{
         {% elif fiche.statut == 'sorti' %}Sorti
         {% else %}Supprimé{% endif %}
       </span>
+      {% if fiche.est_animal %}
+        <span class="chip chip-animal">🐾 Animal</span>
+      {% endif %}
     </div>
 
     <!-- ✅ Actions très visibles dans le header -->
@@ -299,6 +302,9 @@ body{
         <span class="pill p-err">Statut : Supprimé</span>
       {% endif %}
       <span class="pill">Évènement : {{ fiche.evenement.nom }}</span>
+      {% if fiche.est_animal %}
+        <span class="pill">Type : Animal</span>
+      {% endif %}
     </div>
 
     <div class="timebar">
@@ -322,35 +328,74 @@ body{
     </div>
 
     <div class="tiles">
-      <div class="tile">
-        <div class="ico">🎂</div>
-        <div>
-          <div class="k">Naissance</div>
-          <div class="v">
-            {% if fiche.date_naissance %}
-              {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
-              {% set age_val = fiche.date_naissance|age %}
-              {% if age_val is not none %}
-                <span class="age-badge" aria-label="Âge estimé">{{ age_val }} ans</span>
-              {% endif %}
-            {% else %}
-              —
-            {% endif %}
+      {% if fiche.est_animal %}
+        <div class="tile">
+          <div class="ico">🐾</div>
+          <div>
+            <div class="k">Nom</div>
+            <div class="v">{{ fiche.nom or '—' }}</div>
           </div>
         </div>
-      </div>
-      <div class="tile">
-        <div class="ico">🏷️</div>
-        <div><div class="k">Code Sinus</div><div class="v">{{ fiche.code_sinus or '—' }}</div></div>
-      </div>
-      <div class="tile">
-        <div class="ico">📞</div>
-        <div><div class="k">Téléphone</div><div class="v">{{ fiche.telephone or '—' }}</div></div>
-      </div>
-      <div class="tile">
-        <div class="ico">📄</div>
-        <div><div class="k">Fiche Argos/AEP</div><div class="v">{{ fiche.numero_pec or '—' }}</div></div>
-      </div>
+        <div class="tile">
+          <div class="ico">🦴</div>
+          <div>
+            <div class="k">Espèce</div>
+            <div class="v">{{ fiche.animal_espece or 'Non renseignée' }}</div>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="ico">🧍</div>
+          <div>
+            <div class="k">Personne référente</div>
+            <div class="v">
+              {% if fiche.referent_humain %}
+                <a href="{{ url_for('main_bp.fiche_detail', id=fiche.referent_humain.id) }}" class="link-inline">
+                  {{ fiche.referent_humain.prenom }} {{ fiche.referent_humain.nom }}
+                </a>
+              {% else %}
+                Aucune
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="ico">📝</div>
+          <div>
+            <div class="k">Notes</div>
+            <div class="v">{{ fiche.animal_details or '—' }}</div>
+          </div>
+        </div>
+      {% else %}
+        <div class="tile">
+          <div class="ico">🎂</div>
+          <div>
+            <div class="k">Naissance</div>
+            <div class="v">
+              {% if fiche.date_naissance %}
+                {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
+                {% set age_val = fiche.date_naissance|age %}
+                {% if age_val is not none %}
+                  <span class="age-badge" aria-label="Âge estimé">{{ age_val }} ans</span>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="tile">
+          <div class="ico">🏷️</div>
+          <div><div class="k">Code Sinus</div><div class="v">{{ fiche.code_sinus or '—' }}</div></div>
+        </div>
+        <div class="tile">
+          <div class="ico">📞</div>
+          <div><div class="k">Téléphone</div><div class="v">{{ fiche.telephone or '—' }}</div></div>
+        </div>
+        <div class="tile">
+          <div class="ico">📄</div>
+          <div><div class="k">Fiche Argos/AEP</div><div class="v">{{ fiche.numero_pec or '—' }}</div></div>
+        </div>
+      {% endif %}
     </div>
   </section>
 
@@ -362,28 +407,39 @@ body{
       <div class="hd">Informations personnelles</div>
       <div class="bd">
         <div class="fields">
-          <div class="field"><div class="label">Nom</div><div class="value">{{ fiche.nom }}</div></div>
-          <div class="field"><div class="label">Prénom</div><div class="value">{{ fiche.prenom }}</div></div>
-          <div class="field">
-            <div class="label">Date de naissance</div>
-            <div class="value">
-              {% if fiche.date_naissance %}
-                {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
-                {% set age_field = fiche.date_naissance|age %}
-                {% if age_field is not none %}
-                  <span class="age-badge">{{ age_field }} ans</span>
-                {% endif %}
-              {% else %}
-                Non renseignée
-              {% endif %}
+          {% if fiche.est_animal %}
+            <div class="field"><div class="label">Nom</div><div class="value">{{ fiche.nom or '—' }}</div></div>
+            <div class="field"><div class="label">Espèce</div><div class="value">{{ fiche.animal_espece or 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Personne référente</div>
+              <div class="value">
+                {% if fiche.referent_humain %}
+                  <a href="{{ url_for('main_bp.fiche_detail', id=fiche.referent_humain.id) }}" class="link-inline">{{ fiche.referent_humain.prenom }} {{ fiche.referent_humain.nom }}</a>
+                {% else %}Aucune{% endif %}
+              </div>
             </div>
-          </div>
-          <div class="field"><div class="label">Code Sinus</div><div class="value">{{ fiche.code_sinus or 'Non renseigné' }}</div></div>
-
-          <div class="field full"><div class="label">Adresse</div><div class="value">{{ fiche.adresse or 'Non renseignée' }}</div></div>
-
-          <div class="field"><div class="label">Téléphone</div><div class="value">{{ fiche.telephone or 'Non renseigné' }}</div></div>
-          <div class="field"><div class="label">Évènement</div><div class="value">{{ fiche.evenement.nom }}</div></div>
+            <div class="field"><div class="label">Évènement</div><div class="value">{{ fiche.evenement.nom }}</div></div>
+          {% else %}
+            <div class="field"><div class="label">Nom</div><div class="value">{{ fiche.nom }}</div></div>
+            <div class="field"><div class="label">Prénom</div><div class="value">{{ fiche.prenom }}</div></div>
+            <div class="field">
+              <div class="label">Date de naissance</div>
+              <div class="value">
+                {% if fiche.date_naissance %}
+                  {{ fiche.date_naissance.strftime('%d/%m/%Y') }}
+                  {% set age_field = fiche.date_naissance|age %}
+                  {% if age_field is not none %}
+                    <span class="age-badge">{{ age_field }} ans</span>
+                  {% endif %}
+                {% else %}
+                  Non renseignée
+                {% endif %}
+              </div>
+            </div>
+            <div class="field"><div class="label">Code Sinus</div><div class="value">{{ fiche.code_sinus or 'Non renseigné' }}</div></div>
+            <div class="field full"><div class="label">Adresse</div><div class="value">{{ fiche.adresse or 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Téléphone</div><div class="value">{{ fiche.telephone or 'Non renseigné' }}</div></div>
+            <div class="field"><div class="label">Évènement</div><div class="value">{{ fiche.evenement.nom }}</div></div>
+          {% endif %}
         </div>
 
         <!-- Boutons secondaires (doublon, au cas où) -->
@@ -414,35 +470,40 @@ body{
             </div>
           </div>
 
-          <div class="field">
-            <div class="label">Personne à prévenir</div>
-            <div class="value">
-              {% if fiche.personne_a_prevenir %}
-                {{ fiche.personne_a_prevenir }}{% if fiche.tel_personne_a_prevenir %} — {{ fiche.tel_personne_a_prevenir }}{% endif %}
-              {% else %}Non renseigné{% endif %}
+          {% if fiche.est_animal %}
+            <div class="field full"><div class="label">Particularités</div><div class="value">{{ fiche.difficultes or 'Non renseignée' }}</div></div>
+            <div class="field full"><div class="label">Notes complémentaires</div><div class="value">{{ fiche.animal_details or 'Non renseigné' }}</div></div>
+          {% else %}
+            <div class="field">
+              <div class="label">Personne à prévenir</div>
+              <div class="value">
+                {% if fiche.personne_a_prevenir %}
+                  {{ fiche.personne_a_prevenir }}{% if fiche.tel_personne_a_prevenir %} — {{ fiche.tel_personne_a_prevenir }}{% endif %}
+                {% else %}Non renseigné{% endif %}
+              </div>
             </div>
-          </div>
 
-          <div class="field full"><div class="label">Difficultés</div><div class="value">{{ fiche.difficultes or 'Non renseignée' }}</div></div>
-          <div class="field full"><div class="label">Autres informations</div><div class="value">{{ fiche.autres_informations or 'Non renseigné' }}</div></div>
+            <div class="field full"><div class="label">Difficultés</div><div class="value">{{ fiche.difficultes or 'Non renseignée' }}</div></div>
+            <div class="field full"><div class="label">Autres informations</div><div class="value">{{ fiche.autres_informations or 'Non renseigné' }}</div></div>
 
-          <div class="field"><div class="label">Destination</div><div class="value">{{ fiche.destination or 'Non renseignée' }}</div></div>
-          <div class="field"><div class="label">Moyen de transport</div><div class="value">{{ fiche.moyen_transport or 'Non renseigné' }}</div></div>
-          <div class="field"><div class="label">Recherche une personne</div><div class="value">{{ fiche.recherche_personne or 'Non' }}</div></div>
+            <div class="field"><div class="label">Destination</div><div class="value">{{ fiche.destination or 'Non renseignée' }}</div></div>
+            <div class="field"><div class="label">Moyen de transport</div><div class="value">{{ fiche.moyen_transport or 'Non renseigné' }}</div></div>
+            <div class="field"><div class="label">Recherche une personne</div><div class="value">{{ fiche.recherche_personne or 'Non' }}</div></div>
 
-          <div class="field full">
-            <div class="label">Compétences</div>
-            <div class="value">
-              {% set comps = (fiche.competences or '').split(',') if fiche.competences else [] %}
-              {% if comps %}
-                <div class="badges">
-                  {% for c in comps %}
-                    <span class="tag">🏅 {{ c.strip() }}</span>
-                  {% endfor %}
-                </div>
-              {% else %}Non renseignée{% endif %}
+            <div class="field full">
+              <div class="label">Compétences</div>
+              <div class="value">
+                {% set comps = (fiche.competences or '').split(',') if fiche.competences else [] %}
+                {% if comps %}
+                  <div class="badges">
+                    {% for c in comps %}
+                      <span class="tag">🏅 {{ c.strip() }}</span>
+                    {% endfor %}
+                  </div>
+                {% else %}Non renseignée{% endif %}
+              </div>
             </div>
-          </div>
+          {% endif %}
 
           <div class="field full">
             <div class="label">Bagages</div>
@@ -459,6 +520,28 @@ body{
         </div>
       </div>
     </article>
+
+    {% if not fiche.est_animal %}
+      {% set animaux = fiche.animaux_rattaches | list %}
+      {% if animaux %}
+        <article class="card">
+          <div class="hd">Animaux rattachés</div>
+          <div class="bd">
+            <ul class="animal-list">
+              {% for animal in animaux %}
+                <li>
+                  <span class="animal-list__icon" aria-hidden="true">🐾</span>
+                  <div class="animal-list__body">
+                    <a href="{{ url_for('main_bp.fiche_detail', id=animal.id) }}" class="animal-list__name">{{ animal.nom or 'Animal sans nom' }}</a>
+                    <span class="animal-list__meta">{{ animal.animal_espece or 'Espèce inconnue' }} • {{ animal.statut or '—' }}</span>
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </article>
+      {% endif %}
+    {% endif %}
 
   </section>
 
