@@ -349,11 +349,15 @@
   <div class="layout">
     <header class="page-header">
       <span class="page-header__eyebrow"><i class="fa-solid fa-signal"></i> Panorama du centre</span>
-      <h1 class="page-header__title">{{ evenement.nom }}</h1>
+      <h1 class="page-header__title" id="evt-nom">{{ evenement.nom }}</h1>
       <div class="page-header__meta">
-        {% if evenement.numero %}<span><i class="fa-solid fa-hashtag"></i> {{ evenement.numero }}</span>{% endif %}
-        {% if evenement.adresse %}<span><i class="fa-solid fa-location-dot"></i> {{ evenement.adresse }}</span>{% endif %}
-        <span class="status-badge"><i class="fa-solid fa-circle"></i> {{ stats.statut }}</span>
+        <span id="evt-numero-wrapper" {% if not evenement.numero %}style="display:none;"{% endif %}>
+          <i class="fa-solid fa-hashtag"></i> <span id="evt-numero">{{ evenement.numero }}</span>
+        </span>
+        <span id="evt-adresse-wrapper" {% if not evenement.adresse %}style="display:none;"{% endif %}>
+          <i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span>
+        </span>
+        <span class="status-badge"><i class="fa-solid fa-circle"></i> <span id="evt-statut">{{ stats.statut }}</span></span>
       </div>
       <div class="header-actions">
         <a href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn btn--primary"><i class="fa-solid fa-chart-simple"></i> Tableau opérationnel</a>
@@ -365,33 +369,33 @@
       <section class="stats-grid" aria-label="Indicateurs clés">
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-user-check"></i> Personnes présentes</div>
-          <div class="stat-card__value">{{ stats.personnes_presentes }}</div>
+          <div class="stat-card__value" id="stat-personnes-presentes">{{ stats.personnes_presentes }}</div>
           <div class="stat-card__meta">
-            <span class="stat-chip"><i class="fa-solid fa-users"></i> Total fiches : {{ total_fiches }}</span>
+            <span class="stat-chip"><i class="fa-solid fa-users"></i> Total fiches : <span id="stat-total-fiches">{{ total_fiches }}</span></span>
           </div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-paw"></i> Animaux présents</div>
-          <div class="stat-card__value">{{ stats.animaux_presents }}</div>
+          <div class="stat-card__value" id="stat-animaux-presentes">{{ stats.animaux_presents }}</div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Personnes sorties</div>
-          <div class="stat-card__value">{{ stats.personnes_sorties }}</div>
+          <div class="stat-card__value" id="stat-personnes-sorties">{{ stats.personnes_sorties }}</div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-dog"></i> Animaux sortis</div>
-          <div class="stat-card__value">{{ stats.animaux_sortis }}</div>
+          <div class="stat-card__value" id="stat-animaux-sortis">{{ stats.animaux_sortis }}</div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-clock"></i> Temps moyen de présence</div>
-          <div class="stat-card__value">{{ stats.avg_presence }}</div>
+          <div class="stat-card__value" id="stat-avg-presence">{{ stats.avg_presence }}</div>
         </article>
         <article class="stat-card">
           <div class="stat-card__label"><i class="fa-solid fa-ticket"></i> Tickets en cours</div>
-          <div class="stat-card__value">{{ stats.tickets_total }}</div>
+          <div class="stat-card__value" id="stat-tickets-total">{{ stats.tickets_total }}</div>
           <div class="stat-card__meta">
-            <span class="stat-chip"><i class="fa-solid fa-circle-dot"></i> Nouveaux : {{ stats.tickets_open }}</span>
-            <span class="stat-chip"><i class="fa-solid fa-spinner"></i> Pris en compte : {{ stats.tickets_in_progress }}</span>
+            <span class="stat-chip"><i class="fa-solid fa-circle-dot"></i> Nouveaux : <span id="stat-tickets-open">{{ stats.tickets_open }}</span></span>
+            <span class="stat-chip"><i class="fa-solid fa-spinner"></i> Pris en compte : <span id="stat-tickets-progress">{{ stats.tickets_in_progress }}</span></span>
           </div>
         </article>
       </section>
@@ -399,35 +403,34 @@
       <section class="info-grid" aria-label="Informations sur le centre">
         <div class="info-card">
           <h3><i class="fa-solid fa-door-open"></i> Ouverture du centre</h3>
-          <p>{{ stats.date_ouverture_txt }}</p>
+          <p id="stat-date-ouverture">{{ stats.date_ouverture_txt }}</p>
         </div>
         <div class="info-card">
           <h3><i class="fa-solid fa-stopwatch"></i> Temps de fonctionnement</h3>
-          <p>{{ stats.fonctionnement }}</p>
+          <p id="stat-fonctionnement">{{ stats.fonctionnement }}</p>
         </div>
         <div class="info-card">
           <h3><i class="fa-solid fa-sitemap"></i> Statut opérationnel</h3>
-          <p>{{ stats.statut }}</p>
+          <p id="stat-statut">{{ stats.statut }}</p>
         </div>
       </section>
 
       <section class="block" aria-labelledby="competences-title">
         <h2 id="competences-title"><i class="fa-solid fa-graduation-cap"></i> Compétences disponibles</h2>
-        {% if competence_summary %}
-          <div class="chip-list">
+        <div class="chip-list" id="competence-list" {% if not competence_summary %}style="display:none;"{% endif %}>
+          {% if competence_summary %}
             {% for item in competence_summary %}
               <span class="chip">{{ item.label }} <span>{{ item.count }}</span></span>
             {% endfor %}
-          </div>
-        {% else %}
-          <p>Aucune compétence n'est renseignée pour le moment.</p>
-        {% endif %}
+          {% endif %}
+        </div>
+        <p id="competence-empty" {% if competence_summary %}style="display:none;"{% endif %}>Aucune compétence n'est renseignée pour le moment.</p>
       </section>
 
       <section class="block" aria-labelledby="recherche-title">
         <h2 id="recherche-title"><i class="fa-solid fa-person-circle-question"></i> Synthèse des personnes recherchées</h2>
-        {% if recherches %}
-          <ul class="research-list">
+        <ul class="research-list" id="recherches-list" {% if not recherches %}style="display:none;"{% endif %}>
+          {% if recherches %}
             {% for item in recherches %}
               <li class="research-card">
                 <div class="research-card__title">
@@ -441,23 +444,160 @@
                 </div>
               </li>
             {% endfor %}
-          </ul>
-        {% else %}
-          <p>Aucune fiche ne comporte actuellement de demande de recherche.</p>
-        {% endif %}
+          {% endif %}
+        </ul>
+        <p id="recherches-empty" {% if recherches %}style="display:none;"{% endif %}>Aucune fiche ne comporte actuellement de demande de recherche.</p>
       </section>
 
       <div class="footer-meta">
         <span><i class="fa-solid fa-clock-rotate-left"></i> Mise à jour :
-          {% if generated_at %}
-            {{ generated_at.strftime('%d/%m/%Y %H:%M') }}
-          {% else %}
-            —
-          {% endif %}
+          <span id="stat-generated-at">
+            {% if generated_at %}
+              {{ generated_at.strftime('%d/%m/%Y %H:%M') }}
+            {% else %}
+              —
+            {% endif %}
+          </span>
         </span>
-        <span><i class="fa-solid fa-users"></i> Total d'implications : {{ total_fiches }}</span>
+        <span><i class="fa-solid fa-users"></i> Total d'implications : <span id="total-fiches-footer">{{ total_fiches }}</span></span>
       </div>
     </main>
   </div>
+  <script>
+    const EVT_ID = {{ evenement.id }};
+    const FETCH_OPTIONS = {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function setText(id, value, placeholder = '—') {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+      const next = hasValue ? String(value) : placeholder;
+      if (el.textContent.trim() !== next.trim()) {
+        el.textContent = next;
+      }
+    }
+
+    function updateMeta(wrapperId, textId, value) {
+      const wrapper = document.getElementById(wrapperId);
+      const textEl = document.getElementById(textId);
+      if (!wrapper || !textEl) return;
+      const hasValue = value !== null && value !== undefined && String(value).trim() !== '';
+      if (hasValue) {
+        if (textEl.textContent.trim() !== String(value).trim()) {
+          textEl.textContent = String(value);
+        }
+        wrapper.style.display = '';
+      } else {
+        wrapper.style.display = 'none';
+      }
+    }
+
+    function renderCompetences(items) {
+      const list = document.getElementById('competence-list');
+      const empty = document.getElementById('competence-empty');
+      if (!list || !empty) return;
+      if (!items || !items.length) {
+        list.innerHTML = '';
+        list.style.display = 'none';
+        empty.style.display = '';
+        return;
+      }
+      const html = items
+        .map(item => `<span class="chip">${escapeHtml(item.label)} <span>${escapeHtml(item.count)}</span></span>`)
+        .join('');
+      if (list.innerHTML.trim() !== html.trim()) {
+        list.innerHTML = html;
+      }
+      list.style.display = '';
+      empty.style.display = 'none';
+    }
+
+    function renderRecherches(items) {
+      const list = document.getElementById('recherches-list');
+      const empty = document.getElementById('recherches-empty');
+      if (!list || !empty) return;
+      if (!items || !items.length) {
+        list.innerHTML = '';
+        list.style.display = 'none';
+        empty.style.display = '';
+        return;
+      }
+      const html = items.map(item => {
+        const statut = item.statut && String(item.statut).trim() !== ''
+          ? `<span class="badge-status">${escapeHtml(item.statut)}</span>`
+          : '';
+        const details = (item.details || []).map(detail => `<span class="detail-pill">${escapeHtml(detail)}</span>`).join('');
+        return `<li class="research-card"><div class="research-card__title"><i class="fa-solid fa-user"></i> ${escapeHtml(item.identite)}${statut ? ' ' + statut : ''}</div><div class="detail-pills">${details}</div></li>`;
+      }).join('');
+      if (list.innerHTML.trim() !== html.trim()) {
+        list.innerHTML = html;
+      }
+      list.style.display = '';
+      empty.style.display = 'none';
+    }
+
+    function applyPanoramaData(data) {
+      if (!data) return;
+      const stats = data.stats || {};
+      setText('stat-personnes-presentes', stats.personnes_presentes ?? '0', '0');
+      setText('stat-animaux-presentes', stats.animaux_presents ?? '0', '0');
+      setText('stat-personnes-sorties', stats.personnes_sorties ?? '0', '0');
+      setText('stat-animaux-sortis', stats.animaux_sortis ?? '0', '0');
+      setText('stat-avg-presence', stats.avg_presence);
+      setText('stat-tickets-total', stats.tickets_total ?? '0', '0');
+      setText('stat-tickets-open', stats.tickets_open ?? '0', '0');
+      setText('stat-tickets-progress', stats.tickets_in_progress ?? '0', '0');
+      setText('stat-date-ouverture', stats.date_ouverture_txt);
+      setText('stat-fonctionnement', stats.fonctionnement);
+      setText('stat-statut', stats.statut);
+      setText('evt-statut', stats.statut);
+
+      setText('stat-total-fiches', data.total_fiches ?? '0', '0');
+      setText('total-fiches-footer', data.total_fiches ?? '0', '0');
+      setText('stat-generated-at', data.generated_at);
+
+      renderCompetences(data.competence_summary || []);
+      renderRecherches(data.recherches || []);
+
+      if (data.event) {
+        setText('evt-nom', data.event.nom, '—');
+        updateMeta('evt-numero-wrapper', 'evt-numero', data.event.numero);
+        updateMeta('evt-adresse-wrapper', 'evt-adresse', data.event.adresse);
+      }
+    }
+
+    async function refreshPanorama() {
+      try {
+        const response = await fetch(`/evenement/${EVT_ID}/panorama_json`, FETCH_OPTIONS);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        applyPanoramaData(data);
+      } catch (error) {
+        console.warn('Erreur lors de la mise à jour du panorama :', error);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      refreshPanorama();
+      setInterval(refreshPanorama, 5000);
+    });
+  </script>
 </body>
 </html>

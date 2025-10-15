@@ -182,7 +182,6 @@
                 {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
                   <div class="actions">
                     <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
-                    <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evt.id) }}" class="btn dashboard">📊 Tableau de bord</a>
                     <form method="POST" action="{{ url_for('main_bp.archive_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Archiver cet évènement ?');">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn archive">📦 Archiver</button>
@@ -235,7 +234,6 @@
               <td>
                 <div class="actions">
                   <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
-                  <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evt.id) }}" class="btn dashboard">📊 Tableau de bord</a>
                   <form method="POST" action="{{ url_for('main_bp.restore_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Restaurer cet évènement archivé ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn restore">🔁 Restaurer</button>
