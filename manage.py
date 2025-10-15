@@ -49,6 +49,7 @@ def init_db():
         db.create_all()
         _ensure_evenement_archive_columns()
         _ensure_provisional_expiry_column()
+        _ensure_share_link_label_column()
         Model = _find_user_model()
         # Existence de admin ?
         fil = _get_username_filter(Model, "admin")
@@ -153,6 +154,29 @@ def _ensure_evenement_archive_columns():
         with engine.begin() as connection:
             connection.execute(
                 text(f"CREATE INDEX {index_name} ON evenement (archived)")
+            )
+
+
+def _ensure_share_link_label_column():
+    """Ensure legacy databases have the share link label column."""
+
+    engine = db.engine
+    inspector = inspect(engine)
+
+    if not inspector.has_table("share_link"):
+        return
+
+    has_label_column = any(
+        column.get("name") == "label" for column in inspector.get_columns("share_link")
+    )
+
+    if not has_label_column:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "ALTER TABLE share_link "
+                    "ADD COLUMN label VARCHAR(120) NULL"
+                )
             )
 
 
