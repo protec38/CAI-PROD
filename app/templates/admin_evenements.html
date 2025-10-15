@@ -96,6 +96,7 @@
   }
   .btn:active{ transform: translateY(1px); }
   .btn.access{ background:#e8f4ff; border-color:#bfdbfe; color:#0b5394; }
+  .btn.dashboard{ background:#f0f7ff; border-color:#c6ddff; color:#0b3b71; }
   .btn.archive{ background:#fff4e6; border-color:#ffe0b5; color:#b25e09; }
   .btn.restore{ background:#ecfdf3; border-color:#bbf7d0; color:#027a48; }
   .btn.edit{ background:#fff8e1; border-color:#ffe7ad; color:#7f4a00; }
@@ -181,6 +182,7 @@
                 {% if user.is_admin or user.role == "codep" or evt.createur_id == user.id %}
                   <div class="actions">
                     <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
+                    <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evt.id) }}" class="btn dashboard">📊 Tableau de bord</a>
                     <form method="POST" action="{{ url_for('main_bp.archive_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Archiver cet évènement ?');">
                       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                       <button type="submit" class="btn archive">📦 Archiver</button>
@@ -233,6 +235,7 @@
               <td>
                 <div class="actions">
                   <a href="{{ url_for('main_bp.dashboard', evenement_id=evt.id) }}" class="btn access">🚀 Accéder</a>
+                  <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evt.id) }}" class="btn dashboard">📊 Tableau de bord</a>
                   <form method="POST" action="{{ url_for('main_bp.restore_evenement', evenement_id=evt.id) }}" onsubmit="return confirm('Restaurer cet évènement archivé ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn restore">🔁 Restaurer</button>

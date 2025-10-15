@@ -441,8 +441,44 @@
       font-size: 0.95rem;
     }
 
+    .event-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    form.event-cta {
+      margin: 0;
+    }
+
     .event-cta {
       justify-self: flex-start;
+    }
+
+    .event-dashboard-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--pc-blue), #001d3d);
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      border: 1px solid rgba(0, 43, 82, 0.2);
+      box-shadow: 0 12px 24px rgba(0, 43, 82, 0.18);
+      transition: transform 0.1s ease, box-shadow 0.2s ease;
+    }
+
+    .event-dashboard-link:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 28px rgba(0, 43, 82, 0.22);
+    }
+
+    .event-dashboard-link:focus-visible {
+      outline: 3px solid rgba(0, 59, 113, 0.4);
+      outline-offset: 3px;
     }
 
     .notice {
@@ -478,8 +514,10 @@
       .form-actions { justify-content: stretch; }
       .form-actions button { width: 100%; justify-content: center; }
       .event-card header { flex-direction: column; align-items: flex-start; }
+      .event-actions { flex-direction: column; align-items: stretch; }
       .event-cta { width: 100%; }
       .event-cta button { width: 100%; justify-content: center; }
+      .event-dashboard-link { width: 100%; justify-content: center; text-align: center; }
       .event-tools { grid-template-columns: 1fr; gap: 12px; }
     }
 
@@ -595,11 +633,17 @@
                 <span><strong>Type :</strong> {{ evt.type_evt }}</span>
                 <span><strong>Ouvert :</strong> {{ evt.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evt.date_ouverture_locale else '—' }}</span>
               </div>
-              <form class="event-cta" method="post" action="{{ url_for('main_bp.select_evenement') }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="evenement_id" value="{{ evt.id }}">
-                <button type="submit">Accéder à l'évènement</button>
-              </form>
+              <div class="event-actions">
+                <form class="event-cta" method="post" action="{{ url_for('main_bp.select_evenement') }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="evenement_id" value="{{ evt.id }}">
+                  <button type="submit">Accéder à l'évènement</button>
+                </form>
+                <a class="event-dashboard-link" href="{{ url_for('main_bp.evenement_panorama', evenement_id=evt.id) }}">
+                  <i class="fa-solid fa-chart-pie"></i>
+                  Tableau de bord
+                </a>
+              </div>
             </article>
           {% endfor %}
         </div>
