@@ -49,6 +49,13 @@ main_bp = Blueprint("main_bp", __name__)
 BROADCAST_AUTO_CLEAR_SECONDS = 15
 BROADCAST_ALLOWED_EMOJIS = ["ℹ️", "⚠️", "🚨", "✅", "🔥"]
 BROADCAST_ALLOWED_LEVELS = ["info", "warning", "danger", "success", "critical"]
+BROADCAST_LEVEL_LABELS = {
+    "info": "Information",
+    "warning": "Alerte",
+    "danger": "Urgence",
+    "success": "Succès",
+    "critical": "Critique",
+}
 BROADCAST_DEFAULT_EMOJI = "⚠️"
 BROADCAST_DEFAULT_LEVEL = "warning"
 
@@ -507,6 +514,7 @@ def evenement_new():
         broadcast_levels=BROADCAST_ALLOWED_LEVELS,
         broadcast_default_emoji=BROADCAST_DEFAULT_EMOJI,
         broadcast_default_level=BROADCAST_DEFAULT_LEVEL,
+        broadcast_level_labels=BROADCAST_LEVEL_LABELS,
     )
 
 
