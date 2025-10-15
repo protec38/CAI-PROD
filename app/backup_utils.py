@@ -49,11 +49,16 @@ def is_db_empty() -> bool:
 # -------------------------------------------------------------------
 
 def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
-    """Exporte un instantané JSON de la base.
+    """Exporte un instantané JSON centré sur les évènements.
 
-    - Si ``evenement_ids`` est fourni, limite l'export aux évènements sélectionnés et
-      à leurs objets associés (fiches, bagages, liens de partage, tickets, etc.).
-    - Sinon, exporte l'intégralité de la base comme auparavant.
+    ⚠️ Nouvel impératif : on exclut totalement les comptes utilisateurs pour ne
+    conserver que les données opérationnelles (évènements, fiches, bagages,
+    animaux, tickets, etc.). Cela évite d’écraser / de divulguer des comptes lors
+    d’une restauration.
+
+    - Si ``evenement_ids`` est fourni, on limite aux évènements sélectionnés et à
+      leurs objets associés.
+    - Sinon, export global de tous les évènements.
     """
 
     evenement_query = Evenement.query
@@ -93,49 +98,21 @@ def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
 
     tickets = ticket_query.all()
 
-    if evenement_ids:
-        # Restreint les utilisateurs aux comptes réellement liés aux évènements exportés
-        user_ids: set[int] = set()
-        for evt in evenements:
-            if evt.createur_id:
-                user_ids.add(evt.createur_id)
-        for fiche in fiches:
-            if fiche.utilisateur_id:
-                user_ids.add(fiche.utilisateur_id)
-        for link in share_links:
-            if link.created_by:
-                user_ids.add(link.created_by)
-        for ticket in tickets:
-            if ticket.created_by_id:
-                user_ids.add(ticket.created_by_id)
-            if ticket.assigned_to_id:
-                user_ids.add(ticket.assigned_to_id)
-
-        assoc_rows: list[dict] = []
-        if evenement_id_list:
-            with db.engine.connect() as conn:
-                res = conn.execute(
-                    utilisateur_evenement.select().where(
-                        utilisateur_evenement.c.evenement_id.in_(evenement_id_list)
-                    )
-                ).mappings()
-                assoc_rows = [dict(r) for r in res]
-        for row in assoc_rows:
-            if row.get("utilisateur_id"):
-                user_ids.add(row["utilisateur_id"])
-
-        utilisateur_query = Utilisateur.query
-        if user_ids:
-            utilisateur_query = utilisateur_query.filter(Utilisateur.id.in_(user_ids))
-        utilisateurs = utilisateur_query.all()
+    # On conserve les associations pour rebrancher les comptes existants après restauration
+    if evenement_id_list:
+        with db.engine.connect() as conn:
+            res = conn.execute(
+                utilisateur_evenement.select().where(
+                    utilisateur_evenement.c.evenement_id.in_(evenement_id_list)
+                )
+            ).mappings()
+            assoc_rows = [dict(r) for r in res]
     else:
-        utilisateurs = Utilisateur.query.all()
         with db.engine.connect() as conn:
             res = conn.execute(utilisateur_evenement.select()).mappings()
             assoc_rows = [dict(r) for r in res]
 
     payload = {
-        "utilisateurs": [u.__dict__ | {"_sa_instance_state": None} for u in utilisateurs],
         "evenements":   [e.__dict__ | {"_sa_instance_state": None} for e in evenements],
         "fiches":       [f.__dict__ | {"_sa_instance_state": None} for f in fiches],
         "bagages":      [b.__dict__ | {"_sa_instance_state": None} for b in bagages],
@@ -166,7 +143,7 @@ def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
 # WIPE (danger)
 # -------------------------------------------------------------------
 
-def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5):
+def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5, *, preserve_users: bool = False):
     """
     Vide proprement toutes les tables applicatives.
     Conserve le schéma ; utile avant un bulk_restore.
@@ -194,8 +171,9 @@ def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5):
                 conn.execute(text(f"DELETE FROM {Bagage.__tablename__}"))
                 conn.execute(text(f"DELETE FROM {FicheImplique.__tablename__}"))
                 conn.execute(text(f"DELETE FROM {Evenement.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {Utilisateur.__tablename__}"))
-                # table d’association
+                if not preserve_users:
+                    conn.execute(text(f"DELETE FROM {Utilisateur.__tablename__}"))
+                # table d’association (toujours vidée car dépend des évènements)
                 conn.execute(utilisateur_evenement.delete())
 
                 if has_replica_toggle:
@@ -273,15 +251,12 @@ def bulk_restore(payload: dict):
     - Gère la rétro‑compatibilité (ShareLink: token -> token_hash, suppression expires_at)
     """
     # Sécurité : tout doit être transactionnel
-    wipe_db()
+    wipe_db(preserve_users=True)
 
-    # 1) Utilisateurs
-    utilisateurs = payload.get("utilisateurs", []) or []
-    _coerce_fields(utilisateurs, {})
-    db.session.bulk_insert_mappings(Utilisateur, utilisateurs)
-    db.session.flush()
+    # 1) Utilisateurs — ignorés volontairement (préservation comptes existants)
+    # On se contente de garder les associations si les IDs correspondent.
 
-    # 2) Evènements
+    # 1) Evènements
     evenements = payload.get("evenements", []) or []
     _coerce_fields(evenements, {
         "date": _parse_date,
@@ -291,7 +266,7 @@ def bulk_restore(payload: dict):
     db.session.bulk_insert_mappings(Evenement, evenements)
     db.session.flush()
 
-    # 3) Fiches
+    # 2) Fiches
     fiches = payload.get("fiches", []) or []
     _coerce_fields(fiches, {
         "heure_arrivee": _parse_dt,
@@ -303,7 +278,7 @@ def bulk_restore(payload: dict):
     db.session.bulk_insert_mappings(FicheImplique, fiches)
     db.session.flush()
 
-    # 4) Bagages / Animaux
+    # 3) Bagages / Animaux
     bagages = payload.get("bagages", []) or []
     _coerce_fields(bagages, {"created_at": _parse_dt})
     db.session.bulk_insert_mappings(Bagage, bagages)
@@ -314,7 +289,7 @@ def bulk_restore(payload: dict):
     db.session.bulk_insert_mappings(Animal, animaux)
     db.session.flush()
 
-    # 5) ShareLinks (expiration supprimée, token hashé)
+    # 4) ShareLinks (expiration supprimée, token hashé)
     share_links = payload.get("share_links", []) or []
     _coerce_fields(share_links, {
         "created_at": _parse_dt,
@@ -333,20 +308,20 @@ def bulk_restore(payload: dict):
     db.session.bulk_insert_mappings(ShareLink, share_links)
     db.session.flush()
 
-    # 6) Journaux d'accès aux liens de partage
+    # 5) Journaux d'accès aux liens de partage
     share_link_access_logs = payload.get("share_link_access_logs", []) or []
     _coerce_fields(share_link_access_logs, {"accessed_at": _parse_dt})
     if share_link_access_logs:
         db.session.bulk_insert_mappings(ShareLinkAccessLog, share_link_access_logs)
         db.session.flush()
 
-    # 7) Tickets
+    # 6) Tickets
     tickets = payload.get("tickets", []) or []
     _coerce_fields(tickets, {"created_at": _parse_dt})
     db.session.bulk_insert_mappings(Ticket, tickets)
     db.session.flush()
 
-    # 8) Table d’association utilisateurs ↔ évènements
+    # 7) Table d’association utilisateurs ↔ évènements
     assoc = payload.get("assoc_utilisateur_evenement", []) or []
     if assoc:
         db.session.execute(utilisateur_evenement.insert(), assoc)

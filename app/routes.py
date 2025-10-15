@@ -17,7 +17,7 @@ from .extensions import db, limiter
 from werkzeug.security import check_password_hash
 from functools import wraps
 from .audit import log_action
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from flask_login import current_user
 from flask import make_response
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -36,7 +36,7 @@ import re
 import json
 import tempfile
 import redis
-from sqlalchemy import text, func
+from sqlalchemy import text, func, or_
 import typing
 
 main_bp = Blueprint("main_bp", __name__)
@@ -122,6 +122,28 @@ def _get_lock_remaining(client_ip: str) -> timedelta | None:
         return None
 
     return remaining
+
+
+def user_can_access_event(user: Utilisateur, evenement: Evenement | None) -> bool:
+    """Détermine si l'utilisateur a le droit d'accéder à l'évènement fourni."""
+
+    if evenement is None or user is None:
+        return False
+
+    if getattr(user, "is_admin", False):
+        return True
+
+    role = (getattr(user, "role", "") or "").lower()
+    if role == "codep":
+        return True
+
+    if evenement.createur_id and evenement.createur_id == getattr(user, "id", None):
+        return True
+
+    try:
+        return evenement in user.evenements
+    except Exception:
+        return False
 
 
 def _build_lock_context(client_ip: str) -> dict:
@@ -297,7 +319,7 @@ def dashboard(evenement_id):
     user = get_current_user()
 
     evenement = Evenement.query.get(evenement_id)
-    if not evenement or evenement not in user.evenements:
+    if not evenement or not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -360,7 +382,7 @@ def fiche_new():
         return redirect(url_for("main_bp.evenement_new"))
 
     evenement = Evenement.query.get(evenement_id)
-    if not evenement or evenement not in user.evenements:
+    if not evenement or not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -756,7 +778,7 @@ def fiche_detail(id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(id)
 
-    if fiche.evenement not in user.evenements and not getattr(user, "is_admin", False) and getattr(user, "role", None) != "codep":
+    if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n'avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -772,9 +794,10 @@ from datetime import datetime
 def fiche_edit(id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(id)
+    role_lower = (user.role or "").lower()
 
     # Vérification d'accès à l'évènement
-    if fiche.evenement not in user.evenements:
+    if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -819,7 +842,8 @@ def fiche_edit(id):
         fiche.destination = request.form.get("destination")
         fiche.moyen_transport = request.form.get("moyen_transport")
         fiche.personne_a_prevenir = request.form.get("personne_a_prevenir")
-        fiche.numero_pec = request.form.get("numero_pec")
+        if user.is_admin or role_lower not in {"technicien", "logisticien"}:
+            fiche.numero_pec = request.form.get("numero_pec")
         fiche.tel_personne_a_prevenir = request.form.get("tel_personne_a_prevenir")
 
         # 🆕 Code Sinus (30 max)
@@ -965,7 +989,7 @@ def fiche_delete(id):
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement.id))
 
     # Doit avoir accès à l'évènement
-    if fiche.evenement not in user.evenements and not user.is_admin and (user.role or "").lower() != "codep":
+    if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -987,7 +1011,7 @@ def fiche_sortie(id):
     fiche = FicheImplique.query.get_or_404(id)
     user = get_current_user()
 
-    if fiche.evenement not in user.evenements:
+    if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
@@ -1037,7 +1061,7 @@ def update_evenement_statut(evenement_id):
     user = get_current_user()
     evenement = Evenement.query.get_or_404(evenement_id)
 
-    if evenement not in user.evenements and not user.is_admin:
+    if not user_can_access_event(user, evenement):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -1058,7 +1082,7 @@ def fiches_json(evenement_id):
     evt = Evenement.query.get_or_404(evenement_id)
 
     # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
-    if (evt not in user.evenements) and (not getattr(user, "is_admin", False)) and (getattr(user, "role", "") != "codep"):
+    if not user_can_access_event(user, evt):
         return json_nocache({"error": "unauthorized"}, 403)
 
     # Tri stable par id (asc) pour éviter les sauts d’ordre au refresh
@@ -1488,7 +1512,7 @@ def fiche_bagages_ajouter(fiche_id):
     user = get_current_user()
     fiche = FicheImplique.query.get_or_404(fiche_id)
 
-    if fiche.evenement not in user.evenements and not user.is_admin and user.role != "codep":
+    if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -1568,7 +1592,7 @@ def fiche_bagages_json(fiche_id):
     fiche = FicheImplique.query.get_or_404(fiche_id)
 
     # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
-    if (fiche.evenement not in user.evenements) and (not getattr(user, "is_admin", False)) and (getattr(user, "role", "") != "codep"):
+    if not user_can_access_event(user, fiche.evenement):
         return json_nocache({"error": "unauthorized"}, 403)
 
     numeros = [
@@ -1996,6 +2020,15 @@ def autorite_json(evenement_id):
     nb_total   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id).count()
     nb_present = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="présent").count()
     nb_sorti   = db.session.query(FicheImplique).filter_by(evenement_id=evenement_id, statut="sorti").count()
+    nb_animaux_present = (
+        db.session.query(func.count(FicheImplique.id))
+        .filter(
+            FicheImplique.evenement_id == evenement_id,
+            FicheImplique.est_animal.is_(True),
+            FicheImplique.statut == "présent",
+        )
+        .scalar()
+    )
 
     # 🔥 ACTUS actives avec heure locale Paris
     news_q = (EventNews.query
@@ -2017,7 +2050,35 @@ def autorite_json(evenement_id):
             "created_at": created_local
         })
 
-    date_str = ev.date_ouverture.astimezone(paris).strftime("%d/%m/%Y %H:%M") if getattr(ev, "date_ouverture", None) else ""
+    date_ouverture = getattr(ev, "date_ouverture", None)
+    if date_ouverture:
+        try:
+            date_str = date_ouverture.astimezone(paris).strftime("%d/%m/%Y %H:%M")
+        except Exception:
+            try:
+                date_str = date_ouverture.replace(tzinfo=timezone.utc).astimezone(paris).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                date_str = date_ouverture.strftime("%d/%m/%Y %H:%M")
+    else:
+        date_str = ""
+
+    temps_fonctionnement = "—"
+    if date_ouverture:
+        try:
+            start = date_ouverture if date_ouverture.tzinfo else date_ouverture.replace(tzinfo=timezone.utc)
+            now_utc = datetime.now(timezone.utc)
+            delta = now_utc - start.astimezone(timezone.utc)
+            total_minutes = max(int(delta.total_seconds() // 60), 0)
+            jours, minutes_restantes = divmod(total_minutes, 1440)
+            heures, minutes = divmod(minutes_restantes, 60)
+            parts = []
+            if jours:
+                parts.append(f"{jours}j")
+            parts.append(f"{heures}h")
+            parts.append(f"{minutes:02d}m")
+            temps_fonctionnement = " ".join(parts)
+        except Exception:
+            temps_fonctionnement = "—"
 
     return jsonify({
         "evenement": {
@@ -2031,6 +2092,8 @@ def autorite_json(evenement_id):
             "nb_total": nb_total,
             "nb_present": nb_present,
             "nb_sorti": nb_sorti,
+            "nb_animaux_present": nb_animaux_present,
+            "temps_fonctionnement": temps_fonctionnement,
         },
         "news": news_items
     }), 200, {
@@ -2141,7 +2204,7 @@ def tickets_json(evenement_id):
     evt = Evenement.query.get_or_404(evenement_id)
 
     # Accès lecture : toute personne rattachée à l’évènement ou admin
-    if (evt not in user.evenements) and (not getattr(user, "is_admin", False)):
+    if not user_can_access_event(user, evt):
         return json_nocache({"error": "forbidden"}, 403)
 
     tickets = (
@@ -2164,7 +2227,7 @@ def ticket_create():
 
     evenement_id = int(request.form.get("evenement_id"))
     evt = Evenement.query.get_or_404(evenement_id)
-    if evt not in user.evenements:
+    if not user_can_access_event(user, evt):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -2195,7 +2258,7 @@ def ticket_update(ticket_id):
     user = get_current_user()
     t = Ticket.query.get_or_404(ticket_id)
     evt = Evenement.query.get_or_404(t.evenement_id)
-    if evt not in user.evenements:
+    if not user_can_access_event(user, evt):
         return jsonify({"error": "unauthorized"}), 403
     if not has_ticket_rights(user):
         return jsonify({"error": "forbidden"}), 403
@@ -2220,7 +2283,7 @@ def ticket_delete(ticket_id):
     t = Ticket.query.get_or_404(ticket_id)
     evt = Evenement.query.get_or_404(t.evenement_id)
 
-    if evt not in user.evenements or not has_ticket_rights(user):
+    if not user_can_access_event(user, evt) or not has_ticket_rights(user):
         flash("⛔ Suppression non autorisée.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
@@ -2317,7 +2380,7 @@ def admin_restore():
         try:
             # Ferme toute session en cours (évite 'database is locked')
             db.session.remove()
-            wipe_db()
+            wipe_db(preserve_users=True)
         except Exception as e:
             flash(f"Impossible d’effacer la base : {e}", "danger")
             return redirect(url_for("main_bp.admin_backup_restore_page"))
@@ -2373,10 +2436,88 @@ def admin_logs():
     if not getattr(user, "is_admin", False):
         flash("⛔ Accès réservé à l'administrateur.", "danger")
         return redirect(url_for("main_bp.dashboard"))
-    page = int(request.args.get("page", 1))
-    per_page = 50
-    logs = AuditLog.query.order_by(AuditLog.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
-    return render_template("admin_logs.html", logs=logs, user=user)
+    page = max(int(request.args.get("page", 1)), 1)
+    per_page = max(min(int(request.args.get("per_page", 50)), 200), 10)
+
+    filters = {
+        "user_id": request.args.get("user_id", type=int),
+        "action": (request.args.get("action") or "").strip(),
+        "entity": (request.args.get("entity") or "").strip(),
+        "q": (request.args.get("q") or "").strip(),
+    }
+
+    query = AuditLog.query
+    if filters["user_id"]:
+        query = query.filter(AuditLog.user_id == filters["user_id"])
+    if filters["action"]:
+        query = query.filter(AuditLog.action == filters["action"])
+    if filters["entity"]:
+        query = query.filter(AuditLog.entity_type == filters["entity"])
+    if filters["q"]:
+        like = f"%{filters['q']}%"
+        query = query.filter(
+            or_(
+                AuditLog.action.ilike(like),
+                AuditLog.entity_type.ilike(like),
+                func.cast(AuditLog.entity_id, db.String).ilike(like),
+                func.cast(AuditLog.user_id, db.String).ilike(like),
+                AuditLog.ip.ilike(like),
+                AuditLog.extra.ilike(like),
+            )
+        )
+
+    query = query.order_by(AuditLog.created_at.desc())
+    logs = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    users = Utilisateur.query.order_by(Utilisateur.nom_utilisateur.asc()).all()
+    actions = [row[0] for row in db.session.query(AuditLog.action).distinct().order_by(AuditLog.action.asc()) if row[0]]
+    entities = [row[0] for row in db.session.query(AuditLog.entity_type).filter(AuditLog.entity_type.isnot(None)).distinct().order_by(AuditLog.entity_type.asc())]
+
+    active_filters = {k: v for k, v in filters.items() if v}
+
+    return render_template(
+        "admin_logs.html",
+        logs=logs,
+        user=user,
+        users=users,
+        actions=actions,
+        entities=entities,
+        filters=filters,
+        active_filters=active_filters,
+        per_page=per_page,
+    )
+
+
+# =====================
+# Audit : suppression ciblée
+# =====================
+@main_bp.route("/admin/logs/delete", methods=["POST"])
+@login_required
+def admin_logs_delete():
+    user = get_current_user()
+    if not getattr(user, "is_admin", False):
+        flash("⛔ Accès réservé à l'administrateur.", "danger")
+        return redirect(url_for("main_bp.dashboard"))
+
+    ids = []
+    for raw in request.form.getlist("log_ids"):
+        try:
+            ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    deleted = 0
+    if ids:
+        deleted = AuditLog.query.filter(AuditLog.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+
+    if deleted:
+        flash(f"🗑️ {deleted} entrée(s) supprimée(s) du journal.", "info")
+    else:
+        flash("Aucune entrée sélectionnée.", "warning")
+
+    redirect_url = request.form.get("next") or url_for("main_bp.admin_logs")
+    return redirect(redirect_url)
 
 
 # =====================
