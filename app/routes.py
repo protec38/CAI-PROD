@@ -47,6 +47,10 @@ main_bp = Blueprint("main_bp", __name__)
 
 
 BROADCAST_AUTO_CLEAR_SECONDS = 15
+BROADCAST_ALLOWED_EMOJIS = ["ℹ️", "⚠️", "🚨", "✅", "🔥"]
+BROADCAST_ALLOWED_LEVELS = ["info", "warning", "danger", "success", "critical"]
+BROADCAST_DEFAULT_EMOJI = "⚠️"
+BROADCAST_DEFAULT_LEVEL = "warning"
 
 
 def schedule_broadcast_expiration(notification_id: int, delay: int = BROADCAST_AUTO_CLEAR_SECONDS) -> None:
@@ -359,12 +363,14 @@ def login():
     client_ip = _get_client_ip()
     _cleanup_login_attempts(client_ip)
     context = _build_lock_context(client_ip)
+    context["hide_broadcast"] = True
 
     if request.method == "GET" and "user_id" in session:
         return redirect(url_for("main_bp.evenement_new"))
 
     if request.method == "POST":
         if context["lock_active"]:
+            context["hide_broadcast"] = True
             return render_template("login.html", **context)
 
         nom_utilisateur = request.form.get("username", "").strip()
@@ -395,6 +401,7 @@ def login():
 
             if reason == "inactive":
                 flash("Votre compte est désactivé. Contactez un administrateur.", "danger")
+                context["hide_broadcast"] = True
                 return render_template("login.html", **context)
 
             record = ip_login_attempts.setdefault(
@@ -406,6 +413,7 @@ def login():
             if record["count"] >= LOGIN_LOCK_THRESHOLD:
                 record["lock_until"] = datetime.utcnow() + LOGIN_LOCK_DURATION
                 context = _build_lock_context(client_ip)
+                context["hide_broadcast"] = True
                 if context["lock_message"]:
                     flash(context["lock_message"], "danger")
             else:
@@ -416,6 +424,7 @@ def login():
                     "danger",
                 )
             context = _build_lock_context(client_ip)
+            context["hide_broadcast"] = True
 
     return render_template("login.html", **context)
 # 🔓 Déconnexion
@@ -494,6 +503,10 @@ def evenement_new():
         user=user,
         evenements=evenements,
         statuts_disponibles=statuts_disponibles,
+        broadcast_emojis=BROADCAST_ALLOWED_EMOJIS,
+        broadcast_levels=BROADCAST_ALLOWED_LEVELS,
+        broadcast_default_emoji=BROADCAST_DEFAULT_EMOJI,
+        broadcast_default_level=BROADCAST_DEFAULT_LEVEL,
     )
 
 
@@ -533,8 +546,22 @@ def create_broadcast():
     if len(message) > 280:
         message = message[:280].rstrip()
 
+    emoji = (request.form.get("emoji") or BROADCAST_DEFAULT_EMOJI).strip()
+    if emoji not in BROADCAST_ALLOWED_EMOJIS:
+        emoji = BROADCAST_DEFAULT_EMOJI
+
+    level = (request.form.get("level") or BROADCAST_DEFAULT_LEVEL).strip().lower()
+    if level not in BROADCAST_ALLOWED_LEVELS:
+        level = BROADCAST_DEFAULT_LEVEL
+
     BroadcastNotification.query.filter_by(is_active=True).update({"is_active": False})
-    notification = BroadcastNotification(message=message, created_by_id=user.id, is_active=True)
+    notification = BroadcastNotification(
+        message=message,
+        created_by_id=user.id,
+        is_active=True,
+        emoji=emoji,
+        level=level,
+    )
     db.session.add(notification)
 
     try:
@@ -555,6 +582,26 @@ def create_broadcast():
         )
 
     return redirect(url_for("main_bp.evenement_new"))
+
+
+@main_bp.route("/notifications/broadcast/status", methods=["GET"])
+@login_required
+def get_broadcast_status():
+    active = (
+        BroadcastNotification.query.filter_by(is_active=True)
+        .order_by(BroadcastNotification.created_at.desc())
+        .first()
+    )
+    timeout_seconds = current_app.config.get(
+        "BROADCAST_AUTO_CLEAR_SECONDS",
+        BROADCAST_AUTO_CLEAR_SECONDS,
+    )
+    return jsonify(
+        {
+            "active": active.as_payload() if active else None,
+            "autoClearSeconds": timeout_seconds,
+        }
+    )
 
 
 @main_bp.route("/evenement/<int:evenement_id>/dashboard")

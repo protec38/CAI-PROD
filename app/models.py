@@ -141,11 +141,22 @@ class BroadcastNotification(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    emoji = db.Column(db.String(8), nullable=False, default="⚠️")
+    level = db.Column(db.String(20), nullable=False, default="warning")
 
     created_by = db.relationship('Utilisateur', back_populates='broadcasts_envoyes')
 
     def __repr__(self):
         return f"<BroadcastNotification {self.id} active={self.is_active}>"
+
+    def as_payload(self) -> dict[str, str | int | None]:
+        return {
+            "id": self.id,
+            "message": self.message,
+            "emoji": self.emoji or "⚠️",
+            "level": self.level or "warning",
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 # ======================

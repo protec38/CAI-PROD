@@ -530,6 +530,26 @@
       box-shadow: 0 0 0 3px rgba(0, 59, 113, 0.12);
     }
 
+    .broadcast-form__options {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .broadcast-form__options .field {
+      flex: 1 1 160px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .broadcast-form__options select {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 10px 12px;
+      font: inherit;
+    }
+
     .broadcast-form__actions {
       display: flex;
       gap: 12px;
@@ -576,6 +596,27 @@
       font-weight: 600;
     }
 
+    .broadcast-summary__status[data-level="info"] {
+      background: rgba(29, 78, 216, 0.12);
+      color: #1d4ed8;
+    }
+
+    .broadcast-summary__status[data-level="success"] {
+      background: rgba(21, 128, 61, 0.12);
+      color: #15803d;
+    }
+
+    .broadcast-summary__status[data-level="warning"] {
+      background: rgba(180, 83, 9, 0.12);
+      color: #b45309;
+    }
+
+    .broadcast-summary__status[data-level="danger"],
+    .broadcast-summary__status[data-level="critical"] {
+      background: rgba(185, 28, 28, 0.12);
+      color: #b91c1c;
+    }
+
     .broadcast-summary__status.is-idle {
       background: rgba(15, 23, 42, 0.06);
       color: var(--muted);
@@ -589,12 +630,37 @@
       color: var(--pc-blue);
     }
 
+    .broadcast-summary__current[data-level="info"] {
+      background: rgba(29, 78, 216, 0.08);
+      color: #1d4ed8;
+    }
+
+    .broadcast-summary__current[data-level="success"] {
+      background: rgba(21, 128, 61, 0.08);
+      color: #15803d;
+    }
+
+    .broadcast-summary__current[data-level="warning"] {
+      background: rgba(180, 83, 9, 0.08);
+      color: #b45309;
+    }
+
+    .broadcast-summary__current[data-level="danger"],
+    .broadcast-summary__current[data-level="critical"] {
+      background: rgba(185, 28, 28, 0.08);
+      color: #b91c1c;
+    }
+
     .broadcast-summary__current strong {
       display: block;
       margin-bottom: 6px;
       font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.02em;
+    }
+
+    .broadcast-summary__current.is-hidden {
+      display: none;
     }
 
     @media (max-width: 600px) {
@@ -784,22 +850,35 @@
     </section>
 
     {% if user.is_admin or user.role == "codep" %}
+      {% set broadcast_level_labels = {
+        'info': 'Information',
+        'success': 'Succès',
+        'warning': 'Alerte',
+        'danger': 'Urgence',
+        'critical': 'Critique'
+      } %}
       <section class="card broadcast-summary" aria-labelledby="broadcast-title">
         <div class="broadcast-summary__header">
           <h3 id="broadcast-title">Notifier tous les utilisateurs</h3>
           {% if active_broadcast %}
-            <span class="broadcast-summary__status">Message actif depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}</span>
+            <span id="broadcast-summary-status" class="broadcast-summary__status" data-level="{{ active_broadcast.level }}">
+              {{ broadcast_level_labels.get(active_broadcast.level, 'Alerte') }} active depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}
+            </span>
           {% else %}
-            <span class="broadcast-summary__status is-idle">Aucune notification active</span>
+            <span id="broadcast-summary-status" class="broadcast-summary__status is-idle" data-level="">Aucune notification active</span>
           {% endif %}
         </div>
         <p>Utilisez le bouton situé en haut de la page pour diffuser une alerte visible pendant environ {{ broadcast_auto_clear_seconds | default(15) }} secondes sur l'ensemble des espaces internes.</p>
-        {% if active_broadcast %}
-          <div class="broadcast-summary__current" role="status">
-            <strong>Message actuel</strong>
-            <span>{{ active_broadcast.message | e }}</span>
-          </div>
-        {% endif %}
+        <div id="broadcast-summary-current" class="broadcast-summary__current{% if not active_broadcast %} is-hidden{% endif %}" role="status" data-level="{{ active_broadcast.level if active_broadcast else '' }}">
+          <strong>Message actuel</strong>
+          <span id="broadcast-summary-message">
+            {% if active_broadcast %}
+              <span aria-hidden="true">{{ active_broadcast.emoji }}</span>
+              <span class="visually-hidden">Emoji :</span>
+              {{ active_broadcast.message | e }}
+            {% endif %}
+          </span>
+        </div>
       </section>
     {% endif %}
 
@@ -949,6 +1028,24 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <label for="broadcast-modal-message">Message (280 caractères max)</label>
             <textarea id="broadcast-modal-message" name="message" maxlength="280" required placeholder="Ex. : Incident réseau en cours, merci de rester vigilants sur les transmissions."></textarea>
+            <div class="broadcast-form__options">
+              <div class="field">
+                <label for="broadcast-modal-emoji">Emoji</label>
+                <select id="broadcast-modal-emoji" name="emoji" required>
+                  {% for emoji in broadcast_allowed_emojis %}
+                    <option value="{{ emoji }}" {% if emoji == broadcast_default_emoji %}selected{% endif %}>{{ emoji }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="broadcast-modal-level">Niveau d'alerte</label>
+                <select id="broadcast-modal-level" name="level" required>
+                  {% for level in broadcast_allowed_levels %}
+                    <option value="{{ level }}" {% if level == broadcast_default_level %}selected{% endif %}>{{ broadcast_level_labels.get(level, level|capitalize) }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
             <div class="broadcast-form__actions">
               <button type="submit">📣 Envoyer la notification</button>
               {% if active_broadcast %}
@@ -988,6 +1085,10 @@
       const broadcastModal = document.getElementById("broadcast-modal");
       const broadcastOpenButton = document.querySelector("[data-broadcast-open]");
       const broadcastDismissButtons = broadcastModal ? Array.from(broadcastModal.querySelectorAll("[data-broadcast-dismiss]")) : [];
+      const broadcastSummaryStatus = document.getElementById("broadcast-summary-status");
+      const broadcastSummaryCurrent = document.getElementById("broadcast-summary-current");
+      const broadcastSummaryMessage = document.getElementById("broadcast-summary-message");
+      const broadcastLevelLabels = {{ broadcast_level_labels | default({'info': 'Information', 'success': 'Succès', 'warning': 'Alerte', 'danger': 'Urgence', 'critical': 'Critique'}, true) | tojson }};
       const focusableSelectors = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
       let focusableModalElements = [];
       let previouslyFocusedElement = null;
@@ -1080,6 +1181,61 @@
         if (event.target === broadcastModal) {
           closeBroadcastModal();
         }
+      });
+
+      const updateBroadcastSummary = (payload) => {
+        if (!broadcastSummaryStatus) {
+          return;
+        }
+
+        if (!payload) {
+          broadcastSummaryStatus.textContent = "Aucune notification active";
+          broadcastSummaryStatus.dataset.level = "";
+          broadcastSummaryStatus.classList.add("is-idle");
+          if (broadcastSummaryCurrent) {
+            broadcastSummaryCurrent.classList.add("is-hidden");
+            broadcastSummaryCurrent.dataset.level = "";
+          }
+          if (broadcastSummaryMessage) {
+            broadcastSummaryMessage.textContent = "";
+          }
+          return;
+        }
+
+        const level = (payload.level || "warning").toLowerCase();
+        const label = broadcastLevelLabels[level] || level.charAt(0).toUpperCase() + level.slice(1);
+        let statusText = `${label} en cours`;
+        if (payload.created_at) {
+          const created = new Date(payload.created_at);
+          if (!Number.isNaN(created.getTime())) {
+            statusText = `${label} active depuis ${created.toLocaleString('fr-FR')}`;
+          }
+        }
+        broadcastSummaryStatus.textContent = statusText;
+        broadcastSummaryStatus.dataset.level = level;
+        broadcastSummaryStatus.classList.remove("is-idle");
+
+        if (broadcastSummaryCurrent) {
+          broadcastSummaryCurrent.classList.remove("is-hidden");
+          broadcastSummaryCurrent.dataset.level = level;
+        }
+
+        if (broadcastSummaryMessage) {
+          const emoji = payload.emoji || "⚠️";
+          const message = payload.message || "";
+          const safeMessage = message
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;")
+            .replace(/\n/g, "<br>");
+          broadcastSummaryMessage.innerHTML = `<span aria-hidden="true">${emoji}</span> <span class="visually-hidden">Emoji :</span> ${safeMessage}`;
+        }
+      };
+
+      window.addEventListener("cai:broadcast:update", (event) => {
+        updateBroadcastSummary(event?.detail?.active || null);
       });
 
       if (!eventCards.length) {
