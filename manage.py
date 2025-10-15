@@ -50,6 +50,7 @@ def init_db():
         _ensure_evenement_archive_columns()
         _ensure_provisional_expiry_column()
         _ensure_share_link_label_column()
+        _ensure_broadcast_notification_columns()
         Model = _find_user_model()
         # Existence de admin ?
         fil = _get_username_filter(Model, "admin")
@@ -176,6 +177,40 @@ def _ensure_share_link_label_column():
                 text(
                     "ALTER TABLE share_link "
                     "ADD COLUMN label VARCHAR(120) NULL"
+                )
+            )
+
+
+def _ensure_broadcast_notification_columns():
+    """Ensure broadcast notifications have emoji/level columns on legacy DBs."""
+
+    engine = db.engine
+    inspector = inspect(engine)
+
+    if not inspector.has_table("broadcast_notification"):
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("broadcast_notification")}
+
+    if "emoji" not in existing_columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    ALTER TABLE broadcast_notification
+                    ADD COLUMN emoji VARCHAR(8) NOT NULL DEFAULT '⚠️'
+                    """
+                )
+            )
+
+    if "level" not in existing_columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    ALTER TABLE broadcast_notification
+                    ADD COLUMN level VARCHAR(20) NOT NULL DEFAULT 'warning'
+                    """
                 )
             )
 
