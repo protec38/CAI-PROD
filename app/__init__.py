@@ -129,6 +129,7 @@ def create_app(config_name: str | None = None) -> Flask:
     def inject_broadcast_banner():
         active = None
         try:
+            from . import routes
             active = (
                 BroadcastNotification.query.filter_by(is_active=True)
                 .order_by(BroadcastNotification.created_at.desc())
@@ -139,6 +140,10 @@ def create_app(config_name: str | None = None) -> Flask:
         return {
             "active_broadcast": active,
             "broadcast_auto_clear_seconds": app.config.get("BROADCAST_AUTO_CLEAR_SECONDS", 15),
+            "broadcast_allowed_emojis": getattr(routes, "BROADCAST_ALLOWED_EMOJIS", ["⚠️"]),
+            "broadcast_allowed_levels": getattr(routes, "BROADCAST_ALLOWED_LEVELS", ["warning"]),
+            "broadcast_default_emoji": getattr(routes, "BROADCAST_DEFAULT_EMOJI", "⚠️"),
+            "broadcast_default_level": getattr(routes, "BROADCAST_DEFAULT_LEVEL", "warning"),
         }
 
     # --- Filtres Jinja (fr_datetime / fr_date / fr_time) ---

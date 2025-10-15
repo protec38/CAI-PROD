@@ -1,13 +1,9 @@
-{% if active_broadcast and not (hide_broadcast | default(false)) %}
-<div id="cai-broadcast-banner" class="cai-broadcast" role="alert" aria-live="assertive" data-duration="{{ (broadcast_auto_clear_seconds | default(15)) * 1000 }}">
-  <div class="cai-broadcast__content">
-    <div class="cai-broadcast__icon" aria-hidden="true">⚠️</div>
-    <div class="cai-broadcast__body">
-      <p class="cai-broadcast__title">Information centre</p>
-      <p class="cai-broadcast__message">{{ active_broadcast.message | e | replace('\n', '<br>') | safe }}</p>
-    </div>
-    <button type="button" class="cai-broadcast__close" data-broadcast-close aria-label="Fermer la notification">×</button>
-  </div>
+{% if not (hide_broadcast | default(false)) %}
+<div id="cai-broadcast-root"
+     data-status-url="{{ url_for('main_bp.get_broadcast_status') }}"
+     data-auto-clear="{{ (broadcast_auto_clear_seconds | default(15)) * 1000 }}"
+     data-poll-interval="5000"
+     data-initial='{{ (active_broadcast.as_payload() if active_broadcast else none) | tojson }}'>
 </div>
 <style>
   #cai-broadcast-banner {
@@ -34,6 +30,23 @@
     opacity: 0;
     transform: translate(-50%, -40px);
     pointer-events: none;
+  }
+  #cai-broadcast-banner[data-level="info"] {
+    background: #1d4ed8;
+    box-shadow: 0 18px 36px rgba(30, 64, 175, 0.36);
+  }
+  #cai-broadcast-banner[data-level="success"] {
+    background: #15803d;
+    box-shadow: 0 18px 36px rgba(22, 101, 52, 0.36);
+  }
+  #cai-broadcast-banner[data-level="warning"] {
+    background: #92400e;
+    box-shadow: 0 18px 36px rgba(146, 64, 14, 0.36);
+  }
+  #cai-broadcast-banner[data-level="danger"],
+  #cai-broadcast-banner[data-level="critical"] {
+    background: #991b1b;
+    box-shadow: 0 18px 36px rgba(153, 27, 27, 0.36);
   }
   .cai-broadcast__content {
     display: flex;
@@ -88,28 +101,200 @@
 </style>
 <script>
 (function(){
-  const banner = document.getElementById('cai-broadcast-banner');
-  if (!banner) { return; }
-  const closeButton = banner.querySelector('[data-broadcast-close]');
-  const duration = parseInt(banner.getAttribute('data-duration') || '8000', 10);
+  const root = document.getElementById('cai-broadcast-root');
+  if (!root) { return; }
 
-  const hide = () => {
-    if (!banner.classList.contains('is-hidden')) {
-      banner.classList.add('is-hidden');
-      window.setTimeout(() => {
-        if (banner && banner.parentElement) {
-          banner.parentElement.removeChild(banner);
-        }
-      }, 320);
+  const statusUrl = root.dataset.statusUrl;
+  if (!statusUrl) { return; }
+
+  const config = {
+    autoClearMs: Number(root.dataset.autoClear || 15000),
+    pollInterval: Number(root.dataset.pollInterval || 10000),
+    lastPayloadKey: null,
+    hideTimer: null,
+  };
+
+  const parseInitial = () => {
+    const raw = root.dataset.initial;
+    if (!raw) { return null; }
+    try { return JSON.parse(raw); } catch (error) { return null; }
+  };
+
+  const state = {
+    payload: parseInitial(),
+  };
+
+  const hideBanner = (immediate = false) => {
+    const banner = document.getElementById('cai-broadcast-banner');
+    if (!banner) { return; }
+    banner.classList.add('is-hidden');
+    banner.classList.remove('is-visible');
+    const remove = () => {
+      if (banner && banner.parentElement) {
+        banner.parentElement.removeChild(banner);
+      }
+    };
+    if (immediate) {
+      remove();
+      return;
+    }
+    window.setTimeout(remove, 320);
+  };
+
+  const scheduleAutoHide = () => {
+    if (config.hideTimer) {
+      window.clearTimeout(config.hideTimer);
+    }
+    if (!config.autoClearMs || config.autoClearMs <= 0) {
+      return;
+    }
+    config.hideTimer = window.setTimeout(() => hideBanner(), config.autoClearMs);
+  };
+
+  const renderBanner = (payload) => {
+    if (!payload) {
+      hideBanner(true);
+      config.lastPayloadKey = null;
+      state.payload = null;
+      window.dispatchEvent(new CustomEvent('cai:broadcast:update', { detail: { active: null } }));
+      return;
+    }
+
+    let banner = document.getElementById('cai-broadcast-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'cai-broadcast-banner';
+      banner.className = 'is-hidden';
+      banner.setAttribute('role', 'alert');
+      banner.setAttribute('aria-live', 'assertive');
+
+      const content = document.createElement('div');
+      content.className = 'cai-broadcast__content';
+
+      const icon = document.createElement('div');
+      icon.className = 'cai-broadcast__icon';
+      icon.setAttribute('aria-hidden', 'true');
+      content.appendChild(icon);
+
+      const body = document.createElement('div');
+      body.className = 'cai-broadcast__body';
+
+      const title = document.createElement('p');
+      title.className = 'cai-broadcast__title';
+      title.textContent = 'Information centre';
+      body.appendChild(title);
+
+      const message = document.createElement('p');
+      message.className = 'cai-broadcast__message';
+      body.appendChild(message);
+
+      content.appendChild(body);
+
+      const close = document.createElement('button');
+      close.className = 'cai-broadcast__close';
+      close.type = 'button';
+      close.setAttribute('aria-label', 'Fermer la notification');
+      close.innerHTML = '&times;';
+      close.addEventListener('click', () => hideBanner(true));
+
+      banner.appendChild(content);
+      banner.appendChild(close);
+      document.body.appendChild(banner);
+      window.requestAnimationFrame(() => {
+        banner.classList.remove('is-hidden');
+        banner.classList.add('is-visible');
+      });
+    }
+
+    banner.dataset.level = payload.level || 'warning';
+    const iconEl = banner.querySelector('.cai-broadcast__icon');
+    if (iconEl) {
+      iconEl.textContent = payload.emoji || '⚠️';
+    }
+    const messageEl = banner.querySelector('.cai-broadcast__message');
+    if (messageEl) {
+      const safeMessage = (payload.message || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\n/g, '<br>');
+      messageEl.innerHTML = safeMessage;
+    }
+
+    banner.classList.remove('is-hidden');
+    banner.classList.add('is-visible');
+
+    state.payload = payload;
+    config.lastPayloadKey = JSON.stringify([
+      payload.id,
+      payload.message,
+      payload.emoji,
+      payload.level,
+      payload.created_at,
+    ]);
+
+    window.dispatchEvent(new CustomEvent('cai:broadcast:update', { detail: { active: payload } }));
+    scheduleAutoHide();
+  };
+
+  const maybeUpdate = (payload) => {
+    if (!payload) {
+      if (state.payload) {
+        hideBanner();
+      }
+      state.payload = null;
+      config.lastPayloadKey = null;
+      window.dispatchEvent(new CustomEvent('cai:broadcast:update', { detail: { active: null } }));
+      return;
+    }
+
+    const key = JSON.stringify([
+      payload.id,
+      payload.message,
+      payload.emoji,
+      payload.level,
+      payload.created_at,
+    ]);
+    if (config.lastPayloadKey === key) {
+      return;
+    }
+    renderBanner(payload);
+  };
+
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch(statusUrl, {
+        headers: {
+          'Accept': 'application/json',
+        },
+        credentials: 'same-origin',
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const payload = await response.json();
+      if (typeof payload?.autoClearSeconds === 'number') {
+        config.autoClearMs = Math.max(2000, payload.autoClearSeconds * 1000);
+      }
+      maybeUpdate(payload?.active || null);
+    } catch (error) {
+      console.error('[Broadcast] Impossible de récupérer le statut', error);
     }
   };
 
-  if (closeButton) {
-    closeButton.addEventListener('click', hide);
+  const initial = state.payload;
+  if (initial) {
+    renderBanner(initial);
   }
 
-  window.setTimeout(hide, Math.max(2000, duration));
-  window.requestAnimationFrame(() => banner.classList.add('is-visible'));
+  if (config.pollInterval > 0) {
+    fetchStatus();
+    window.setInterval(fetchStatus, config.pollInterval);
+  }
+
+  document.addEventListener('cai:broadcast:refresh', fetchStatus);
 })();
 </script>
 {% endif %}
