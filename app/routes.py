@@ -463,14 +463,7 @@ def _format_duration(delta: timedelta | None) -> str:
 
 @main_bp.route("/evenement/<int:evenement_id>/panorama")
 @login_required
-def evenement_panorama(evenement_id: int):
-    user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
-
-    if not user_can_access_event(user, evenement):
-        flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
-        return redirect(url_for("main_bp.evenement_new"))
-
+def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
     fiches = FicheImplique.query.filter_by(evenement_id=evenement.id).all()
 
     now_utc = datetime.utcnow()
@@ -558,6 +551,14 @@ def evenement_panorama(evenement_id: int):
         except Exception:
             fonctionnement = None
 
+    if date_ouverture_locale:
+        try:
+            date_ouverture_iso = date_ouverture_locale.isoformat()
+        except Exception:
+            date_ouverture_iso = None
+    else:
+        date_ouverture_iso = None
+
     stats = {
         "personnes_presentes": personnes_presentes,
         "animaux_presents": animaux_presents,
@@ -567,10 +568,18 @@ def evenement_panorama(evenement_id: int):
         "tickets_open": tickets_open,
         "tickets_in_progress": tickets_in_progress,
         "tickets_total": tickets_open + tickets_in_progress,
-        "date_ouverture": date_ouverture_locale,
+        "date_ouverture": date_ouverture_iso,
         "date_ouverture_txt": date_ouverture_locale.strftime("%d/%m/%Y %H:%M") if date_ouverture_locale else "—",
         "fonctionnement": _format_duration(fonctionnement),
         "statut": evenement.statut or "—",
+    }
+
+    event_info = {
+        "id": evenement.id,
+        "nom": evenement.nom or "",
+        "adresse": evenement.adresse or "",
+        "numero": evenement.numero or "",
+        "statut": stats["statut"],
     }
 
     try:
@@ -586,16 +595,58 @@ def evenement_panorama(evenement_id: int):
     else:
         generated_at = datetime.utcnow()
 
+    return {
+        "event": event_info,
+        "stats": stats,
+        "competence_summary": competence_summary,
+        "recherches": recherches,
+        "total_fiches": len(fiches),
+        "generated_at": generated_at,
+    }
+
+
+@main_bp.route("/evenement/<int:evenement_id>/panorama")
+@login_required
+def evenement_panorama(evenement_id: int):
+    user = get_current_user()
+    evenement = Evenement.query.get_or_404(evenement_id)
+
+    if not user_can_access_event(user, evenement):
+        flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
+        return redirect(url_for("main_bp.evenement_new"))
+
+    data = _build_panorama_data(evenement)
+
     return render_template(
         "evenement_panorama.html",
         user=user,
         evenement=evenement,
-        stats=stats,
-        competence_summary=competence_summary,
-        recherches=recherches,
-        total_fiches=len(fiches),
-        generated_at=generated_at,
+        stats=data["stats"],
+        competence_summary=data["competence_summary"],
+        recherches=data["recherches"],
+        total_fiches=data["total_fiches"],
+        generated_at=data["generated_at"],
     )
+
+
+@main_bp.route("/evenement/<int:evenement_id>/panorama_json", methods=["GET"])
+@login_required
+def evenement_panorama_json(evenement_id: int):
+    user = get_current_user()
+    evenement = Evenement.query.get_or_404(evenement_id)
+
+    if not user_can_access_event(user, evenement):
+        return json_nocache({"error": "unauthorized"}, 403)
+
+    data = _build_panorama_data(evenement)
+    payload = {**data}
+    generated_at = payload.get("generated_at")
+    if isinstance(generated_at, datetime):
+        payload["generated_at"] = generated_at.strftime("%d/%m/%Y %H:%M")
+    else:
+        payload["generated_at"] = None
+
+    return json_nocache(payload)
 
 
 
