@@ -388,6 +388,85 @@
       transform: translateY(-1px);
     }
 
+    .btn-secondary {
+      background: #ffffff;
+      color: var(--pc-blue);
+      border: 1px solid var(--line);
+    }
+
+    .btn-secondary:hover,
+    .btn-secondary:focus-visible {
+      background: rgba(0, 59, 113, 0.08);
+      color: var(--pc-blue);
+    }
+
+    .broadcast-card {
+      display: grid;
+      gap: 12px;
+    }
+
+    .broadcast-card__header {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .broadcast-card__header h3 {
+      margin: 0;
+      color: var(--pc-blue);
+    }
+
+    .broadcast-card__status {
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: rgba(0, 59, 113, 0.08);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+    }
+
+    .broadcast-form textarea {
+      min-height: 110px;
+      resize: vertical;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      padding: 12px 14px;
+      font: inherit;
+      background: #fff;
+    }
+
+    .broadcast-form textarea:focus {
+      outline: none;
+      border-color: var(--pc-blue);
+      box-shadow: 0 0 0 3px rgba(0, 59, 113, 0.12);
+    }
+
+    .broadcast-form__actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .broadcast-card__current {
+      background: rgba(0, 59, 113, 0.06);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.95rem;
+      color: var(--pc-blue);
+    }
+
+    .broadcast-card__current strong {
+      display: block;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      margin-bottom: 4px;
+      color: rgba(0, 59, 113, 0.7);
+    }
+
     .join-helper {
       margin-top: 8px;
       color: var(--muted);
@@ -507,6 +586,7 @@
   </style>
 </head>
 <body>
+  {% include "_broadcast_banner.html" %}
   <a class="skip-link" href="#contenu-principal">Passer au contenu</a>
 
   <header class="app-header">
@@ -542,6 +622,35 @@
       <h2 id="hero-title">Bienvenue sur votre espace évènementiel</h2>
       <p>Les membres voient uniquement les opérations auxquelles ils sont rattachés. Les coordinateurs (CODEP) et administrateurs disposent d'un accès complet pour préparer de nouvelles missions.</p>
     </section>
+
+    {% if user.is_admin or user.role == "codep" %}
+      <section class="card broadcast-card" aria-labelledby="broadcast-title">
+        <div class="broadcast-card__header">
+          <h3 id="broadcast-title">Notifier tous les utilisateurs</h3>
+          {% if active_broadcast %}
+            <span class="broadcast-card__status">Message actif depuis {{ active_broadcast.created_at|fr_datetime if active_broadcast.created_at else '—' }}</span>
+          {% endif %}
+        </div>
+        <p>Diffusez une alerte visible pendant quelques secondes sur toutes les pages internes afin de prévenir d'un incident ou d'une consigne importante.</p>
+        <form method="post" action="{{ url_for('main_bp.create_broadcast') }}" class="broadcast-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label for="broadcast-message">Message (280 caractères max)</label>
+          <textarea id="broadcast-message" name="message" maxlength="280" required placeholder="Ex. : Incident réseau en cours, merci de rester vigilants sur les transmissions."></textarea>
+          <div class="broadcast-form__actions">
+            <button type="submit">📣 Envoyer la notification</button>
+            {% if active_broadcast %}
+              <button type="submit" name="action" value="clear" class="btn-secondary" formnovalidate>🧹 Retirer la notification</button>
+            {% endif %}
+          </div>
+        </form>
+        {% if active_broadcast %}
+          <div class="broadcast-card__current" role="status">
+            <strong>Message actuel</strong>
+            <span>{{ active_broadcast.message | e }}</span>
+          </div>
+        {% endif %}
+      </section>
+    {% endif %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -691,7 +800,7 @@
       const counter = document.getElementById("event-counter");
       const eventCards = Array.from(document.querySelectorAll(".event-card"));
       const noEventMessage = document.getElementById("no-event-message");
-      const EVENTS_PER_PAGE = 5;
+      const EVENTS_PER_PAGE = 3;
 
       if (!eventCards.length) {
         return;

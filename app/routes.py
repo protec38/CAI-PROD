@@ -12,6 +12,7 @@ from .models import (
     TimelineEntry,
     utilisateur_evenement,
     EventNews,
+    BroadcastNotification,
 )
 from .extensions import db, limiter
 from werkzeug.security import check_password_hash
@@ -39,8 +40,72 @@ import tempfile
 import redis
 from sqlalchemy import text, func, or_
 import typing
+import unicodedata
 
 main_bp = Blueprint("main_bp", __name__)
+
+
+COMPETENCES_CAI: list[str] = [
+    "Médecin",
+    "Infirmier",
+    "Sapeur-pompier",
+    "SST",
+    "Psychologue",
+    "Bénévole",
+    "Artisan",
+    "Interprète",
+    "Logisticien",
+    "Conducteur",
+    "Agent sécurité",
+    "Autre",
+]
+
+
+def _slugify_competence(value: str) -> str:
+    base = unicodedata.normalize("NFKD", value or "")
+    base = "".join(ch for ch in base if not unicodedata.combining(ch))
+    base = base.lower()
+    return re.sub(r"[^a-z0-9]+", "", base)
+
+
+_KNOWN_COMPETENCE_SLUGS: dict[str, str] = {
+    _slugify_competence(name): name for name in COMPETENCES_CAI if name
+}
+
+
+def _canonicalize_competence_label(label: str) -> str | None:
+    """Nettoie un libellé brut et le rapproche d'un intitulé connu."""
+
+    if not label:
+        return None
+
+    cleaned = unicodedata.normalize("NFKC", label).replace("\r", "\n")
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -–—•·:\t")
+    cleaned = cleaned.strip()
+    if not cleaned:
+        return None
+
+    slug = _slugify_competence(cleaned)
+    if not slug:
+        return None
+
+    if slug in _KNOWN_COMPETENCE_SLUGS:
+        return _KNOWN_COMPETENCE_SLUGS[slug]
+
+    for known_slug, display in _KNOWN_COMPETENCE_SLUGS.items():
+        if len(slug) >= 2 and known_slug.startswith(slug):
+            return display
+        if len(slug) >= 3 and slug.startswith(known_slug):
+            return display
+        if len(slug) >= 3 and slug in known_slug:
+            return display
+
+    if len(slug) <= 1:
+        return None
+
+    if len(cleaned) > 60:
+        cleaned = cleaned[:57].rstrip() + "…"
+    return cleaned
 
 def add_timeline(fiche_id: int, user_id: int | None, content: str, kind: str):
     """Ajoute une entrée de timeline (UTC) et ne commit PAS (laisse l'appelant décider)."""
@@ -399,6 +464,56 @@ def evenement_new():
 
 
 
+@main_bp.route("/notifications/broadcast", methods=["POST"])
+@login_required
+def create_broadcast():
+    user = get_current_user()
+    role = (user.role or "").lower() if user else ""
+    if not (user and (user.is_admin or role == "codep")):
+        abort(403)
+
+    action = (request.form.get("action") or "create").strip().lower()
+
+    if action == "clear":
+        updated = BroadcastNotification.query.filter_by(is_active=True).update({"is_active": False})
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("Impossible de retirer la notification active.", "danger")
+            return redirect(url_for("main_bp.evenement_new"))
+
+        if updated:
+            log_action("broadcast_cleared")
+            flash("La notification active a été désactivée.", "info")
+        else:
+            flash("Aucune notification active à retirer.", "info")
+        return redirect(url_for("main_bp.evenement_new"))
+
+    message = (request.form.get("message") or "").strip()
+    if not message:
+        flash("Le message de notification ne peut pas être vide.", "danger")
+        return redirect(url_for("main_bp.evenement_new"))
+
+    if len(message) > 280:
+        message = message[:280].rstrip()
+
+    BroadcastNotification.query.filter_by(is_active=True).update({"is_active": False})
+    notification = BroadcastNotification(message=message, created_by_id=user.id, is_active=True)
+    db.session.add(notification)
+
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash("Impossible d'enregistrer la notification. Merci de réessayer.", "danger")
+    else:
+        log_action("broadcast_created")
+        flash("Notification envoyée à tous les utilisateurs connectés.", "success")
+
+    return redirect(url_for("main_bp.evenement_new"))
+
+
 @main_bp.route("/evenement/<int:evenement_id>/dashboard")
 @login_required
 def dashboard(evenement_id):
@@ -500,10 +615,11 @@ def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
         raw = (fiche.competences or "").strip()
         if not raw:
             continue
-        for item in re.split(r"[,;\\n]+", raw):
-            label = item.strip()
-            if label:
-                competence_counts[label] += 1
+        normalized = unicodedata.normalize("NFKC", raw)
+        for item in re.split(r"[,;/\\n|]+", normalized):
+            canonical = _canonicalize_competence_label(item)
+            if canonical:
+                competence_counts[canonical] += 1
 
     competence_summary = sorted(
         (
@@ -687,13 +803,6 @@ def fiche_new():
     if not evenement or not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
-
-    # ✅ Liste fixe des compétences (avec 'Autre')
-    COMPETENCES_CAI = [
-        "Médecin", "Infirmier", "Sapeur-pompier", "SST", "Psychologue",
-        "Bénévole", "Artisan", "Interprète", "Logisticien", "Conducteur",
-        "Agent sécurité", "Autre"
-    ]
 
     if request.method == "POST":
         # --- Heure d'arrivée envoyée par le front: "YYYY-MM-DD HH:MM:SS"
@@ -1116,13 +1225,6 @@ def fiche_edit(id):
     if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
-
-    # Liste des compétences
-    COMPETENCES_CAI = [
-        "Médecin", "Infirmier", "Sapeur-pompier", "SST", "Psychologue",
-        "Bénévole", "Artisan", "Interprète", "Logisticien", "Conducteur",
-        "Agent sécurité", "Autre"
-    ]
 
     if request.method == "POST":
         # ====== Snapshot avant modifications (pour diff) ======
@@ -2351,7 +2453,7 @@ def autorite_share_public(token):
 
     # Lien introuvable ou révoqué -> page dédiée
     if not link or link.revoked:
-        resp = render_template("autorite_share_invalid.html")
+        resp = render_template("autorite_share_invalid.html", hide_broadcast=True)
         # 410 Gone = ressource n'est plus disponible (meilleur qu'un 404 ici)
         return resp, 410, {
             "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -2382,6 +2484,7 @@ def autorite_share_public(token):
         manage=False,
         links=None,
         public_token=token,
+        hide_broadcast=True,
     )
 
 #####################################################

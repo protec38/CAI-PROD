@@ -48,6 +48,12 @@ class Utilisateur(db.Model, UserMixin):
         backref=db.backref('utilisateurs', lazy='dynamic')
     )
 
+    broadcasts_envoyes = db.relationship(
+        'BroadcastNotification',
+        back_populates='created_by',
+        lazy='dynamic',
+    )
+
     def set_password(self, password):
         self.mot_de_passe_hash = generate_password_hash(password)
 
@@ -127,6 +133,19 @@ class Evenement(db.Model):
     @property
     def is_archived(self) -> bool:
         return bool(self.archived)
+
+
+class BroadcastNotification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    message = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True, index=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+
+    created_by = db.relationship('Utilisateur', back_populates='broadcasts_envoyes')
+
+    def __repr__(self):
+        return f"<BroadcastNotification {self.id} active={self.is_active}>"
 
 
 # ======================
