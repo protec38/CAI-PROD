@@ -42,8 +42,11 @@ from sqlalchemy import text, func, or_
 import typing
 import unicodedata
 import threading
+import pytz
 
 main_bp = Blueprint("main_bp", __name__)
+
+PARIS_TZ = pytz.timezone("Europe/Paris")
 
 
 BROADCAST_AUTO_CLEAR_SECONDS = 15
@@ -926,7 +929,9 @@ def fiche_new():
         # --- Heure d'arrivée envoyée par le front: "YYYY-MM-DD HH:MM:SS"
         heure_js_str = (request.form.get("heure_arrivee_js") or "").strip()
         try:
-            heure_arrivee = datetime.strptime(heure_js_str, "%Y-%m-%d %H:%M:%S")
+            parsed_local = datetime.strptime(heure_js_str, "%Y-%m-%d %H:%M:%S")
+            local_dt = PARIS_TZ.localize(parsed_local)
+            heure_arrivee = local_dt.astimezone(timezone.utc).replace(tzinfo=None)
         except Exception:
             # fallback si vide ou format inattendu
             heure_arrivee = datetime.utcnow()
@@ -2099,10 +2104,14 @@ def export_pdf_fiche(id):
         paris = pytz.timezone("Europe/Paris")
         timeline_rows = []
         for entry in reversed(timeline_entries):
-            try:
-                ts = entry.created_at.astimezone(paris) if entry.created_at else None
-            except Exception:
-                ts = entry.created_at
+            ts = entry.created_at
+            if ts:
+                try:
+                    if ts.tzinfo is None:
+                        ts = pytz.utc.localize(ts)
+                    ts = ts.astimezone(paris)
+                except Exception:
+                    pass
             auteur = entry.user.nom if entry.user and entry.user.nom else (entry.user.nom_utilisateur if entry.user else "")
             timeline_rows.append([
                 ts.strftime('%d/%m/%Y %H:%M') if ts else "—",
@@ -2313,6 +2322,8 @@ def export_evenement_fiches_pdf(evenement_id):
         if not dt_utc:
             return "Non renseignée"
         paris = pytz.timezone("Europe/Paris")
+        if dt_utc.tzinfo is None:
+            dt_utc = pytz.utc.localize(dt_utc)
         return dt_utc.astimezone(paris).strftime("%d/%m/%Y %H:%M")
 
     infos_evt = [
@@ -2541,6 +2552,8 @@ def export_evenement_fiches_csv(evenement_id):
     def to_paris_dt(dt):
         if not dt: return None
         try:
+            if dt.tzinfo is None:
+                dt = pytz.utc.localize(dt)
             return dt.astimezone(paris).replace(tzinfo=None)
         except Exception:
             return None
@@ -2768,16 +2781,24 @@ def autorite_dashboard_manage(evenement_id):
 
         for link in links:
             entries = logs_by_link.get(link.id, [])
-            try:
-                last_access = entries[0].accessed_at.astimezone(paris) if entries else None
-            except Exception:
-                last_access = entries[0].accessed_at if entries else None
+            last_access = entries[0].accessed_at if entries else None
+            if last_access:
+                try:
+                    if last_access.tzinfo is None:
+                        last_access = pytz.utc.localize(last_access)
+                    last_access = last_access.astimezone(paris)
+                except Exception:
+                    pass
             recent_history = []
             for entry in entries[:10]:
-                try:
-                    accessed_at = entry.accessed_at.astimezone(paris)
-                except Exception:
-                    accessed_at = entry.accessed_at
+                accessed_at = entry.accessed_at
+                if accessed_at:
+                    try:
+                        if accessed_at.tzinfo is None:
+                            accessed_at = pytz.utc.localize(accessed_at)
+                        accessed_at = accessed_at.astimezone(paris)
+                    except Exception:
+                        pass
                 recent_history.append(
                     {
                         "at": accessed_at,
@@ -2798,10 +2819,13 @@ def autorite_dashboard_manage(evenement_id):
     ).all()
     for n in all_news:
         if n.created_at:
+            created_at = n.created_at
             try:
-                n.created_at_local = n.created_at.astimezone(paris)
+                if created_at.tzinfo is None:
+                    created_at = pytz.utc.localize(created_at)
+                n.created_at_local = created_at.astimezone(paris)
             except Exception:
-                n.created_at_local = n.created_at
+                n.created_at_local = created_at
 
     one_time_token = request.args.get("token")
     return render_template(
@@ -2925,10 +2949,13 @@ def autorite_json(evenement_id):
     for n in news_q.limit(12).all():
         created_local = None
         if n.created_at:
+            created_at = n.created_at
             try:
-                created_local = n.created_at.astimezone(paris).strftime("%d/%m/%Y %H:%M")
+                if created_at.tzinfo is None:
+                    created_at = pytz.utc.localize(created_at)
+                created_local = created_at.astimezone(paris).strftime("%d/%m/%Y %H:%M")
             except Exception:
-                created_local = n.created_at.strftime("%d/%m/%Y %H:%M")
+                created_local = created_at.strftime("%d/%m/%Y %H:%M")
         news_items.append({
             "id": n.id,
             "message": n.message,
@@ -2940,7 +2967,10 @@ def autorite_json(evenement_id):
     date_ouverture = getattr(ev, "date_ouverture", None)
     if date_ouverture:
         try:
-            date_str = date_ouverture.astimezone(paris).strftime("%d/%m/%Y %H:%M")
+            dt_open = date_ouverture
+            if dt_open.tzinfo is None:
+                dt_open = pytz.utc.localize(dt_open)
+            date_str = dt_open.astimezone(paris).strftime("%d/%m/%Y %H:%M")
         except Exception:
             try:
                 date_str = date_ouverture.replace(tzinfo=timezone.utc).astimezone(paris).strftime("%d/%m/%Y %H:%M")
