@@ -10,6 +10,8 @@ def convertir_heure_locale(dt_utc):
     if not dt_utc:
         return None
     paris = pytz.timezone("Europe/Paris")
+    if dt_utc.tzinfo is None:
+        dt_utc = pytz.utc.localize(dt_utc)
     return dt_utc.astimezone(paris)
 
 # Association utilisateur <-> evenement (many-to-many)
