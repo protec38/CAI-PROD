@@ -1,4 +1,17 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash, abort, Response, stream_with_context, jsonify, current_app
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    redirect,
+    url_for,
+    session,
+    flash,
+    abort,
+    Response,
+    stream_with_context,
+    jsonify,
+    current_app,
+)
 from .models import (
     Utilisateur,
     Evenement,
@@ -38,6 +51,7 @@ import re
 import json
 import tempfile
 import redis
+from werkzeug.urls import url_parse
 from sqlalchemy import text, func, or_
 import typing
 import unicodedata
@@ -61,6 +75,36 @@ BROADCAST_LEVEL_LABELS = {
 }
 BROADCAST_DEFAULT_EMOJI = "⚠️"
 BROADCAST_DEFAULT_LEVEL = "warning"
+
+
+def _build_safe_redirect(target: str | None, fallback_endpoint: str, **fallback_kwargs: typing.Any) -> str:
+    """Return a safe redirect target limited to this application."""
+
+    fallback_url = url_for(fallback_endpoint, **fallback_kwargs)
+    if not target:
+        return fallback_url
+
+    cleaned_target = target.strip()
+    if not cleaned_target:
+        return fallback_url
+
+    parsed_target = url_parse(cleaned_target)
+    if parsed_target.scheme or parsed_target.netloc:
+        request_host = url_parse(request.host_url).netloc
+        if parsed_target.netloc != request_host:
+            return fallback_url
+
+        safe_path = parsed_target.path or "/"
+        if parsed_target.query:
+            safe_path = f"{safe_path}?{parsed_target.query}"
+        if parsed_target.fragment:
+            safe_path = f"{safe_path}#{parsed_target.fragment}"
+        return safe_path
+
+    if not cleaned_target.startswith("/") or cleaned_target.startswith("//"):
+        return fallback_url
+
+    return cleaned_target
 
 
 def schedule_broadcast_expiration(notification_id: int, delay: int = BROADCAST_AUTO_CLEAR_SECONDS) -> None:
@@ -926,6 +970,7 @@ def fiche_new():
         fiche_type = "humain"
 
     if request.method == "POST":
+        form_redirect = url_for("main_bp.fiche_new", type=fiche_type)
         # --- Heure d'arrivée envoyée par le front: "YYYY-MM-DD HH:MM:SS"
         heure_js_str = (request.form.get("heure_arrivee_js") or "").strip()
         try:
@@ -957,22 +1002,22 @@ def fiche_new():
             animal_nom = (request.form.get("animal_nom") or "").strip()
             if not animal_nom:
                 flash("Le nom de l’animal est obligatoire.", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
 
             animal_espece = (request.form.get("animal_espece") or "").strip()
             if len(animal_espece) > 120:
                 flash("L’espèce de l’animal ne peut pas dépasser 120 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
 
             animal_particularites = (request.form.get("animal_particularites") or "").strip()
             if len(animal_particularites) > 200:
                 flash("Le champ ‘Particularités’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
 
             animal_notes = (request.form.get("animal_notes") or "").strip()
             if len(animal_notes) > 200:
                 flash("Le champ ‘Notes complémentaires’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
 
             referent_id_raw = (request.form.get("animal_referent_id") or "").strip()
             referent = None
@@ -981,7 +1026,7 @@ def fiche_new():
                     referent_id = int(referent_id_raw)
                 except ValueError:
                     flash("La personne sélectionnée n’est pas valide.", "danger")
-                    return redirect(request.url)
+                    return redirect(form_redirect)
 
                 referent = (
                     FicheImplique.query
@@ -994,7 +1039,7 @@ def fiche_new():
                 )
                 if not referent:
                     flash("La personne sélectionnée n’existe plus.", "danger")
-                    return redirect(request.url)
+                    return redirect(form_redirect)
 
             fiche = FicheImplique(
                 numero=numero,
@@ -1043,15 +1088,15 @@ def fiche_new():
         date_naissance_str = (request.form.get("date_naissance") or "").strip()
         if not date_naissance_str:
             flash("La date de naissance est obligatoire.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
         try:
             date_naissance = datetime.strptime(date_naissance_str, "%Y-%m-%d").date()
         except ValueError:
             flash("Format de date de naissance invalide.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
         if date_naissance > date.today():
             flash("La date de naissance ne peut pas être dans le futur.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
 
         # --- Champs de base
         nom = (request.form.get("nom") or "").strip()
@@ -1067,29 +1112,29 @@ def fiche_new():
         code_sinus = (request.form.get("code_sinus") or "").strip()
         if len(code_sinus) > 30:
             flash("Le Code Sinus ne doit pas dépasser 30 caractères.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
 
         selected_comps = request.form.getlist("competences")
         if "Autre" in selected_comps:
             autre_txt = (request.form.get("competence_autre") or "").strip()
             if not autre_txt:
                 flash("Merci de préciser l’autre compétence (20 caractères max).", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
             if len(autre_txt) > 20:
                 flash("La compétence 'Autre' ne doit pas dépasser 20 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(form_redirect)
             selected_comps = [c for c in selected_comps if c != "Autre"]
             if autre_txt not in selected_comps:
                 selected_comps.append(autre_txt)
         if len(selected_comps) > 4:
             flash("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
         competences = ",".join(selected_comps)
 
         autres_infos = (request.form.get("autres_informations") or "").strip()
         if len(autres_infos) > 200:
             flash("Le champ « Autres informations » ne peut pas dépasser 200 caractères.", "danger")
-            return redirect(request.url)
+            return redirect(form_redirect)
 
         fiche = FicheImplique(
             numero=numero,
@@ -1495,6 +1540,7 @@ def fiche_edit(id):
         return redirect(url_for("main_bp.evenement_new"))
 
     if request.method == "POST":
+        edit_redirect = url_for("main_bp.fiche_edit", id=fiche.id)
         if fiche.est_animal:
             before = {
                 "nom": fiche.nom or "",
@@ -1508,22 +1554,22 @@ def fiche_edit(id):
             fiche_nom = (request.form.get("animal_nom") or "").strip()
             if not fiche_nom:
                 flash("Le nom de l’animal est obligatoire.", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
 
             fiche_espece = (request.form.get("animal_espece") or "").strip()
             if len(fiche_espece) > 120:
                 flash("L’espèce de l’animal ne peut pas dépasser 120 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
 
             fiche_particularites = (request.form.get("animal_particularites") or "").strip()
             if len(fiche_particularites) > 200:
                 flash("Le champ ‘Particularités’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
 
             fiche_notes = (request.form.get("animal_notes") or "").strip()
             if len(fiche_notes) > 200:
                 flash("Le champ ‘Notes complémentaires’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
 
             referent_raw = (request.form.get("animal_referent_id") or "").strip()
             referent = None
@@ -1532,7 +1578,7 @@ def fiche_edit(id):
                     referent_id = int(referent_raw)
                 except ValueError:
                     flash("La personne sélectionnée n’est pas valide.", "danger")
-                    return redirect(request.url)
+                    return redirect(edit_redirect)
 
                 referent = (
                     FicheImplique.query
@@ -1545,7 +1591,7 @@ def fiche_edit(id):
                 )
                 if not referent:
                     flash("La personne sélectionnée n’existe plus.", "danger")
-                    return redirect(request.url)
+                    return redirect(edit_redirect)
 
             statut = (request.form.get("statut") or fiche.statut or "présent").strip()
             fiche.nom = fiche_nom
@@ -1646,7 +1692,7 @@ def fiche_edit(id):
         code_sinus = (request.form.get("code_sinus") or "").strip()
         if len(code_sinus) > 30:
             flash("Le Code Sinus ne doit pas dépasser 30 caractères.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         if hasattr(fiche, "code_sinus"):
             fiche.code_sinus = code_sinus
 
@@ -1656,23 +1702,23 @@ def fiche_edit(id):
             autre_txt = (request.form.get("competence_autre") or "").strip()
             if not autre_txt:
                 flash("Merci de préciser l’autre compétence (20 caractères max).", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
             if len(autre_txt) > 20:
                 flash("La compétence 'Autre' ne doit pas dépasser 20 caractères.", "danger")
-                return redirect(request.url)
+                return redirect(edit_redirect)
             selected_comps = [c for c in selected_comps if c != "Autre"]
             if autre_txt not in selected_comps:
                 selected_comps.append(autre_txt)
         if len(selected_comps) > 4:
             flash("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         fiche.competences = ",".join(selected_comps)
 
         # ✅ Autres informations (trim + limite 200)
         autres_infos = (request.form.get("autres_informations") or "").strip()
         if len(autres_infos) > 200:
             flash("Le champ « Autres informations » ne peut pas dépasser 200 caractères.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         fiche.autres_informations = autres_infos
 
         fiche.est_animal = False
@@ -1686,15 +1732,15 @@ def fiche_edit(id):
         date_str = (request.form.get("date_naissance") or "").strip()
         if not date_str:
             flash("La date de naissance est obligatoire.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         try:
             parsed_birth = datetime.strptime(date_str, "%Y-%m-%d").date()
         except ValueError:
             flash("⚠️ Format de date invalide.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         if parsed_birth > date.today():
             flash("La date de naissance ne peut pas être dans le futur.", "danger")
-            return redirect(request.url)
+            return redirect(edit_redirect)
         fiche.date_naissance = parsed_birth
 
         # ====== 1er commit : on valide la mise à jour ======
@@ -3486,7 +3532,8 @@ def admin_logs_delete():
         deleted = AuditLog.query.delete()
         db.session.commit()
         flash("🧹 L’intégralité du journal d’audit a été supprimée.", "info")
-        return redirect(request.form.get("next") or url_for("main_bp.admin_logs"))
+        safe_target = _build_safe_redirect(request.form.get("next"), "main_bp.admin_logs")
+        return redirect(safe_target)
 
     ids = []
     for raw in request.form.getlist("log_ids"):
@@ -3505,7 +3552,7 @@ def admin_logs_delete():
     else:
         flash("Aucune entrée sélectionnée.", "warning")
 
-    redirect_url = request.form.get("next") or url_for("main_bp.admin_logs")
+    redirect_url = _build_safe_redirect(request.form.get("next"), "main_bp.admin_logs")
     return redirect(redirect_url)
 
 
