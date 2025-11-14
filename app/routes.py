@@ -1394,8 +1394,14 @@ def utilisateur_delete(id):
         return redirect(url_for("main_bp.admin_utilisateurs"))
 
     fiches_associees = FicheImplique.query.filter_by(utilisateur_id=utilisateur.id).all()
+    timeline_entries = TimelineEntry.query.filter_by(user_id=utilisateur.id).all()
+    tickets_crees = Ticket.query.filter_by(created_by_id=utilisateur.id).all()
+    tickets_assignes = Ticket.query.filter_by(assigned_to_id=utilisateur.id).all()
 
-    if fiches_associees:
+    fallback_required = any([fiches_associees, timeline_entries, tickets_crees])
+    fallback_user = None
+
+    if fallback_required:
         if user.id != utilisateur.id:
             fallback_user = user
         else:
@@ -1404,7 +1410,7 @@ def utilisateur_delete(id):
                     Utilisateur.id != utilisateur.id,
                     Utilisateur.actif.is_(True),
                 )
-                .order_by(Utilisateur.id)
+                .order_by(Utilisateur.is_admin.desc(), Utilisateur.id)
                 .first()
             )
 
@@ -1418,12 +1424,39 @@ def utilisateur_delete(id):
         for fiche in fiches_associees:
             fiche.utilisateur_id = fallback_user.id
 
+        for entry in timeline_entries:
+            entry.user_id = fallback_user.id
+
+        for ticket in tickets_crees:
+            ticket.created_by_id = fallback_user.id
+
+    for ticket in tickets_assignes:
+        ticket.assigned_to_id = fallback_user.id if fallback_user else None
+
+    # Les objets optionnels peuvent pointer vers NULL ou le nouvel utilisateur
+    BroadcastNotification.query.filter_by(created_by_id=utilisateur.id).update(
+        {"created_by_id": fallback_user.id if fallback_user else None},
+        synchronize_session=False,
+    )
+    ShareLink.query.filter_by(created_by=utilisateur.id).update(
+        {"created_by": fallback_user.id if fallback_user else None},
+        synchronize_session=False,
+    )
+    EventNews.query.filter_by(created_by=utilisateur.id).update(
+        {"created_by": fallback_user.id if fallback_user else None},
+        synchronize_session=False,
+    )
+    Evenement.query.filter_by(createur_id=utilisateur.id).update(
+        {"createur_id": fallback_user.id if fallback_user else None},
+        synchronize_session=False,
+    )
+
     db.session.delete(utilisateur)
     db.session.commit()
 
-    if fiches_associees:
+    if fallback_required or tickets_assignes:
         flash(
-            "Utilisateur supprimé. Les fiches associées ont été réaffectées à un autre compte.",
+            "Utilisateur supprimé. Les éléments associés ont été réaffectés ou désassignés.",
             "info",
         )
     else:
