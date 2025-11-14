@@ -51,7 +51,7 @@ import re
 import json
 import tempfile
 import redis
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from sqlalchemy import text, func, or_
 import typing
 import unicodedata
@@ -88,23 +88,22 @@ def _build_safe_redirect(target: str | None, fallback_endpoint: str, **fallback_
     if not cleaned_target:
         return fallback_url
 
-    parsed_target = urlparse(cleaned_target)
-    if parsed_target.scheme or parsed_target.netloc:
-        request_host = urlparse(request.host_url).netloc
-        if parsed_target.netloc != request_host:
-            return fallback_url
+    host_url = request.host_url
+    ref_url = urlparse(host_url)
+    test_url = urlparse(urljoin(host_url, cleaned_target))
 
-        safe_path = parsed_target.path or "/"
-        if parsed_target.query:
-            safe_path = f"{safe_path}?{parsed_target.query}"
-        if parsed_target.fragment:
-            safe_path = f"{safe_path}#{parsed_target.fragment}"
-        return safe_path
-
-    if not cleaned_target.startswith("/") or cleaned_target.startswith("//"):
+    if test_url.scheme not in {"http", "https"}:
         return fallback_url
 
-    return cleaned_target
+    if ref_url.netloc != test_url.netloc:
+        return fallback_url
+
+    safe_path = test_url.path or "/"
+    if test_url.query:
+        safe_path = f"{safe_path}?{test_url.query}"
+    if test_url.fragment:
+        safe_path = f"{safe_path}#{test_url.fragment}"
+    return safe_path
 
 
 def schedule_broadcast_expiration(notification_id: int, delay: int = BROADCAST_AUTO_CLEAR_SECONDS) -> None:
