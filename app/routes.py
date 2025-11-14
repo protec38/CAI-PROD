@@ -51,7 +51,7 @@ import re
 import json
 import tempfile
 import redis
-from werkzeug.urls import url_parse
+from urllib.parse import urlparse
 from sqlalchemy import text, func, or_
 import typing
 import unicodedata
@@ -88,9 +88,9 @@ def _build_safe_redirect(target: str | None, fallback_endpoint: str, **fallback_
     if not cleaned_target:
         return fallback_url
 
-    parsed_target = url_parse(cleaned_target)
+    parsed_target = urlparse(cleaned_target)
     if parsed_target.scheme or parsed_target.netloc:
-        request_host = url_parse(request.host_url).netloc
+        request_host = urlparse(request.host_url).netloc
         if parsed_target.netloc != request_host:
             return fallback_url
 
