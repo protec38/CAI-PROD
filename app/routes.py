@@ -1393,9 +1393,41 @@ def utilisateur_delete(id):
         flash("Seul un administrateur peut supprimer ce compte.", "danger")
         return redirect(url_for("main_bp.admin_utilisateurs"))
 
+    fiches_associees = FicheImplique.query.filter_by(utilisateur_id=utilisateur.id).all()
+
+    if fiches_associees:
+        if user.id != utilisateur.id:
+            fallback_user = user
+        else:
+            fallback_user = (
+                Utilisateur.query.filter(
+                    Utilisateur.id != utilisateur.id,
+                    Utilisateur.actif.is_(True),
+                )
+                .order_by(Utilisateur.id)
+                .first()
+            )
+
+        if not fallback_user:
+            flash(
+                "Impossible de supprimer ce compte car aucune réaffectation n'est disponible.",
+                "danger",
+            )
+            return redirect(url_for("main_bp.admin_utilisateurs"))
+
+        for fiche in fiches_associees:
+            fiche.utilisateur_id = fallback_user.id
+
     db.session.delete(utilisateur)
     db.session.commit()
-    flash("Utilisateur supprimé.", "info")
+
+    if fiches_associees:
+        flash(
+            "Utilisateur supprimé. Les fiches associées ont été réaffectées à un autre compte.",
+            "info",
+        )
+    else:
+        flash("Utilisateur supprimé.", "info")
     return redirect(url_for("main_bp.admin_utilisateurs"))
 
 
