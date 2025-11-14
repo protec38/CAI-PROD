@@ -245,6 +245,31 @@ def create_app(config_name: str | None = None) -> Flask:
     def handle_csrf_error(e):
         return render_template("csrf_error.html", reason=e.description), 400
 
+    @app.errorhandler(404)
+    def handle_not_found(e):
+        return (
+            render_template(
+                "error_page.html",
+                code=404,
+                title="Page introuvable",
+                message="La page demandée est introuvable ou n'existe plus.",
+            ),
+            404,
+        )
+
+    @app.errorhandler(500)
+    def handle_internal_error(e):
+        app.logger.exception("Unhandled error while processing a request")
+        return (
+            render_template(
+                "error_page.html",
+                code=500,
+                title="Erreur interne",
+                message="Une erreur inattendue est survenue. L'équipe technique a été alertée.",
+            ),
+            500,
+        )
+
     # --- Hook audit ---
     @app.before_request
     def before_log_mutations():

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}{{ code }} – {{ title }}{% endblock %}
+
+{% block content %}
+<div class="error-page-wrapper">
+    <div class="error-card">
+        <div class="error-code">{{ code }}</div>
+        <h1 class="error-title">{{ title }}</h1>
+        <p class="error-message">{{ message }}</p>
+        <div class="error-actions">
+            <a class="btn" href="{{ url_for('main_bp.dashboard') if current_user.is_authenticated else url_for('main_bp.login') }}">
+                ⬅️ Retour
+            </a>
+            <button class="btn btn-secondary" type="button" onclick="history.back();">
+                🔄 Page précédente
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+}
+
+.error-card {
+    background: linear-gradient(135deg, #ffffff, #f0f6ff);
+    border-radius: 16px;
+    padding: 48px 40px;
+    box-shadow: 0 20px 45px rgba(0, 59, 113, 0.15);
+    max-width: 520px;
+    text-align: center;
+}
+
+.error-code {
+    font-size: 72px;
+    font-weight: 700;
+    color: #003b71;
+    margin-bottom: 12px;
+}
+
+.error-title {
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    font-size: 18px;
+    color: #4d4d4d;
+    margin-bottom: 32px;
+}
+
+.error-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.error-actions .btn {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.error-actions .btn-secondary {
+    background-color: #e1ecf9;
+    color: #003b71;
+}
+
+.error-actions .btn-secondary:hover {
+    background-color: #cbdcf3;
+    color: #002952;
+}
+
+@media (min-width: 480px) {
+    .error-actions {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .error-actions .btn,
+    .error-actions .btn-secondary {
+        min-width: 180px;
+    }
+}
+</style>
+{% endblock %}
