@@ -35,7 +35,7 @@ services:
       redis:
         condition: service_started
     ports:
-      - "5002:5000"
+      - "5001:5000"
     networks: [cai-net]
     restart: unless-stopped
     healthcheck:
