@@ -139,8 +139,10 @@
     font-weight:600;
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
 
   {% include "_flashes.html" %}
 

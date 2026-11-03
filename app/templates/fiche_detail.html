@@ -244,8 +244,10 @@ body{
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body{% if offline_mode | default(false) %} class="cai-offline-detail"{% endif %}>
+<body class="cai-fiche-detail{% if offline_mode | default(false) %} cai-offline-detail{% endif %}">
 
 {% if offline_mode | default(false) %}
 <header class="header"><div class="inner">
@@ -562,6 +564,7 @@ body{
       <div class="tform-wrap">
         <form class="tform" method="post" action="{{ url_for('main_bp.add_timeline_comment', fiche_id=fiche.id) }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="cai-sr-only" for="tl-content">Ajouter un commentaire de suivi</label>
           <textarea name="content" id="tl-content" placeholder="Ajouter un commentaire de suivi..."></textarea>
           <!-- miroir pour compat si la route lit 'comment' -->
           <input type="hidden" name="comment" id="tl-comment">

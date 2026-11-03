@@ -48,6 +48,26 @@ y compris `SECRET_KEY` et le mot de passe PostgreSQL. Modifier la variable
 `POSTGRES_PASSWORD` ne change pas le mot de passe d'une base déjà initialisée :
 mettre aussi à jour le rôle PostgreSQL et `DATABASE_URL` de manière coordonnée.
 
+## Interface téléphone et tablette
+
+Les fiches du tableau de bord s’affichent en cartes sur téléphone et tablette,
+avec leurs boutons Voir, Modifier, Bagages, Sortie et Supprimer directement
+accessibles. Le tableau est conservé sur grand écran. La recherche reste visible,
+les filtres utilisent des cases à cocher et les autres commandes de l’évènement
+sont regroupées sous **Autres actions**.
+
+Les champs ont des libellés associés, une taille de texte adaptée et un clavier
+téléphone pour les numéros. Les commandes tactiles principales mesurent au moins
+44 px de haut. Les fenêtres Bagages/Sortie adaptent leur hauteur à l’espace
+disponible, retiennent le focus clavier et le rendent au bouton d’origine à la
+fermeture. Un lien permet d’aller directement aux fiches et les animations sont
+réduites lorsque cette préférence est activée dans le navigateur.
+
+Ces styles et comportements sont aussi disponibles hors ligne. Les tests Edge
+vérifient les largeurs 320, 390, 768, 1024, 1280 et 1440 px, les débordements,
+les filtres, les champs et la navigation au clavier, avec des tailles d’écran
+simulées.
+
 ## Fiches hors ligne (téléphone, tablette et ordinateur)
 
 Ouvrir le tableau de bord de chaque évènement avec une connexion sur chaque
@@ -139,7 +159,7 @@ pas reconstituer des données absentes du fichier source.
 python -m pytest -q
 node tests/test_frontend.cjs
 python -m playwright install chromium
-# Puis CAI_BROWSER_TEST=1 python -m pytest tests/test_offline_browser.py -q
+# Puis CAI_BROWSER_TEST=1 python -m pytest tests/test_offline_browser.py tests/test_responsive_browser.py -q
 python -m ruff check app manage.py config.py run.py tests --select E9,F63,F7,F82
 python -m pip check
 python -m pip_audit -r requirements.txt --no-deps --disable-pip

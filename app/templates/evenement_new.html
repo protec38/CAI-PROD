@@ -800,8 +800,10 @@
       *, *::before, *::after { transition-duration: 0s !important; }
     }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-portal">
   {% include "_broadcast_banner.html" %}
   <a class="skip-link" href="#contenu-principal">Passer au contenu</a>
 

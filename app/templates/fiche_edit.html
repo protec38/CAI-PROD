@@ -151,8 +151,10 @@ button:hover { background-color: #e65c00; }
 }
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-fiche-form">
 
 {% include "_flashes.html" %}
 
@@ -172,7 +174,7 @@ button:hover { background-color: #e65c00; }
 
 <div class="container">
     <span class="cai-sync-badge"><span class="cai-sync-dot" aria-hidden="true"></span>Sur le serveur</span>
-    <h1><i class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
+    <h1><i aria-hidden="true" class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
 
     <form method="POST" data-initial-type="{{ fiche_type }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -180,7 +182,7 @@ button:hover { background-color: #e65c00; }
 
       <div class="form-grid">
         <div class="form-group">
-          <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
+          <label for="numero"><i aria-hidden="true" class="fas fa-hashtag"></i> Numéro de fiche</label>
           <input type="text" id="numero" value="{{ fiche.numero }}" readonly>
         </div>
         <div class="form-group" style="align-items:center; justify-content:flex-end;">
@@ -192,24 +194,25 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="fiche-section" data-section="humain">
+        <h2 class="form-section-title">Identité et accueil</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
+            <label for="code_sinus"><i aria-hidden="true" class="fa-solid fa-barcode"></i> Code Sinus</label>
             <input type="text" id="code_sinus" name="code_sinus" value="{{ fiche.code_sinus or '' }}" maxlength="30" placeholder="Ex : SINUS-ABC123...">
           </div>
 
           <div class="form-group">
             <label for="nom">Nom <span class="required">*</span></label>
-            <input type="text" id="nom" name="nom" value="{{ fiche.nom or '' }}" maxlength="40" data-required-for="humain">
+            <input type="text" id="nom" name="nom" value="{{ fiche.nom or '' }}" maxlength="40" data-required-for="humain" autocomplete="family-name">
           </div>
 
           <div class="form-group">
             <label for="prenom">Prénom <span class="required">*</span></label>
-            <input type="text" id="prenom" name="prenom" value="{{ fiche.prenom or '' }}" maxlength="40" data-required-for="humain">
+            <input type="text" id="prenom" name="prenom" value="{{ fiche.prenom or '' }}" maxlength="40" data-required-for="humain" autocomplete="given-name">
           </div>
 
           <div class="form-group">
-            <label for="numero_pec"><i class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
+            <label for="numero_pec"><i aria-hidden="true" class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
             <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001" {% if numero_pec_disabled %}disabled aria-disabled="true"{% endif %}>
             <small>
               Référence de prise en charge secouriste (Argos / AEP).
@@ -227,43 +230,43 @@ button:hover { background-color: #e65c00; }
           </div>
 
           <div class="form-group">
-            <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
-            <input type="text" id="telephone" name="telephone" value="{{ fiche.telephone or '' }}" maxlength="15">
+            <label for="telephone"><i aria-hidden="true" class="fas fa-phone"></i> Téléphone</label>
+            <input type="tel" id="telephone" name="telephone" value="{{ fiche.telephone or '' }}" maxlength="15" inputmode="tel" autocomplete="tel">
           </div>
 
           <div class="form-group">
-            <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
-            <input type="text" id="adresse" name="adresse" value="{{ fiche.adresse or '' }}" maxlength="100">
+            <label for="adresse"><i aria-hidden="true" class="fas fa-home"></i> Adresse</label>
+            <input type="text" id="adresse" name="adresse" value="{{ fiche.adresse or '' }}" maxlength="100" autocomplete="street-address">
           </div>
 
           <div class="form-group">
-            <label for="recherche_personne"><i class="fas fa-search"></i> Recherche personne</label>
+            <label for="recherche_personne"><i aria-hidden="true" class="fas fa-search"></i> Recherche personne</label>
             <input type="text" id="recherche_personne" name="recherche_personne" value="{{ fiche.recherche_personne or '' }}" maxlength="200">
           </div>
 
           <div class="form-group">
-            <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
+            <label for="personne_a_prevenir"><i aria-hidden="true" class="fas fa-user-friends"></i> Personne à prévenir</label>
             <input type="text" id="personne_a_prevenir" name="personne_a_prevenir" value="{{ fiche.personne_a_prevenir or '' }}" maxlength="50">
           </div>
 
           <div class="form-group">
-            <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
-            <input type="text" id="tel_personne_a_prevenir" name="tel_personne_a_prevenir" value="{{ fiche.tel_personne_a_prevenir or '' }}" maxlength="15">
+            <label for="tel_personne_a_prevenir"><i aria-hidden="true" class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
+            <input type="tel" id="tel_personne_a_prevenir" name="tel_personne_a_prevenir" value="{{ fiche.tel_personne_a_prevenir or '' }}" maxlength="15" inputmode="tel">
           </div>
 
           <div class="form-group">
-            <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
+            <label for="difficulte"><i aria-hidden="true" class="fas fa-exclamation-circle"></i> Difficultés</label>
             <textarea id="difficulte" name="difficulte" rows="2" maxlength="200">{{ fiche.difficultes or '' }}</textarea>
           </div>
 
           <div class="form-group">
-            <label for="autres_informations"><i class="fas fa-info-circle"></i> Autres informations</label>
+            <label for="autres_informations"><i aria-hidden="true" class="fas fa-info-circle"></i> Autres informations</label>
             <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici...">{{ fiche.autres_informations or '' }}</textarea>
             <small>Maximum 200 caractères.</small>
           </div>
 
           <div class="form-group">
-            <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
+            <label for="competences"><i aria-hidden="true" class="fas fa-tools"></i> Compétences</label>
             <select id="competences" name="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
               {% for c in competences_list %}
                 <option value="{{ c }}" {% if c in fiche_comps %}selected{% endif %}>{{ c }}</option>
@@ -275,22 +278,23 @@ button:hover { background-color: #e65c00; }
                 {% endif %}
               {% endfor %}
             </select>
-            <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+            <small class="desktop-helper">Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+            <small class="touch-helper">Touchez les compétences souhaitées (4 maximum).</small>
           </div>
 
           <div id="bloc-competence-autre" class="form-group">
-            <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
+            <label for="competence_autre"><i aria-hidden="true" class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
             <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
             <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
           </div>
 
           <div class="form-group">
-            <label for="destination"><i class="fas fa-location-arrow"></i> Destination</label>
+            <label for="destination"><i aria-hidden="true" class="fas fa-location-arrow"></i> Destination</label>
             <input type="text" id="destination" name="destination" value="{{ fiche.destination or '' }}">
           </div>
 
           <div class="form-group">
-            <label for="moyen_transport"><i class="fas fa-bus"></i> Moyen de transport</label>
+            <label for="moyen_transport"><i aria-hidden="true" class="fas fa-bus"></i> Moyen de transport</label>
             <input type="text" id="moyen_transport" name="moyen_transport" value="{{ fiche.moyen_transport or '' }}">
           </div>
 
@@ -310,6 +314,7 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="fiche-section" data-section="animal">
+        <h2 class="form-section-title">Informations sur l’animal</h2>
         <div class="form-grid">
           <div class="form-group">
             <label for="animal_nom">Nom de l’animal <span class="required">*</span></label>
@@ -360,7 +365,7 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="form-group-full">
-        <button type="submit"><i class="fas fa-save"></i> Enregistrer les modifications</button>
+        <button type="submit"><i aria-hidden="true" class="fas fa-save"></i> Enregistrer les modifications</button>
       </div>
     </form>
 </div>

@@ -155,18 +155,21 @@ button:hover { background-color: #e65c00; }
     color: #4b5563;
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body{% if offline_mode | default(false) %} class="cai-offline-form-page"{% endif %}>
+<body class="cai-fiche-form{% if offline_mode | default(false) %} cai-offline-form-page{% endif %}">
 
 {% if not offline_mode | default(false) %}{% include "_flashes.html" %}{% endif %}
 
 <div class="container">
     <a href="{{ '/hors-ligne' if offline_mode | default(false) else url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn-retour" data-cai-dashboard-link>
-       <i class="fas fa-arrow-left"></i> Retour au tableau de bord
+       <i aria-hidden="true" class="fas fa-arrow-left"></i> Retour au tableau de bord
     </a>
 
-    <h1 id="cai-edit-title"><i class="fas fa-user-plus"></i> Créer une fiche impliquée</h1>
-    <p class="helper-text" style="text-align:center; margin-bottom: 0;">Sélectionnez le type de fiche à créer.</p>
+    <h1 id="cai-edit-title"><i aria-hidden="true" class="fas fa-user-plus"></i> Créer une fiche impliquée</h1>
+    <p class="helper-text" style="text-align:center; margin-bottom: 0;">Choisissez Humain ou Animal. Les champs marqués * sont obligatoires.</p>
 
     <form method="POST" data-initial-type="{{ fiche_type or 'humain' }}">
       {% if not offline_mode | default(false) %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
@@ -175,7 +178,7 @@ button:hover { background-color: #e65c00; }
 
       <div class="form-grid">
         <div class="form-group">
-          <label for="numero"><i class="fas fa-hashtag"></i> Numéro de fiche</label>
+          <label for="numero"><i aria-hidden="true" class="fas fa-hashtag"></i> Numéro de fiche</label>
           <input type="text" id="numero" name="numero" value="{{ numero_prevu }}" readonly>
         </div>
         <div class="form-group" style="align-items:center; justify-content:flex-end;">
@@ -187,25 +190,26 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="fiche-section" data-section="humain">
+        <h2 class="form-section-title">Identité et accueil</h2>
         <div class="form-grid">
           <div class="form-group">
-            <label for="code_sinus"><i class="fa-solid fa-barcode"></i> Code Sinus</label>
+            <label for="code_sinus"><i aria-hidden="true" class="fa-solid fa-barcode"></i> Code Sinus</label>
             <input type="text" id="code_sinus" name="code_sinus" maxlength="30" placeholder="Ex : SINUS-ABC123...">
           </div>
 
           <div class="form-group">
             <label for="nom">Nom <span class="required">*</span></label>
-            <input type="text" name="nom" maxlength="40" data-required-for="humain">
+            <input id="nom" type="text" name="nom" maxlength="40" data-required-for="humain" autocomplete="family-name">
           </div>
 
           <div class="form-group">
             <label for="prenom">Prénom <span class="required">*</span></label>
-            <input type="text" name="prenom" maxlength="40" data-required-for="humain">
+            <input id="prenom" type="text" name="prenom" maxlength="40" data-required-for="humain" autocomplete="given-name">
           </div>
 
           <div class="form-group">
             <label for="date_naissance_display">
-              <i class="fa-regular fa-calendar"></i> Date de naissance <span class="required">*</span>
+              <i aria-hidden="true" class="fa-regular fa-calendar"></i> Date de naissance <span class="required">*</span>
             </label>
             <div class="birth-row">
               <input
@@ -223,48 +227,49 @@ button:hover { background-color: #e65c00; }
           </div>
 
           <div class="form-group-full">
-            <label for="adresse"><i class="fas fa-home"></i> Adresse</label>
-            <input type="text" name="adresse" maxlength="100">
+            <label for="adresse"><i aria-hidden="true" class="fas fa-home"></i> Adresse</label>
+            <input id="adresse" type="text" name="adresse" maxlength="100" autocomplete="street-address">
           </div>
 
           <div class="form-group">
-            <label for="telephone"><i class="fas fa-phone"></i> Téléphone</label>
-            <input type="text" name="telephone" maxlength="15">
+            <label for="telephone"><i aria-hidden="true" class="fas fa-phone"></i> Téléphone</label>
+            <input id="telephone" type="tel" name="telephone" maxlength="15" inputmode="tel" autocomplete="tel">
           </div>
 
           <div class="form-group">
-            <label for="personne_a_prevenir"><i class="fas fa-user-friends"></i> Personne à prévenir</label>
-            <input type="text" name="personne_a_prevenir" maxlength="50">
+            <label for="personne_a_prevenir"><i aria-hidden="true" class="fas fa-user-friends"></i> Personne à prévenir</label>
+            <input id="personne_a_prevenir" type="text" name="personne_a_prevenir" maxlength="50">
           </div>
 
           <div class="form-group">
-            <label for="tel_personne_a_prevenir"><i class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
-            <input type="text" name="tel_personne_a_prevenir" maxlength="15">
+            <label for="tel_personne_a_prevenir"><i aria-hidden="true" class="fas fa-phone-volume"></i> Téléphone à prévenir</label>
+            <input id="tel_personne_a_prevenir" type="tel" name="tel_personne_a_prevenir" maxlength="15" inputmode="tel">
           </div>
 
           <div class="form-group">
-            <label for="recherche_personne"><i class="fas fa-search"></i> Recherche de personne</label>
-            <textarea name="recherche_personne" rows="2" maxlength="200"></textarea>
+            <label for="recherche_personne"><i aria-hidden="true" class="fas fa-search"></i> Recherche de personne</label>
+            <textarea id="recherche_personne" name="recherche_personne" rows="2" maxlength="200"></textarea>
           </div>
 
           <div class="form-group">
-            <label for="difficulte"><i class="fas fa-exclamation-circle"></i> Difficultés</label>
-            <textarea name="difficulte" rows="2" maxlength="200"></textarea>
+            <label for="difficulte"><i aria-hidden="true" class="fas fa-exclamation-circle"></i> Difficultés</label>
+            <textarea id="difficulte" name="difficulte" rows="2" maxlength="200"></textarea>
           </div>
 
           <div class="form-group">
-            <label for="competences"><i class="fas fa-tools"></i> Compétences</label>
+            <label for="competences"><i aria-hidden="true" class="fas fa-tools"></i> Compétences</label>
             <select name="competences" id="competences" multiple size="6" class="form-control" onchange="onCompetencesChange(this)">
               {% for c in competences_list %}
                 <option value="{{ c }}">{{ c }}</option>
               {% endfor %}
               <option value="Autre">Autre</option>
             </select>
-            <small>Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+            <small class="desktop-helper">Maintenez Ctrl (Windows) ou Cmd (Mac) pour sélectionner plusieurs compétences (max 4).</small>
+            <small class="touch-helper">Touchez les compétences souhaitées (4 maximum).</small>
           </div>
 
           <div id="bloc-competence-autre" class="form-group">
-            <label for="competence_autre"><i class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
+            <label for="competence_autre"><i aria-hidden="true" class="fa-solid fa-pen"></i> Préciser l’autre compétence</label>
             <input type="text" id="competence_autre" name="competence_autre" maxlength="20" placeholder="Saisir (20 car. max)">
             <small>Ce texte sera ajouté aux compétences lors de l’enregistrement.</small>
           </div>
@@ -277,6 +282,7 @@ button:hover { background-color: #e65c00; }
       </div>
 
       <div class="fiche-section" data-section="animal">
+        <h2 class="form-section-title">Informations sur l’animal</h2>
         <div class="form-grid">
           <div class="form-group">
             <label for="animal_nom">Nom de l’animal <span class="required">*</span></label>
@@ -316,7 +322,7 @@ button:hover { background-color: #e65c00; }
       <input type="hidden" name="heure_arrivee_js" id="heure_arrivee_js">
 
       <div class="form-group-full">
-        <button type="submit"><i class="fas fa-save"></i> Enregistrer la fiche</button>
+        <button type="submit"><i aria-hidden="true" class="fas fa-save"></i> Enregistrer la fiche</button>
       </div>
     </form>
 </div>

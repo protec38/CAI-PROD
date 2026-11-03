@@ -315,16 +315,18 @@
       .btn-soft,.btn{width:100%;justify-content:center;}
     }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-tickets">
   {% include "_broadcast_banner.html" %}
   <!-- Topbar -->
   <header class="topbar">
     <div class="tb-inner">
       <div class="logo">PC</div>
-      <div class="tb-title"><i class="fa-solid fa-ticket"></i>&nbsp; Tickets – {{ evenement.nom }}</div>
+      <div class="tb-title"><i aria-hidden="true" class="fa-solid fa-ticket"></i>&nbsp; Tickets – {{ evenement.nom }}</div>
       <div class="right">
-        <a class="btn-top" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+        <a class="btn-top" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i aria-hidden="true" class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
       </div>
     </div>
   </header>
@@ -333,7 +335,7 @@
   <div class="wrap">
     <div class="hero" role="banner">
       <h2 style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
-        <i class="fa-solid fa-clipboard-list"></i>
+        <i aria-hidden="true" class="fa-solid fa-clipboard-list"></i>
         Gestion des tickets de l’évènement
       </h2>
       <div class="muted">Créez, assignez et suivez les demandes en temps réel. Filtrez par statut, priorité, catégorie ou personne assignée.</div>
@@ -352,7 +354,7 @@
     <div class="board">
       <!-- Colonne création -->
       <div class="card">
-        <h3><i class="fa-solid fa-plus"></i> Nouveau ticket</h3>
+        <h3><i aria-hidden="true" class="fa-solid fa-plus"></i> Nouveau ticket</h3>
         <div class="card-content">
           {% if can_manage %}
           <form method="POST" action="{{ url_for('main_bp.ticket_create') }}">
@@ -360,16 +362,16 @@
             <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
 
             <div class="field">
-              <label>Titre *</label>
-              <input type="text" name="title" maxlength="120" required placeholder="Ex : Apporter de l’eau zone C">
+              <label for="ticket-title">Titre *</label>
+              <input id="ticket-title" type="text" name="title" maxlength="120" required placeholder="Ex : Apporter de l’eau zone C">
             </div>
             <div class="field">
-              <label>Description</label>
-              <textarea name="description" rows="3" maxlength="500" placeholder="Détails utiles…"></textarea>
+              <label for="ticket-description">Description</label>
+              <textarea id="ticket-description" name="description" rows="3" maxlength="500" placeholder="Détails utiles…"></textarea>
             </div>
             <div class="field">
-              <label>Catégorie</label>
-              <select name="category">
+              <label for="ticket-category">Catégorie</label>
+              <select id="ticket-category" name="category">
                 <option>Logistique</option>
                 <option>Technique</option>
                 <option>Secours</option>
@@ -377,16 +379,16 @@
               </select>
             </div>
             <div class="field">
-              <label>Priorité</label>
-              <select name="priority">
+              <label for="ticket-priority">Priorité</label>
+              <select id="ticket-priority" name="priority">
                 <option>Normal</option>
                 <option>Haute</option>
                 <option>Basse</option>
               </select>
             </div>
             <div class="field">
-              <label>Assigner à</label>
-              <select name="assigned_to_id">
+              <label for="ticket-assigned_to_id">Assigner à</label>
+              <select id="ticket-assigned_to_id" name="assigned_to_id">
                 <option value="">— Non assigné —</option>
                 {% for u in users %}
                   <option value="{{ u.id }}">{{ u.nom }} ({{ u.role }})</option>
@@ -394,8 +396,8 @@
               </select>
             </div>
             <div class="field">
-              <label>Statut initial</label>
-              <select name="status">
+              <label for="ticket-status">Statut initial</label>
+              <select id="ticket-status" name="status">
                 <option>Ouvert</option>
                 <option>En cours</option>
                 <option>Terminé</option>
@@ -403,7 +405,7 @@
               </select>
             </div>
 
-            <button class="btn" type="submit"><i class="fa-solid fa-paper-plane"></i> Créer</button>
+            <button class="btn" type="submit"><i aria-hidden="true" class="fa-solid fa-paper-plane"></i> Créer</button>
           </form>
           {% else %}
             <p style="margin:0">Vous n’avez pas les droits pour créer des tickets.</p>
@@ -413,35 +415,35 @@
 
       <!-- Colonne liste -->
       <div class="card">
-        <h3><i class="fa-solid fa-list-check"></i> Tous les tickets</h3>
+        <h3><i aria-hidden="true" class="fa-solid fa-list-check"></i> Tous les tickets</h3>
         <div class="card-content">
 
           <div id="ticket-stats" class="stats-grid" aria-live="polite"></div>
 
           <!-- Filtres -->
           <div class="filters">
-            <input id="f-search" type="text" placeholder="Recherche (titre/description)…">
-            <select id="f-status">
+            <input id="f-search" aria-label="Rechercher un ticket" type="text" placeholder="Recherche (titre/description)…">
+            <select id="f-status" aria-label="Filtrer les tickets par statut">
               <option value="">(Tous statuts)</option>
               <option value="Ouvert">Ouvert</option>
               <option value="En cours">En cours</option>
               <option value="Terminé">Terminé</option>
               <option value="Archivé">Archivé</option>
             </select>
-            <select id="f-priority">
+            <select id="f-priority" aria-label="Filtrer les tickets par priorité">
               <option value="">(Toutes priorités)</option>
               <option value="Basse">Basse</option>
               <option value="Normal">Normal</option>
               <option value="Haute">Haute</option>
             </select>
-            <select id="f-category">
+            <select id="f-category" aria-label="Filtrer les tickets par catégorie">
               <option value="">(Toutes catégories)</option>
               <option value="Logistique">Logistique</option>
               <option value="Technique">Technique</option>
               <option value="Secours">Secours</option>
               <option value="Autre">Autre</option>
             </select>
-            <select id="f-assignee">
+            <select id="f-assignee" aria-label="Filtrer les tickets par personne assignée">
               <option value="">(Tous assignés)</option>
               {% for u in users %}
                 <option value="{{ u.id }}">{{ u.nom }}</option>
@@ -483,10 +485,10 @@
     }
     function statusBadge(status){
       const s=(status||"").toLowerCase();
-      if(s==="ouvert") return `<span class="status-badge st-ouvert"><i class="fa-regular fa-circle"></i> Ouvert</span>`;
-      if(s==="en cours") return `<span class="status-badge st-encours"><i class="fa-solid fa-spinner"></i> En cours</span>`;
-      if(s==="terminé"||s==="termine") return `<span class="status-badge st-termine"><i class="fa-solid fa-check"></i> Terminé</span>`;
-      if(s==="archivé"||s==="archive") return `<span class="status-badge st-archive"><i class="fa-solid fa-box-archive"></i> Archivé</span>`;
+      if(s==="ouvert") return `<span class="status-badge st-ouvert"><i aria-hidden="true" class="fa-regular fa-circle"></i> Ouvert</span>`;
+      if(s==="en cours") return `<span class="status-badge st-encours"><i aria-hidden="true" class="fa-solid fa-spinner"></i> En cours</span>`;
+      if(s==="terminé"||s==="termine") return `<span class="status-badge st-termine"><i aria-hidden="true" class="fa-solid fa-check"></i> Terminé</span>`;
+      if(s==="archivé"||s==="archive") return `<span class="status-badge st-archive"><i aria-hidden="true" class="fa-solid fa-box-archive"></i> Archivé</span>`;
       return escapeHTML(status);
     }
     function prioClass(priority){
@@ -509,9 +511,9 @@
 
     /* ===== Carte ticket ===== */
     function ticketCardHTML(t){
-      const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${escapeHTML(t.priority||"—")}</span>`;
+      const prChip = `<span class="chip ${prioClass(t.priority)}"><i aria-hidden="true" class="fa-solid fa-signal"></i> ${escapeHTML(t.priority||"—")}</span>`;
       const meBadge = (String(t.assigned_to_id) === String(CURRENT_USER_ID))
-        ? `<span class="chip chip--me"><i class="fa-solid fa-user-check"></i> Assigné à moi</span>`
+        ? `<span class="chip chip--me"><i aria-hidden="true" class="fa-solid fa-user-check"></i> Assigné à moi</span>`
         : "";
       const assigneeLabel = t.assigned_to || assigneeNameById(t.assigned_to_id);
 
@@ -532,11 +534,11 @@
               <option value="">— Non assigné —</option>
               ${USERS.map(u=>`<option value="${u.id}" ${String(t.assigned_to_id)===String(u.id)?"selected":""}>${escapeHTML(u.nom)} (${escapeHTML(u.role)})</option>`).join("")}
             </select>
-            <button class="btn-soft" type="submit"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
+            <button class="btn-soft" type="submit"><i aria-hidden="true" class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
           </form>
           <form method="POST" action="/tickets/${t.id}/delete" onsubmit="return confirm('Supprimer ce ticket ?')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn-soft btn-danger" type="submit"><i class="fa-solid fa-trash-can"></i> Supprimer</button>
+            <button class="btn-soft btn-danger" type="submit"><i aria-hidden="true" class="fa-solid fa-trash-can"></i> Supprimer</button>
           </form>
         </div>` : ``;
 
@@ -549,15 +551,15 @@
             </div>
             <div class="ticket__badges">
               ${prChip}
-              <span class="chip"><i class="fa-solid fa-tags"></i> ${escapeHTML(t.category||"—")}</span>
-              <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
+              <span class="chip"><i aria-hidden="true" class="fa-solid fa-tags"></i> ${escapeHTML(t.category||"—")}</span>
+              <span class="chip"><i aria-hidden="true" class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
               ${meBadge}
             </div>
           </header>
           ${t.description ? `<p class="ticket__description">${escapeHTML(t.description)}</p>`:``}
           <div class="ticket__meta">
-            <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${escapeHTML(t.created_by||"—")}</span>
-            <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${escapeHTML(assigneeLabel||"—")}</span>
+            <span class="chip"><i aria-hidden="true" class="fa-solid fa-user"></i> Demandeur&nbsp;: ${escapeHTML(t.created_by||"—")}</span>
+            <span class="chip"><i aria-hidden="true" class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${escapeHTML(assigneeLabel||"—")}</span>
           </div>
           ${managePart}
         </article>`;
@@ -646,7 +648,7 @@
 
       wrap.innerHTML = cards.map(card=>`
         <div class="stat-card ${card.className}">
-          <div class="stat-card__icon"><i class="${card.icon}"></i></div>
+          <div class="stat-card__icon"><i aria-hidden="true" class="${card.icon}"></i></div>
           <div class="stat-card__value">${card.value}</div>
           <div class="stat-card__label">${card.label}</div>
         </div>

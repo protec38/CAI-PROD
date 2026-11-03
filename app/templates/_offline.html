@@ -1,4 +1,3 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
 {% if not offline_mode | default(false) %}
 <script id="cai-offline-context" type="application/json">{{ {
   'userId': user.id,

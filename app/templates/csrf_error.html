@@ -14,8 +14,10 @@ body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:#f8faf
     p{margin:6px 0}
     a.btn{display:inline-block;margin-top:12px;padding:10px 14px;border-radius:10px;background:#002f6c;color:#fff;text-decoration:none;font-weight:700}
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
   {% include "_flashes.html" %}
   <div class="wrap">
     <div class="card">

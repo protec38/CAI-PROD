@@ -343,81 +343,83 @@
       .btn { justify-content: center; }
     }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-panorama">
   {% include "_broadcast_banner.html" %}
   <a href="#contenu-principal" class="skip-link">Aller au contenu</a>
   <div class="layout">
     <header class="page-header">
-      <span class="page-header__eyebrow"><i class="fa-solid fa-signal"></i> Panorama du centre</span>
+      <span class="page-header__eyebrow"><i aria-hidden="true" class="fa-solid fa-signal"></i> Panorama du centre</span>
       <h1 class="page-header__title" id="evt-nom">{{ evenement.nom }}</h1>
       <div class="page-header__meta">
         <span id="evt-numero-wrapper" {% if not evenement.numero %}style="display:none;"{% endif %}>
-          <i class="fa-solid fa-hashtag"></i> <span id="evt-numero">{{ evenement.numero }}</span>
+          <i aria-hidden="true" class="fa-solid fa-hashtag"></i> <span id="evt-numero">{{ evenement.numero }}</span>
         </span>
         <span id="evt-adresse-wrapper" {% if not evenement.adresse %}style="display:none;"{% endif %}>
-          <i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span>
+          <i aria-hidden="true" class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span>
         </span>
-        <span class="status-badge"><i class="fa-solid fa-circle"></i> <span id="evt-statut">{{ stats.statut }}</span></span>
+        <span class="status-badge"><i aria-hidden="true" class="fa-solid fa-circle"></i> <span id="evt-statut">{{ stats.statut }}</span></span>
       </div>
       <div class="header-actions">
-        <a href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn btn--primary"><i class="fa-solid fa-chart-simple"></i> Tableau opérationnel</a>
-        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-rectangle-list"></i> Liste des évènements</a>
+        <a href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn btn--primary"><i aria-hidden="true" class="fa-solid fa-chart-simple"></i> Tableau opérationnel</a>
+        <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i aria-hidden="true" class="fa-solid fa-rectangle-list"></i> Liste des évènements</a>
       </div>
     </header>
 
     <main id="contenu-principal">
       <section class="stats-grid" aria-label="Indicateurs clés">
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-user-check"></i> Personnes présentes</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-user-check"></i> Personnes présentes</div>
           <div class="stat-card__value" id="stat-personnes-presentes">{{ stats.personnes_presentes }}/{{ stats.personnes_total }}</div>
           <div class="stat-card__meta">
-            <span class="stat-chip"><i class="fa-solid fa-users"></i> Total fiches : <span id="stat-total-fiches">{{ total_fiches }}</span></span>
+            <span class="stat-chip"><i aria-hidden="true" class="fa-solid fa-users"></i> Total fiches : <span id="stat-total-fiches">{{ total_fiches }}</span></span>
           </div>
         </article>
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-paw"></i> Animaux présents</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-paw"></i> Animaux présents</div>
           <div class="stat-card__value" id="stat-animaux-presentes">{{ stats.animaux_presents }}/{{ stats.animaux_total }}</div>
         </article>
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Personnes sorties</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Personnes sorties</div>
           <div class="stat-card__value" id="stat-personnes-sorties">{{ stats.personnes_sorties }}</div>
         </article>
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-dog"></i> Animaux sortis</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-dog"></i> Animaux sortis</div>
           <div class="stat-card__value" id="stat-animaux-sortis">{{ stats.animaux_sortis }}</div>
         </article>
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-clock"></i> Temps moyen de présence</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-clock"></i> Temps moyen de présence</div>
           <div class="stat-card__value" id="stat-avg-presence">{{ stats.avg_presence }}</div>
         </article>
         <article class="stat-card">
-          <div class="stat-card__label"><i class="fa-solid fa-ticket"></i> Tickets en cours</div>
+          <div class="stat-card__label"><i aria-hidden="true" class="fa-solid fa-ticket"></i> Tickets en cours</div>
           <div class="stat-card__value" id="stat-tickets-total">{{ stats.tickets_total }}</div>
           <div class="stat-card__meta">
-            <span class="stat-chip"><i class="fa-solid fa-circle-dot"></i> Nouveaux : <span id="stat-tickets-open">{{ stats.tickets_open }}</span></span>
-            <span class="stat-chip"><i class="fa-solid fa-spinner"></i> Pris en compte : <span id="stat-tickets-progress">{{ stats.tickets_in_progress }}</span></span>
+            <span class="stat-chip"><i aria-hidden="true" class="fa-solid fa-circle-dot"></i> Nouveaux : <span id="stat-tickets-open">{{ stats.tickets_open }}</span></span>
+            <span class="stat-chip"><i aria-hidden="true" class="fa-solid fa-spinner"></i> Pris en compte : <span id="stat-tickets-progress">{{ stats.tickets_in_progress }}</span></span>
           </div>
         </article>
       </section>
 
       <section class="info-grid" aria-label="Informations sur le centre">
         <div class="info-card">
-          <h3><i class="fa-solid fa-door-open"></i> Ouverture du centre</h3>
+          <h3><i aria-hidden="true" class="fa-solid fa-door-open"></i> Ouverture du centre</h3>
           <p id="stat-date-ouverture">{{ stats.date_ouverture_txt }}</p>
         </div>
         <div class="info-card">
-          <h3><i class="fa-solid fa-stopwatch"></i> Temps de fonctionnement</h3>
+          <h3><i aria-hidden="true" class="fa-solid fa-stopwatch"></i> Temps de fonctionnement</h3>
           <p id="stat-fonctionnement">{{ stats.fonctionnement }}</p>
         </div>
         <div class="info-card">
-          <h3><i class="fa-solid fa-sitemap"></i> Statut opérationnel</h3>
+          <h3><i aria-hidden="true" class="fa-solid fa-sitemap"></i> Statut opérationnel</h3>
           <p id="stat-statut">{{ stats.statut }}</p>
         </div>
       </section>
 
       <section class="block" aria-labelledby="competences-title">
-        <h2 id="competences-title"><i class="fa-solid fa-graduation-cap"></i> Compétences disponibles</h2>
+        <h2 id="competences-title"><i aria-hidden="true" class="fa-solid fa-graduation-cap"></i> Compétences disponibles</h2>
         <div class="chip-list" id="competence-list" {% if not competence_summary %}style="display:none;"{% endif %}>
           {% if competence_summary %}
             {% for item in competence_summary %}
@@ -429,13 +431,13 @@
       </section>
 
       <section class="block" aria-labelledby="recherche-title">
-        <h2 id="recherche-title"><i class="fa-solid fa-person-circle-question"></i> Synthèse des personnes recherchées</h2>
+        <h2 id="recherche-title"><i aria-hidden="true" class="fa-solid fa-person-circle-question"></i> Synthèse des personnes recherchées</h2>
         <ul class="research-list" id="recherches-list" {% if not recherches %}style="display:none;"{% endif %}>
           {% if recherches %}
             {% for item in recherches %}
               <li class="research-card">
                 <div class="research-card__title">
-                  <i class="fa-solid fa-user"></i> {{ item.identite }}
+                  <i aria-hidden="true" class="fa-solid fa-user"></i> {{ item.identite }}
                   {% if item.statut %}<span class="badge-status">{{ item.statut }}</span>{% endif %}
                 </div>
                 <div class="detail-pills">
@@ -451,7 +453,7 @@
       </section>
 
       <div class="footer-meta">
-        <span><i class="fa-solid fa-clock-rotate-left"></i> Mise à jour :
+        <span><i aria-hidden="true" class="fa-solid fa-clock-rotate-left"></i> Mise à jour :
           <span id="stat-generated-at">
             {% if generated_at %}
               {{ generated_at.strftime('%d/%m/%Y %H:%M') }}
@@ -460,7 +462,7 @@
             {% endif %}
           </span>
         </span>
-        <span><i class="fa-solid fa-users"></i> Total d'implications : <span id="total-fiches-footer">{{ total_fiches }}</span></span>
+        <span><i aria-hidden="true" class="fa-solid fa-users"></i> Total d'implications : <span id="total-fiches-footer">{{ total_fiches }}</span></span>
       </div>
     </main>
   </div>
@@ -556,7 +558,7 @@
           ? `<span class="badge-status">${escapeHtml(item.statut)}</span>`
           : '';
         const details = (item.details || []).map(detail => `<span class="detail-pill">${escapeHtml(detail)}</span>`).join('');
-        return `<li class="research-card"><div class="research-card__title"><i class="fa-solid fa-user"></i> ${escapeHtml(item.identite)}${statut ? ' ' + statut : ''}</div><div class="detail-pills">${details}</div></li>`;
+        return `<li class="research-card"><div class="research-card__title"><i aria-hidden="true" class="fa-solid fa-user"></i> ${escapeHtml(item.identite)}${statut ? ' ' + statut : ''}</div><div class="detail-pills">${details}</div></li>`;
       }).join('');
       if (list.innerHTML.trim() !== html.trim()) {
         list.innerHTML = html;

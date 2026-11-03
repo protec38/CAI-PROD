@@ -4,6 +4,7 @@ Run with CAI_BROWSER_TEST=1. CAI_BROWSER_CHANNEL=msedge uses installed Edge.
 The test uses the isolated test database, never the application's real data.
 """
 import os
+import re
 from threading import Thread
 
 import pytest
@@ -41,7 +42,7 @@ def test_offline_reload_and_automatic_recovery(app):
             expect(page.get_by_role("status")).to_have_text("Mode hors ligne")
             expect(page.locator(".cai-connection-indicator .cai-sync-dot")).to_have_css("background-color", "rgb(237, 136, 0)")
             page.get_by_role("link", name="Créer une fiche impliquée", exact=True).click()
-            expect(page.locator("body")).to_have_class("cai-offline-form-page")
+            expect(page.locator("body")).to_have_class(re.compile(r"\bcai-offline-form-page\b"))
             form = page.locator("form[data-initial-type]")
             form.locator('[name="nom"]').fill("Hors Ligne")
             form.locator('[name="prenom"]').fill("Alice")
@@ -50,7 +51,7 @@ def test_offline_reload_and_automatic_recovery(app):
             expect(page.locator("#fiches-table-body")).to_contain_text("Hors Ligne")
             expect(page.locator("#fiches-table-body .cai-sync-pending")).to_have_count(1)
             page.wait_for_url("**/evenement/1/dashboard")
-            expect(page.locator("body")).to_have_class("cai-offline-dashboard")
+            expect(page.locator("body")).to_have_class(re.compile(r"\bcai-offline-dashboard\b"))
             row = page.locator("#fiches-table-body tr").filter(has_text="Hors Ligne")
             row.get_by_role("button", name="Bagages", exact=True).click()
             page.locator("#numeros").fill("BAG-OFF-1, BAG-OFF-2")
@@ -230,7 +231,7 @@ def test_offline_full_details_and_deletions(app):
             expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur", timeout=20000)
             context.set_offline(True)
             page.locator("#fiche-row-1").get_by_role("link", name="Voir", exact=True).click()
-            expect(page.locator("body")).to_have_class("cai-offline-detail")
+            expect(page.locator("body")).to_have_class(re.compile(r"\bcai-offline-detail\b"))
             expect(page.locator('[data-field="telephone"]')).to_have_text("0612345678")
             expect(page.locator('[data-field="adresse"]')).to_have_text("12 rue des Tests")
             expect(page.locator('[data-field="date_naissance"]')).to_have_text("31/01/1990")

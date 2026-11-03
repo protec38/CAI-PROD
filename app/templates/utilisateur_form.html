@@ -160,8 +160,10 @@
     .flash-warning{ background:#fefce8; border-color:#fef08a; color:#92400e; }
     .flash-danger{ background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
   {% include "_broadcast_banner.html" %}
 
   <!-- Header -->

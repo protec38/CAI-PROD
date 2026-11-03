@@ -87,8 +87,10 @@
     .col-select{display:flex;justify-content:flex-start}
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
   {% include "_flashes.html" %}
   <header>
     <div class="header-wrap">
@@ -100,7 +102,7 @@
         </div>
       </div>
       <div class="header-actions">
-        <a class="btn" href="{{ url_for('main_bp.evenement_new') }}"><i class="fa-solid fa-rocket"></i> Portail évènements</a>
+        <a class="btn" href="{{ url_for('main_bp.evenement_new') }}"><i aria-hidden="true" class="fa-solid fa-rocket"></i> Portail évènements</a>
       </div>
     </div>
   </header>
@@ -157,14 +159,14 @@
           </div>
         </div>
         <div class="filters-actions">
-          <button class="btn-secondary" type="submit"><i class="fa-solid fa-filter"></i> Appliquer</button>
-          <a class="btn-outline" href="{{ url_for('main_bp.admin_logs') }}"><i class="fa-solid fa-rotate"></i> Réinitialiser</a>
+          <button class="btn-secondary" type="submit"><i aria-hidden="true" class="fa-solid fa-filter"></i> Appliquer</button>
+          <a class="btn-outline" href="{{ url_for('main_bp.admin_logs') }}"><i aria-hidden="true" class="fa-solid fa-rotate"></i> Réinitialiser</a>
         </div>
       </form>
       {% if active_filters %}
       <div class="chips" aria-label="Filtres actifs">
         {% for key, value in active_filters.items() %}
-          <span class="chip"><i class="fa-solid fa-tag"></i> {{ key }} : {{ value }}</span>
+          <span class="chip"><i aria-hidden="true" class="fa-solid fa-tag"></i> {{ key }} : {{ value }}</span>
         {% endfor %}
       </div>
       {% endif %}
@@ -215,8 +217,8 @@
         <div class="table-actions">
           <div class="info"><span id="selected-count">0</span> sélectionnée(s)</div>
           <div class="actions">
-            <button type="submit" class="btn btn-danger" id="delete-btn" disabled><i class="fa-solid fa-trash-can"></i> Supprimer la sélection</button>
-            <button type="submit" class="btn btn-danger" name="delete_all" value="1" onclick="return confirm('Supprimer toutes les entrées du journal ?');"><i class="fa-solid fa-broom"></i> Tout supprimer</button>
+            <button type="submit" class="btn btn-danger" id="delete-btn" disabled><i aria-hidden="true" class="fa-solid fa-trash-can"></i> Supprimer la sélection</button>
+            <button type="submit" class="btn btn-danger" name="delete_all" value="1" onclick="return confirm('Supprimer toutes les entrées du journal ?');"><i aria-hidden="true" class="fa-solid fa-broom"></i> Tout supprimer</button>
           </div>
         </div>
       </form>

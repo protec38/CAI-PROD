@@ -37,7 +37,9 @@
     button.addEventListener('click', () => sync().catch(report));
     queue = document.createElement('ul');
     panel.append(status, button, queue);
-    details.append(indicator, panel); bar.append(details); document.body.prepend(bar);
+    details.append(indicator, panel); bar.append(details);
+    const skip = document.querySelector('.cai-skip-link');
+    if (skip) skip.after(bar); else document.body.prepend(bar);
   }
   function report(error) {
     if (!status) {
@@ -459,7 +461,9 @@
           const values = action === 'bagages' ? {numeros: form.elements.numeros.value, base_numeros: form.dataset.baseNumeros || ''} :
             {destination: form.elements.destination.value, moyen_transport: form.elements.moyen_transport.value};
           await queueAction(action, fiche, values);
-          document.getElementById(action === 'bagages' ? 'modal-bagage' : 'modal-sortie').style.display = 'none';
+          const dialogId = action === 'bagages' ? 'modal-bagage' : 'modal-sortie';
+          if (window.CAIUI) window.CAIUI.closeDialog(dialogId);
+          else document.getElementById(dialogId).style.display = 'none';
         } catch (problem) {
           const message = document.createElement('p'); message.className = 'cai-action-error';
           message.setAttribute('role', 'alert'); message.textContent = problem.message; form.append(message);

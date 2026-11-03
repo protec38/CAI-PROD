@@ -127,8 +127,10 @@
     .footer{max-width:1100px;margin:18px auto 36px; padding:0 12px; color:#7c8798; font-size:13px}
     .footer .brand{font-weight:800; color:#0d2a50}
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
   {% include "_flashes.html" %}
   <!-- Topbar -->
   <header class="topbar">
@@ -142,51 +144,51 @@
   <div class="wrap">
     <!-- HERO -->
     <div class="hero card" role="banner" aria-label="En-tête de l'évènement">
-      <h1 id="evt-nom"><i class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
+      <h1 id="evt-nom"><i aria-hidden="true" class="fa-solid fa-landmark"></i> {{ evenement.nom }}</h1>
 
       <!-- Tagline produit -->
       <div class="tagline">
-        <i class="fa-solid fa-shield-heart"></i>
+        <i aria-hidden="true" class="fa-solid fa-shield-heart"></i>
         <span>Logiciel de la Protection Civile de l'Isère (38)</span>
       </div>
 
       <div class="chips">
-        <span class="chip"><i class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
+        <span class="chip"><i aria-hidden="true" class="fa-solid fa-location-dot"></i> <span id="evt-adresse">{{ evenement.adresse }}</span></span>
         <span class="chip" id="evt-statut-chip">
           {% set st = evenement.statut or '' %}
-          {% if st == 'Ouvert' %}<i class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
-          {% elif st == 'Complet' %}<i class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
-          {% elif st == 'Fermé' %}<i class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
-          {% elif st == 'En cours de gréement' %}<i class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
-          {% elif st == 'Effectif dépassé' %}<i class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
-          {% else %}<i class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>{% endif %}
+          {% if st == 'Ouvert' %}<i aria-hidden="true" class="fa-solid fa-circle" style="color:var(--ok)"></i> <span id="evt-statut">Ouvert</span>
+          {% elif st == 'Complet' %}<i aria-hidden="true" class="fa-solid fa-circle" style="color:var(--warn)"></i> <span id="evt-statut">Complet</span>
+          {% elif st == 'Fermé' %}<i aria-hidden="true" class="fa-solid fa-circle-xmark"></i> <span id="evt-statut">Fermé</span>
+          {% elif st == 'En cours de gréement' %}<i aria-hidden="true" class="fa-solid fa-screwdriver-wrench"></i> <span id="evt-statut">En cours de gréement</span>
+          {% elif st == 'Effectif dépassé' %}<i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i> <span id="evt-statut">Effectif dépassé</span>
+          {% else %}<i aria-hidden="true" class="fa-regular fa-circle"></i> <span id="evt-statut">{{ evenement.statut }}</span>{% endif %}
         </span>
-        <span class="chip"><i class="fa-solid fa-clock"></i>
+        <span class="chip"><i aria-hidden="true" class="fa-solid fa-clock"></i>
           <span id="evt-date">{{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') if evenement.date_ouverture_locale else '' }}</span>
         </span>
       </div>
 
       <div class="tiles" aria-live="polite">
         <div class="tile">
-          <div class="ico"><i class="fa-solid fa-user-check"></i></div>
+          <div class="ico"><i aria-hidden="true" class="fa-solid fa-user-check"></i></div>
           <div>
             <div class="k">Présents (humains)</div>
             <div class="v"><span id="stat-present">—</span> / <span id="stat-total">—</span></div>
           </div>
         </div>
         <div class="tile">
-          <div class="ico"><i class="fa-solid fa-person-walking-arrow-right"></i></div>
+          <div class="ico"><i aria-hidden="true" class="fa-solid fa-person-walking-arrow-right"></i></div>
           <div><div class="k">Sortis</div><div class="v" id="stat-sorti">—</div></div>
         </div>
         <div class="tile">
-          <div class="ico"><i class="fa-solid fa-paw"></i></div>
+          <div class="ico"><i aria-hidden="true" class="fa-solid fa-paw"></i></div>
           <div>
             <div class="k">Présents (animaux)</div>
             <div class="v"><span id="stat-animaux-present">—</span> / <span id="stat-animaux-total">—</span></div>
           </div>
         </div>
         <div class="tile">
-          <div class="ico"><i class="fa-solid fa-hourglass-half"></i></div>
+          <div class="ico"><i aria-hidden="true" class="fa-solid fa-hourglass-half"></i></div>
           <div><div class="k">Temps de fonctionnement</div><div class="v" id="stat-uptime">—</div></div>
         </div>
       </div>
@@ -196,7 +198,7 @@
     <div id="news-ticker" class="card" style="display:none">
       <div class="news-head">
         <span class="dot"></span>
-        <h3 style="margin:0"><i class="fa-solid fa-bullhorn"></i> Actualités opérationnelles</h3>
+        <h3 style="margin:0"><i aria-hidden="true" class="fa-solid fa-bullhorn"></i> Actualités opérationnelles</h3>
       </div>
       <div id="news-list" class="news-list"></div>
     </div>
@@ -204,15 +206,15 @@
     {% if manage %}
     <!-- ===== Gestion (liens + actualités) ===== -->
     <div class="card manage">
-      <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
+      <h3 style="margin:0 0 8px 0;"><i aria-hidden="true" class="fa-solid fa-share-nodes"></i> Partage (liens publics)</h3>
       <form class="row" method="POST" action="{{ url_for('main_bp.create_share_link', evenement_id=evenement.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="field-inline">
           <label for="share-label">Nom du lien</label>
           <input type="text" id="share-label" name="label" maxlength="120" placeholder="Ex : Préfecture, Mairie, Protection civile">
         </div>
-        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-link"></i> Créer un lien</button>
-        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
+        <button class="btn btn-primary" type="submit"><i aria-hidden="true" class="fa-solid fa-link"></i> Créer un lien</button>
+        <a class="btn btn-secondary" href="{{ url_for('main_bp.dashboard', evenement_id=evenement.id) }}"><i aria-hidden="true" class="fa-solid fa-arrow-left"></i> Retour dashboard</a>
       </form>
 
       <div class="sp"></div>
@@ -235,14 +237,14 @@
                 <div class="row" style="margin-top:8px">
                   <button class="btn btn-secondary" type="button"
                           onclick="copyShare('{{ url_for('main_bp.autorite_share_public', token=l.token, _external=True, _scheme='https') }}')">
-                    <i class="fa-regular fa-copy"></i> Copier
+                    <i aria-hidden="true" class="fa-regular fa-copy"></i> Copier
                   </button>
                   {% if not l.revoked %}
                   <form class="inline" method="POST"
                         action="{{ url_for('main_bp.revoke_share_link', link_id=l.id) }}"
                         onsubmit="return confirm('Révoquer ce lien ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button class="btn btn-danger" type="submit"><i class="fa-solid fa-ban"></i> Révoquer</button>
+                    <button class="btn btn-danger" type="submit"><i aria-hidden="true" class="fa-solid fa-ban"></i> Révoquer</button>
                   </form>
                   {% endif %}
                 </div>
@@ -282,7 +284,7 @@
       <!-- ====== ACTUALITÉS (création + liste interne) ====== -->
       <div class="sp"></div>
       <div class="card" style="border:1px dashed var(--line);">
-        <h3 style="margin:0 0 8px 0;"><i class="fa-solid fa-bullhorn"></i> Actualités de l’évènement</h3>
+        <h3 style="margin:0 0 8px 0;"><i aria-hidden="true" class="fa-solid fa-bullhorn"></i> Actualités de l’évènement</h3>
 
         <!-- Formulaire d'ajout -->
         <form class="row" method="POST" action="{{ url_for('main_bp.create_event_news', evenement_id=evenement.id) }}">
@@ -303,7 +305,7 @@
             </select>
             <input type="text" name="message" placeholder="Votre message (court et clair)…"
                    style="flex:1; min-width:220px; padding:10px; border-radius:10px; border:1px solid var(--line);" required>
-            <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Ajouter</button>
+            <button type="submit" class="btn btn-primary"><i aria-hidden="true" class="fa-solid fa-plus"></i> Ajouter</button>
           </div>
         </form>
 
@@ -313,7 +315,7 @@
             {% for n in all_news %}
               <div class="news-item">
                 <span class="badge {% if n.priority == 1 %}b-urgent{% elif n.priority == 2 %}b-important{% else %}b-info{% endif %}">
-                  <i class="fa-solid {{ n.icon | default('fa-circle-info') }}"></i>
+                  <i aria-hidden="true" class="fa-solid {{ n.icon | default('fa-circle-info') }}"></i>
                   {% if n.priority == 1 %}Urgent{% elif n.priority == 2 %}Important{% else %}Info{% endif %}
                 </span>
                 <div>
@@ -327,12 +329,12 @@
                   <form class="inline" method="POST" action="{{ url_for('main_bp.toggle_event_news', news_id=n.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary">
-                      {% if n.is_active %}<i class="fa-solid fa-eye-slash"></i> Masquer{% else %}<i class="fa-solid fa-eye"></i> Afficher{% endif %}
+                      {% if n.is_active %}<i aria-hidden="true" class="fa-solid fa-eye-slash"></i> Masquer{% else %}<i aria-hidden="true" class="fa-solid fa-eye"></i> Afficher{% endif %}
                     </button>
                   </form>
                   <form class="inline" method="POST" action="{{ url_for('main_bp.delete_event_news', news_id=n.id) }}" onsubmit="return confirm('Supprimer cette actualité ?');">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <button type="submit" class="btn btn-danger"><i class="fa-solid fa-trash"></i></button>
+                    <button type="submit" class="btn btn-danger" aria-label="Supprimer cette actualité" title="Supprimer cette actualité"><i aria-hidden="true" class="fa-solid fa-trash"></i></button>
                   </form>
                 </div>
               </div>
@@ -375,12 +377,12 @@
     function setStatutChip(statut){
       const chip = document.getElementById('evt-statut-chip');
       if(!chip) return;
-      let icon = '<i class="fa-regular fa-circle"></i>';
-      if(statut==='Ouvert') icon = '<i class="fa-solid fa-circle" style="color:var(--ok)"></i>';
-      else if(statut==='Complet') icon = '<i class="fa-solid fa-circle" style="color:var(--warn)"></i>';
-      else if(statut==='Fermé') icon = '<i class="fa-solid fa-circle-xmark"></i>';
-      else if(statut==='En cours de gréement') icon = '<i class="fa-solid fa-screwdriver-wrench"></i>';
-      else if(statut==='Effectif dépassé') icon = '<i class="fa-solid fa-triangle-exclamation"></i>';
+      let icon = '<i aria-hidden="true" class="fa-regular fa-circle"></i>';
+      if(statut==='Ouvert') icon = '<i aria-hidden="true" class="fa-solid fa-circle" style="color:var(--ok)"></i>';
+      else if(statut==='Complet') icon = '<i aria-hidden="true" class="fa-solid fa-circle" style="color:var(--warn)"></i>';
+      else if(statut==='Fermé') icon = '<i aria-hidden="true" class="fa-solid fa-circle-xmark"></i>';
+      else if(statut==='En cours de gréement') icon = '<i aria-hidden="true" class="fa-solid fa-screwdriver-wrench"></i>';
+      else if(statut==='Effectif dépassé') icon = '<i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i>';
       chip.innerHTML = icon + ' <span id="evt-statut"></span>';
       document.getElementById('evt-statut').textContent = statut || '—';
     }

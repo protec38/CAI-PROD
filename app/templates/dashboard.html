@@ -372,9 +372,8 @@
     .btn-yellow{background:linear-gradient(135deg,#fcd34d,#f59e0b);color:#78350f;border:none;}
     .btn-orange{background:linear-gradient(135deg,#fb923c,#f97316);color:#7c2d12;border:none;}
     .btn-red{background:linear-gradient(135deg,#f87171,#ef4444);color:#7f1d1d;border:none;}
-    .actions a{color:inherit;font-weight:inherit;text-decoration:none;}
+    .actions a{font-weight:inherit;text-decoration:none;}
     .actions form{display:inline-block;margin:0;}
-    .actions form button{all:unset;display:inline-flex;align-items:center;gap:6px;}
     select[name="statut_evt"]{
       padding:6px 8px;
       font-weight:600;
@@ -482,33 +481,44 @@
       .btn{width:100%;justify-content:center;}
     }
   </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
 
-<body{% if offline_mode | default(false) %} class="cai-offline-dashboard"{% endif %}>
+<body class="cai-dashboard{% if offline_mode | default(false) %} cai-offline-dashboard{% endif %}">
+<a class="cai-skip-link" href="#contenu-principal">Aller aux fiches</a>
   {% if not offline_mode | default(false) %}{% include "_broadcast_banner.html" %}{% endif %}
   <header class="app-header">
     <div class="app-header__title">
-      <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord</h1>
+      <h1><i aria-hidden="true" class="fa-solid fa-chart-line"></i> Tableau de bord</h1>
       <p class="app-header__subtitle">Pilotage opérationnel et suivi des participants</p>
     </div>
 
-    <div class="actions-toolbar">
-      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
-      <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-chart-pie"></i> Vue synthétique</a>
+    <nav class="actions-toolbar" aria-label="Actions de l’évènement">
       <a href="{{ url_for('main_bp.fiche_new', evenement_id=evenement.id) }}" class="btn btn-green"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Créer une fiche impliquée</a>
+      <details class="dashboard-menu">
+        <summary class="btn">Autres actions</summary>
+        <div class="dashboard-menu__items">
+      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i aria-hidden="true" class="fa-solid fa-gear"></i> Gestion des évènements</a>
+      <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-chart-pie"></i> Vue synthétique</a>
       {% if user.is_admin or user.role in ["codep", "responsable"] %}
-        <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
+        <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
       {% endif %}
       {% if user.is_admin or user.role == "codep" or (user.role == "responsable" and user in evenement.utilisateurs) %}
-        <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-file-pdf"></i> Export PDF</a>
-        <a href="{{ url_for('main_bp.export_evenement_fiches_csv', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-file-csv"></i> Export CSV</a>
+        <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-file-pdf"></i> Export PDF</a>
+        <a href="{{ url_for('main_bp.export_evenement_fiches_csv', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-file-csv"></i> Export CSV</a>
       {% endif %}
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
-        <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-ticket"></i> Tickets</a>
+        <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-ticket"></i> Tickets</a>
       {% endif %}
-      <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}"><button type="submit" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
-    </div>
+      <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}"><button type="submit" class="btn btn-logout"><i aria-hidden="true" class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
+        </div>
+      </details>
+    </nav>
   </header>
+
+  <main id="contenu-principal" tabindex="-1">
 
   {% if not offline_mode | default(false) %}
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -524,21 +534,21 @@
 
   {% if evenement %}
   <div class="event-info">
-    <h2 id="evt-nom"><i class="fas fa-calendar-alt"></i> {{ evenement.nom }}</h2>
+    <h2 id="evt-nom"><i aria-hidden="true" class="fas fa-calendar-alt"></i> {{ evenement.nom }}</h2>
     <div class="event-row" style="margin:6px 0 10px;">
       <span class="event-chip">
-        <i class="fa-solid fa-location-dot"></i>
-        <span id="evt-adresse">{{ evenement.adresse }}</span>
+        <i aria-hidden="true" class="fa-solid fa-location-dot"></i>
+        <span id="evt-adresse">{{ evenement.adresse or 'Adresse non renseignée' }}</span>
       </span>
-      <span class="event-chip"><i class="fa-solid fa-clock"></i> Créé le <span id="evt-date">{{ '' if offline_mode | default(false) else evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span></span>
-      <span class="event-chip"><i class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
-      <span class="event-chip"><i class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
+      <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-clock"></i> Créé le <span id="evt-date">{{ '' if offline_mode | default(false) else evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span></span>
+      <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
+      <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
             <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
-            <i class="fa-solid fa-signal"></i>
-            <select id="evt-statut-select" name="statut_evt" onchange="this.form.submit()">
+            <i aria-hidden="true" class="fa-solid fa-signal"></i>
+            <select id="evt-statut-select" name="statut_evt" aria-label="Statut de l’évènement" onchange="this.form.submit()">
               {% for option in ['En cours de gréement', 'Ouvert', 'Effectif dépassé', 'Complet', 'Fermé'] %}
               <option value="{{ option }}" {% if evenement.statut == option %}selected{% endif %}>{{ option }}</option>
               {% endfor %}
@@ -547,15 +557,15 @@
         {% else %}
           <span id="statut-lecture-seule">
             {% if evenement.statut == "En cours de gréement" %}
-              <span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> {{ evenement.statut }}</span>
+              <span class="badge badge-orange"><i aria-hidden="true" class="fa-solid fa-hourglass-half"></i> {{ evenement.statut }}</span>
             {% elif evenement.statut == "Ouvert" %}
-              <span class="badge badge-green"><i class="fa-solid fa-door-open"></i> {{ evenement.statut }}</span>
+              <span class="badge badge-green"><i aria-hidden="true" class="fa-solid fa-door-open"></i> {{ evenement.statut }}</span>
             {% elif evenement.statut == "Effectif dépassé" %}
-              <span class="badge badge-red"><i class="fa-solid fa-user-times"></i> {{ evenement.statut }}</span>
+              <span class="badge badge-red"><i aria-hidden="true" class="fa-solid fa-user-times"></i> {{ evenement.statut }}</span>
             {% elif evenement.statut == "Complet" %}
-              <span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> {{ evenement.statut }}</span>
+              <span class="badge badge-blue"><i aria-hidden="true" class="fa-solid fa-circle-check"></i> {{ evenement.statut }}</span>
             {% elif evenement.statut == "Fermé" %}
-              <span class="badge badge-dark"><i class="fa-solid fa-lock"></i> {{ evenement.statut }}</span>
+              <span class="badge badge-dark"><i aria-hidden="true" class="fa-solid fa-lock"></i> {{ evenement.statut }}</span>
             {% else %}
               {{ evenement.statut }}
             {% endif %}
@@ -569,97 +579,100 @@
   <!-- Filtres -->
   <section class="filters-card is-collapsed" aria-label="Filtres de recherche">
     <div class="filters-card__header">
-      <h3><i class="fa-solid fa-sliders"></i> Affiner la liste</h3>
+      <h3><i aria-hidden="true" class="fa-solid fa-sliders"></i> Rechercher et filtrer</h3>
       <button type="button" class="btn-toggle" id="toggle-filters" aria-expanded="false" aria-controls="filters-grid">
-        <span class="btn-toggle__icon"><i class="fa-solid fa-chevron-down"></i></span>
+        <span class="btn-toggle__icon"><i aria-hidden="true" class="fa-solid fa-chevron-down"></i></span>
         <span class="btn-toggle__label">Afficher</span>
       </button>
     </div>
+    <div class="control search-control">
+      <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+      <label class="cai-sr-only" for="search-bar">Rechercher une fiche par nom ou prénom</label>
+      <input type="search" id="search-bar" placeholder="Nom ou prénom…" autocomplete="off" aria-controls="fiches-table-body">
+    </div>
     <div class="filters" id="filters-grid">
-      <div class="control">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <input type="text" id="search-bar" placeholder="Rechercher par nom ou prénom…">
+      <div class="control filter-group">
+        <fieldset id="filter-statut" class="filter-options"><legend>Statut</legend><div class="filter-options__choices">
+          <label class="filter-chip"><input type="checkbox" value="présent"> Présent</label>
+          <label class="filter-chip"><input type="checkbox" value="sorti"> Sorti</label>
+          <label class="filter-chip"><input type="checkbox" value="supprimé"> Supprimé</label>
+        </div></fieldset>
       </div>
-      <div class="control">
-        <span class="tag"><i class="fa-solid fa-filter"></i> Statuts</span>
-        <select id="filter-statut" multiple size="4">
-          <option value="présent">Présent</option>
-          <option value="sorti">Sorti</option>
-          <option value="supprimé">Supprimé</option>
-        </select>
-      </div>
-      <div class="control">
-        <span class="tag"><i class="fa-solid fa-filter"></i> Compétences</span>
-        <select id="filter-competences" multiple size="4">
+      <div class="control filter-group">
+        <fieldset id="filter-competences" class="filter-options"><legend>Compétences</legend><div class="filter-options__choices">
           {% for comp in competence_colors.keys() %}
-            <option value="{{ comp }}">{{ comp }}</option>
+            <label class="filter-chip"><input type="checkbox" value="{{ comp }}"> {{ comp }}</label>
           {% endfor %}
-        </select>
+        </div></fieldset>
       </div>
       <div class="control control--actions">
-        <button class="btn-small" id="btn-reset-filters"><i class="fa-solid fa-rotate"></i> Réinitialiser</button>
+        <button class="btn-small" id="btn-reset-filters"><i aria-hidden="true" class="fa-solid fa-rotate"></i> Réinitialiser</button>
       </div>
     </div>
+    <p id="fiche-results-count" class="results-count" aria-live="polite" aria-atomic="true">Chargement des fiches…</p>
   </section>
 
   <!-- Tableau -->
   <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th><span class="th-label"><i class="fa-solid fa-hashtag"></i> Numéro</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-user"></i> Nom</span></th>
-          <th><span class="th-label"><i class="fa-regular fa-user"></i> Prénom</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-circle-check"></i> Statut</span></th>
-          <th><span class="th-label"><i class="fa-regular fa-clock"></i> Heure d’arrivée</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-triangle-exclamation"></i> Difficultés</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-award"></i> Compétences</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-suitcase-rolling"></i> Bagages</span></th>
-          <th><span class="th-label"><i class="fa-solid fa-ellipsis"></i> Actions</span></th>
+    <table id="fiches-table" class="dashboard-table" role="table" aria-label="Fiches des impliqués" aria-describedby="fiche-results-count">
+      <thead role="rowgroup">
+        <tr role="row">
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-hashtag"></i> Numéro</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-user"></i> Nom</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-user"></i> Prénom</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-circle-check"></i> Statut</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-clock"></i> Heure d’arrivée</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i> Difficultés</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-award"></i> Compétences</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-suitcase-rolling"></i> Bagages</span></th>
+          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-ellipsis"></i> Actions</span></th>
         </tr>
       </thead>
-      <tbody id="fiches-table-body"></tbody>
+      <tbody id="fiches-table-body" role="rowgroup"></tbody>
     </table>
+    <p id="fiche-empty-state" class="empty-state" hidden></p>
   </div>
 
+  </main>
+
   <!-- Modal Bagage -->
-  <div id="modal-bagage" class="modal">
+  <div id="modal-bagage" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-bagage-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-suitcase-rolling"></i> Rattacher bagage(s)</h3>
+        <h3 id="modal-bagage-title"><i aria-hidden="true" class="fa-solid fa-suitcase-rolling"></i> Rattacher des bagages</h3>
         <button class="close" onclick="fermerModalBagage()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-bagage" method="post">
         <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
         <div class="form-group">
-          <label>Fiche</label>
+          <label for="bagage-fiche-numero">Fiche</label>
           <input type="text" id="bagage-fiche-numero" value="" readonly />
           <input type="hidden" id="bagage-fiche-id" name="fiche_id" value="">
         </div>
         <div class="form-group">
           <label for="numeros">Numéro(s) de bagage</label>
-          <textarea name="numeros" id="numeros" rows="3" maxlength="300" placeholder="Ex : BAG-001, BAG-002 BAG-003"></textarea>
-          <small class="hint">Séparez par virgules, espaces ou retours à la ligne.</small>
+          <textarea name="numeros" id="numeros" rows="3" maxlength="300" aria-describedby="bagage-help" placeholder="Ex : BAG-001, BAG-002 BAG-003"></textarea>
+          <small class="hint" id="bagage-help">Séparez par virgules, espaces ou retours à la ligne.</small>
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn-action btn-orange"><i class="fa-solid fa-plus"></i> <span>Enregistrer</span></button>
-          <button type="button" class="btn-action" onclick="fermerModalBagage()"><i class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
+          <button type="submit" class="btn-action btn-orange"><i aria-hidden="true" class="fa-solid fa-plus"></i> <span>Enregistrer</span></button>
+          <button type="button" class="btn-action" onclick="fermerModalBagage()"><i aria-hidden="true" class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
         </div>
       </form>
     </div>
   </div>
 
   <!-- Modal Sortie -->
-  <div id="modal-sortie" class="modal">
+  <div id="modal-sortie" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-sortie-title" tabindex="-1">
     <div class="modal-content">
       <div class="modal-header">
-        <h3><i class="fa-solid fa-person-walking-arrow-right"></i> Déclarer la sortie</h3>
+        <h3 id="modal-sortie-title"><i aria-hidden="true" class="fa-solid fa-person-walking-arrow-right"></i> Déclarer la sortie</h3>
         <button class="close" onclick="fermerModalSortie()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-sortie" method="post">
         <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
         <div class="form-group">
-          <label>Fiche</label>
+          <label for="sortie-fiche-numero">Fiche</label>
           <input type="text" id="sortie-fiche-numero" value="" readonly />
           <input type="hidden" id="sortie-fiche-id" value="">
         </div>
@@ -672,8 +685,8 @@
           <input type="text" id="sortie-moyen" name="moyen_transport" maxlength="100" placeholder="Ex : Bus, Ambulance, Véhicule perso…">
         </div>
         <div class="modal-footer">
-          <button type="submit" class="btn-action btn-orange"><i class="fa-solid fa-check"></i> <span>Valider la sortie</span></button>
-          <button type="button" class="btn-action" onclick="fermerModalSortie()"><i class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
+          <button type="submit" class="btn-action btn-orange"><i aria-hidden="true" class="fa-solid fa-check"></i> <span>Valider la sortie</span></button>
+          <button type="button" class="btn-action" onclick="fermerModalSortie()"><i aria-hidden="true" class="fa-solid fa-xmark"></i> <span>Annuler</span></button>
         </div>
       </form>
     </div>
@@ -714,32 +727,40 @@
 
     /* UI helpers */
     function getStatutHtml(statut){
-      if(statut==='présent') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
-      if(statut==='sorti') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
-      if(statut==='supprimé') return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
+      if(statut==='présent') return '<span class="badge present"><i aria-hidden="true" class="fas fa-check-circle"></i> Présent</span>';
+      if(statut==='sorti') return '<span class="badge sorti"><i aria-hidden="true" class="fas fa-sign-out-alt"></i> Sorti</span>';
+      if(statut==='supprimé') return '<span class="badge supprime"><i aria-hidden="true" class="fas fa-trash-alt"></i> Supprimé</span>';
       return escapeHTML(statut);
     }
     function getStatutEvenementHTML(statut) {
       switch (statut) {
-        case "En cours de gréement": return `<span class="badge badge-orange"><i class="fa-solid fa-hourglass-half"></i> ${statut}</span>`;
-        case "Ouvert": return `<span class="badge badge-green"><i class="fa-solid fa-door-open"></i> ${statut}</span>`;
-        case "Effectif dépassé": return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
-        case "Complet": return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
-        case "Fermé": return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
+        case "En cours de gréement": return `<span class="badge badge-orange"><i aria-hidden="true" class="fa-solid fa-hourglass-half"></i> ${statut}</span>`;
+        case "Ouvert": return `<span class="badge badge-green"><i aria-hidden="true" class="fa-solid fa-door-open"></i> ${statut}</span>`;
+        case "Effectif dépassé": return `<span class="badge badge-red"><i aria-hidden="true" class="fa-solid fa-user-times"></i> ${statut}</span>`;
+        case "Complet": return `<span class="badge badge-blue"><i aria-hidden="true" class="fa-solid fa-circle-check"></i> ${statut}</span>`;
+        case "Fermé": return `<span class="badge badge-dark"><i aria-hidden="true" class="fa-solid fa-lock"></i> ${statut}</span>`;
         default: return escapeHTML(statut);
       }
+    }
+    function badgeTextColor(color){
+      let hex=color.replace('#','');
+      if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+      if(!/^[0-9a-f]{6}$/i.test(hex)) return '#000';
+      const rgb=[0,2,4].map(offset=>parseInt(hex.slice(offset,offset+2),16)/255)
+        .map(value=>value<=.04045 ? value/12.92 : ((value+.055)/1.055)**2.4);
+      return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722>.179 ? '#000' : '#fff';
     }
     function renderCompetenceBadges(raw){
       if(!raw) return "<em>Aucune</em>";
       const colorMap={{ competence_colors | tojson | safe }};
       return raw.split(',').map(c=>{
         const comp=c.trim(); const color=colorMap[comp]||"#999";
-        return `<span class="badge-competence" style="background:${color}">${escapeHTML(comp)}</span>`;
+        return `<span class="badge-competence" style="background:${color};color:${badgeTextColor(color)}">${escapeHTML(comp)}</span>`;
       }).join(" ");
     }
     function renderBagageBadges(numeros){
       if(!numeros || !numeros.length) return '<em>Aucun</em>';
-      return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${escapeHTML(n)}</span>`).join(' ');
+      return numeros.map(n=>`<span class="badge-bagage"><i aria-hidden="true" class="fa-solid fa-suitcase-rolling"></i> ${escapeHTML(n)}</span>`).join(' ');
     }
 
     function formatNomCell(f){
@@ -784,12 +805,12 @@
       const view = '<a class="btn-action btn-blue" href="/fiche/' + f.id + '?evenement_id=' + DASHBOARD_EVENT_ID + '">Voir</a> ';
       if (f.deletionPending) return '<div class="actions">' + view + '<span>Suppression en attente du serveur</span></div>';
       const primary = view + (creationPending ? (f.deliveryStarted ? '' :
-        '<a href="/fiche/new?evenement_id=' + encodeURIComponent(f.event_id) + '&draft=' + encodeURIComponent(f.client_uuid) + '">Ouvrir / corriger</a>') :
+        '<a class="btn-action btn-yellow" href="/fiche/new?evenement_id=' + encodeURIComponent(f.event_id) + '&draft=' + encodeURIComponent(f.client_uuid) + '">Corriger</a>') :
         '<a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '">Modifier</a>');
       const delBtn = CAN_DELETE_FICHE ? `<form method="POST" action="/fiche/delete/${f.id}" data-cai-delete data-fiche-id="${escapeHTML(f.id)}"><input type="hidden" name="csrf_token" value="${CSRF_TOKEN}"><button type="submit" class="btn-action btn-red">Supprimer</button></form>` : '';
       return `<div class="actions">${primary}
-        <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${idArg}, ${numberArg})"><i class="fa-solid fa-person-walking-arrow-right" aria-hidden="true"></i> <span>Sortie</span></button>
-        ${CAN_BAGAGES ? `<button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${idArg}, ${numberArg})"><i class="fa-solid fa-suitcase-rolling" aria-hidden="true"></i> <span>Bagages</span></button>` : ''}
+        <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" data-cai-open-dialog="modal-sortie" onclick="ouvrirModalSortie(${idArg}, ${numberArg})"><i class="fa-solid fa-person-walking-arrow-right" aria-hidden="true"></i> <span>Sortie</span></button>
+        ${CAN_BAGAGES ? `<button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" data-cai-open-dialog="modal-bagage" onclick="ouvrirModalBagage(${idArg}, ${numberArg})"><i class="fa-solid fa-suitcase-rolling" aria-hidden="true"></i> <span>Bagages</span></button>` : ''}
         ${delBtn}</div>`;
     }
 
@@ -798,18 +819,17 @@
     }
 
     function ligneFicheHTML(f){
-      return `
-        <tr id="fiche-row-${f.id}" class="${f.pending ? 'cai-row-pending' : ''}">
-          <td data-col="numero">${escapeHTML(f.numero)}<br>${syncBadgeHTML(f)}</td>
-          <td data-col="nom">${formatNomCell(f)}</td>
-          <td data-col="prenom">${escapeHTML(formatPrenomCell(f))}</td>
-          <td data-col="statut">${getStatutHtml(f.statut)}</td>
-          <td data-col="heure_arrivee">${escapeHTML(f.heure_arrivee)}</td>
-          <td data-col="difficultes">${escapeHTML(f.difficultes)}</td>
-          <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
-          <td class="bagages-cell"><div id="bagages-${f.id}">${renderBagageBadges(f.bagages || [])}</div></td>
-          <td data-col="actions">${actionsHTML(f)}</td>
-        </tr>`;
+      return `<tr role="row" id="fiche-row-${f.id}" class="${f.pending ? 'cai-row-pending' : ''}">
+        <td role="cell" data-col="numero"><span class="fiche-number">${escapeHTML(f.numero)}</span>${syncBadgeHTML(f)}</td>
+        <td role="cell" data-col="nom"><span class="cell-label" aria-hidden="true">Nom</span><span data-value>${formatNomCell(f)}</span></td>
+        <td role="cell" data-col="prenom"><span class="cell-label" aria-hidden="true">Prénom / Espèce</span><span data-value>${escapeHTML(formatPrenomCell(f))}</span></td>
+        <td role="cell" data-col="statut"><span class="cell-label" aria-hidden="true">Statut</span><span data-value>${getStatutHtml(f.statut)}</span></td>
+        <td role="cell" data-col="heure_arrivee"><span class="cell-label" aria-hidden="true">Arrivée</span><span data-value>${escapeHTML(f.heure_arrivee)}</span></td>
+        <td role="cell" data-col="difficultes"><span class="cell-label" aria-hidden="true">Difficultés</span><span data-value>${escapeHTML(f.difficultes) || '—'}</span></td>
+        <td role="cell" data-col="competences"><span class="cell-label" aria-hidden="true">Compétences</span><span data-value>${renderCompetenceBadges(f.competences)}</span></td>
+        <td role="cell" class="bagages-cell"><span class="cell-label" aria-hidden="true">Bagages</span><div id="bagages-${f.id}">${renderBagageBadges(f.bagages || [])}</div></td>
+        <td role="cell" data-col="actions"><span class="cell-label" aria-hidden="true">Actions</span><div data-value>${actionsHTML(f)}</div></td>
+      </tr>`;
     }
 
     const rowsCache=new Map();
@@ -821,13 +841,13 @@
         tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
         tr=document.getElementById(`fiche-row-${f.id}`);
       }else{
-        setHTMLIfChanged(tr.querySelector('[data-col="numero"]'), escapeHTML(f.numero) + '<br>' + syncBadgeHTML(f));
-        setHTMLIfChanged(tr.querySelector('[data-col="nom"]'), formatNomCell(f));
-        setTextIfChanged(tr.querySelector('[data-col="prenom"]'), formatPrenomCell(f));
-        setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
-        const h=tr.querySelector('[data-col="heure_arrivee"]'); if(h) setTextIfChanged(h, f.heure_arrivee);
-        const d=tr.querySelector('[data-col="difficultes"]'); if(d) setTextIfChanged(d, f.difficultes || "");
-        const c=tr.querySelector('[data-col="competences"]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
+        setHTMLIfChanged(tr.querySelector('[data-col="numero"]'), '<span class="fiche-number">' + escapeHTML(f.numero) + '</span>' + syncBadgeHTML(f));
+        setHTMLIfChanged(tr.querySelector('[data-col="nom"] [data-value]'), formatNomCell(f));
+        setTextIfChanged(tr.querySelector('[data-col="prenom"] [data-value]'), formatPrenomCell(f));
+        setHTMLIfChanged(tr.querySelector('[data-col="statut"] [data-value]'), getStatutHtml(f.statut));
+        const h=tr.querySelector('[data-col="heure_arrivee"] [data-value]'); if(h) setTextIfChanged(h, f.heure_arrivee);
+        const d=tr.querySelector('[data-col="difficultes"] [data-value]'); if(d) setTextIfChanged(d, f.difficultes || "—");
+        const c=tr.querySelector('[data-col="competences"] [data-value]'); if(c) setHTMLIfChanged(c, renderCompetenceBadges(f.competences));
       }
       if(tr){
         tr.dataset.statut = normalizeStatutValue(f.statut);
@@ -836,16 +856,16 @@
       }
       rowsCache.set(f.id, f);
       tr.classList.toggle('cai-row-pending', !!f.pending);
-      setHTMLIfChanged(tr.querySelector('[data-col="actions"]'), actionsHTML(f));
+      setHTMLIfChanged(tr.querySelector('[data-col="actions"] [data-value]'), actionsHTML(f));
       setHTMLIfChanged(document.getElementById('bagages-' + f.id), renderBagageBadges(f.bagages || []));
     }
 
-    function getSelectValues(sel){ return Array.from(sel.selectedOptions||[]).map(o=>o.value); }
+    function getSelectValues(sel){ return Array.from(sel.querySelectorAll('input:checked')).map(input=>input.value); }
 
     function rowMatchesFilters(row, f){
       const searchTerm=(document.getElementById("search-bar").value||"").toLowerCase();
-      const nom=row.children[1]?.textContent.toLowerCase()||"";
-      const prenom=row.children[2]?.textContent.toLowerCase()||"";
+      const nom=row.children[1]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
+      const prenom=row.children[2]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
       const searchOk=!searchTerm || nom.includes(searchTerm) || prenom.includes(searchTerm);
 
       const selectedStatus=getSelectValues(document.getElementById('filter-statut')).map(normalizeStatutValue);
@@ -862,12 +882,20 @@
     }
 
     function applyAllFilters(){
-      const rows=document.querySelectorAll("#fiches-table-body tr");
+      const rows=[...document.querySelectorAll('#fiches-table-body tr')];
+      let visible=0;
       rows.forEach(row=>{
-        const id=Number(row.id.replace('fiche-row-',''));
-        const f=rowsCache.get(id);
-        row.style.display=rowMatchesFilters(row,f)? "":"none";
+        const rawId=row.id.replace('fiche-row-','');
+        const fiche=rowsCache.get(Number(rawId)) || rowsCache.get(rawId);
+        const matches=rowMatchesFilters(row,fiche);
+        row.hidden=!matches; if(matches) visible++;
       });
+      setTextIfChanged(document.getElementById('fiche-results-count'), visible + ' fiche' + (visible>1 ? 's' : '') + ' affichée' + (visible>1 ? 's' : '') + ' sur ' + rows.length);
+      const empty=document.getElementById('fiche-empty-state');
+      empty.hidden=visible!==0;
+      empty.textContent=rows.length ? 'Aucune fiche ne correspond à votre recherche. Modifiez les filtres ou effacez la recherche.' : 'Aucune fiche pour le moment. Utilisez « Créer une fiche impliquée » pour commencer.';
+      const count=getSelectValues(document.getElementById('filter-statut')).length+getSelectValues(document.getElementById('filter-competences')).length;
+      setTextIfChanged(document.querySelector('.btn-toggle__label'), count ? 'Filtres ('+count+')' : 'Filtres');
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
@@ -890,7 +918,8 @@
         const syncFiltersToggle=(expanded)=>{
           toggleFiltersBtn.setAttribute('aria-expanded', expanded ? 'true':'false');
           if(toggleFiltersLabel){
-            toggleFiltersLabel.textContent = expanded ? 'Réduire' : 'Afficher';
+            const count=getSelectValues(document.getElementById('filter-statut')).length+getSelectValues(document.getElementById('filter-competences')).length;
+            toggleFiltersLabel.textContent = count ? 'Filtres ('+count+')' : 'Filtres';
           }
           if(toggleFiltersIcon){
             toggleFiltersIcon.classList.remove('fa-chevron-up','fa-chevron-down');
@@ -914,8 +943,8 @@
       document.getElementById("btn-reset-filters").addEventListener("click",(e)=>{
         e.preventDefault();
         document.getElementById("search-bar").value="";
-        Array.from(document.getElementById("filter-statut").options).forEach(o=>o.selected=false);
-        Array.from(document.getElementById("filter-competences").options).forEach(o=>o.selected=false);
+        document.querySelectorAll('#filter-statut input,#filter-competences input').forEach(input=>input.checked=false);
+
         applyAllFilters();
       });
 
@@ -1015,11 +1044,11 @@
       document.getElementById('bagage-fiche-id').value=ficheId;
       document.getElementById('bagage-fiche-numero').value=ficheNumero;
       document.getElementById('numeros').value=form.dataset.baseNumeros;
-      document.getElementById('modal-bagage').style.display='flex';
+      window.CAIUI.openDialog('modal-bagage');
       setTimeout(()=>document.getElementById('numeros').focus(),50);
     }
     function fermerModalBagage(){
-      const m=document.getElementById('modal-bagage'); if(m) m.style.display='none';
+      window.CAIUI.closeDialog('modal-bagage');
     }
 
     function ouvrirModalSortie(ficheId, ficheNumero, destination="", moyen=""){
@@ -1032,11 +1061,11 @@
       document.getElementById('sortie-fiche-numero').value=ficheNumero||("#"+ficheId);
       document.getElementById('sortie-destination').value=destination||"";
       document.getElementById('sortie-moyen').value=moyen||"";
-      document.getElementById('modal-sortie').style.display='flex';
+      window.CAIUI.openDialog('modal-sortie');
       setTimeout(()=>document.getElementById('sortie-destination').focus(),50);
     }
     function fermerModalSortie(){
-      const m=document.getElementById('modal-sortie'); if(m) m.style.display='none';
+      window.CAIUI.closeDialog('modal-sortie');
     }
   </script>
 {% include "_offline.html" %}

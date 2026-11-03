@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <title>{% block title %}Titre{% endblock %}</title>
@@ -42,8 +43,10 @@ body {
             background-color: #002952;
         }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}">
+<script src="{{ url_for('static', filename='accessibility.js') }}" defer></script>
 </head>
-<body>
+<body class="cai-page">
     {% include "_flashes.html" %}
     <div class="container">
         {% block content %}
