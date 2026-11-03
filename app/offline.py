@@ -1,13 +1,13 @@
 """Offline shell (no personal data) and authenticated synchronization API."""
 from uuid import UUID
 
-from flask import Blueprint, request, send_from_directory, current_app
+from flask import Blueprint, request, send_from_directory, current_app, render_template
 from flask_wtf.csrf import generate_csrf
 
 from .extensions import db
 from .fiche_service import save_fiche
 from .models import Evenement
-from .routes import get_current_user, user_can_access_event, json_nocache
+from .routes import get_current_user, user_can_access_event, json_nocache, COMPETENCES_CAI
 
 offline_bp = Blueprint("offline", __name__)
 
@@ -24,6 +24,14 @@ def service_worker():
 def shell():
     # Public, static shell: user-specific data lives in IndexedDB, never here.
     return send_from_directory(current_app.static_folder, "offline.html")
+
+
+@offline_bp.get("/hors-ligne/fiche")
+def fiche_shell():
+    # The same form as online, without account data or a session/CSRF token.
+    return render_template("fiche_new.html", offline_mode=True, fiche_type="humain",
+                           numero_prevu="Attribué à la synchronisation",
+                           competences_list=COMPETENCES_CAI, referent_lookup_url="")
 
 
 @offline_bp.get("/api/offline/session")

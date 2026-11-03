@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="csrf-token" content="{{ '' if offline_mode | default(false) else csrf_token() }}">
     <meta charset="UTF-8">
     <title>Nouvelle Fiche Impliqué</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -156,21 +156,21 @@ button:hover { background-color: #e65c00; }
 }
 </style>
 </head>
-<body>
+<body{% if offline_mode | default(false) %} class="cai-offline-form-page"{% endif %}>
 
-{% include "_flashes.html" %}
+{% if not offline_mode | default(false) %}{% include "_flashes.html" %}{% endif %}
 
 <div class="container">
-    <a href="{{ url_for('main_bp.dashboard', evenement_id=session.get('evenement_id')) }}" class="btn-retour">
+    <a href="{{ '/hors-ligne' if offline_mode | default(false) else url_for('main_bp.dashboard', evenement_id=evenement.id) }}" class="btn-retour" data-cai-dashboard-link>
        <i class="fas fa-arrow-left"></i> Retour au tableau de bord
     </a>
 
-    <h1><i class="fas fa-user-plus"></i> Nouvelle fiche impliqué</h1>
+    <h1 id="cai-edit-title"><i class="fas fa-user-plus"></i> Créer une fiche impliquée</h1>
     <p class="helper-text" style="text-align:center; margin-bottom: 0;">Sélectionnez le type de fiche à créer.</p>
 
     <form method="POST" data-initial-type="{{ fiche_type or 'humain' }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
+      {% if not offline_mode | default(false) %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+      <input type="hidden" name="evenement_id" value="{{ evenement.id if evenement is defined else '' }}">
       <input type="hidden" name="type_fiche" id="type_fiche" value="{{ fiche_type or 'humain' }}">
 
       <div class="form-grid">
@@ -487,6 +487,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     setActiveType(initialType);
+    form.addEventListener('cai:restore', () => {
+        setActiveType(typeInput.value);
+        if (visibleBirthInput) visibleBirthInput.value = hiddenBirthInput?.value || '';
+        ensureBirthDate(false);
+        onCompetencesChange(select);
+    });
 
     visibleBirthInput?.addEventListener("input", () => ensureBirthDate(false));
     visibleBirthInput?.addEventListener("change", () => ensureBirthDate(false));
@@ -620,11 +626,15 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         const fetchResults = async (term) => {
-            if (!lookupUrl || term.length < 2) {
+            if (term.length < 2) {
                 renderResults([]);
                 return;
             }
             try {
+                if (!lookupUrl || navigator.onLine === false) {
+                    renderResults(await window.CAIOffline.findReferents(term));
+                    return;
+                }
                 const response = await fetch(`${lookupUrl}?term=${encodeURIComponent(term)}`, {
                     headers: { 'Accept': 'application/json' },
                     credentials: 'include'
@@ -632,7 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const payload = await response.json();
                 renderResults((payload && Array.isArray(payload.results)) ? payload.results : []);
             } catch (_err) {
-                renderResults([]);
+                renderResults(window.CAIOffline ? await window.CAIOffline.findReferents(term) : []);
             }
         };
 

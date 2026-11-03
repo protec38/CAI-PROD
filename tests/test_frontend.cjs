@@ -24,7 +24,7 @@ assert(!dashboardContext.formatNomCell({nom: attack, est_animal: true}).includes
 assert(dashboardContext.syncBadgeHTML({pending: true}).includes('cai-sync-pending'));
 assert(dashboardContext.syncBadgeHTML({}).includes('Sur le serveur'));
 const pendingActions = dashboardContext.actionsHTML({pending: true, event_id: 1, client_uuid: 'test-uuid'});
-assert(pendingActions.includes('/hors-ligne?event=1&draft=test-uuid'));
+assert(pendingActions.includes('/fiche/new?evenement_id=1&draft=test-uuid'));
 assert(!pendingActions.includes('/fiche/edit/'));
 
 let calls = [];

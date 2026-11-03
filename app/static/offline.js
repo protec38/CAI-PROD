@@ -2,11 +2,20 @@
   'use strict';
   const store = globalThis.CAIOfflineStore;
   const shell = document.body.classList.contains('cai-offline-shell');
-  let context, busy = false, editing = null, panel, status, queue;
+  const offlineForm = document.body.classList.contains('cai-offline-form-page');
+  let context, busy = false, editing = null, panel, status, queue, indicator, connectionLabel;
   const field = (record, name) => (record.fields.find(pair => pair[0] === name) || [])[1] || '';
   const snapshotKey = () => `snapshot:${context.userId}:${context.eventId}`;
   const label = record => record.label || 'Fiche';
-  function say(message) { if (status) status.textContent = message; }
+  function say(message, state = 'pending', text) {
+    if (status) status.textContent = message;
+    if (indicator) {
+      indicator.dataset.state = state;
+      indicator.title = message;
+      connectionLabel.textContent = text || (state === 'synced' ? 'Synchronisé au serveur' :
+        state === 'offline' ? 'Mode hors ligne' : 'En attente du serveur');
+    }
+  }
   function badge(pending) {
     const span = document.createElement('span');
     span.className = 'cai-sync-badge' + (pending ? ' cai-sync-pending' : '');
@@ -16,19 +25,26 @@
     return span;
   }
   function createPanel() {
+    const bar = document.createElement('div'); bar.className = 'cai-connection-bar';
+    const details = document.createElement('details'); details.className = 'cai-sync-details';
+    indicator = document.createElement('summary');
+    indicator.className = 'cai-connection-indicator'; indicator.dataset.state = 'pending';
+    const dot = document.createElement('span'); dot.className = 'cai-sync-dot';
+    dot.setAttribute('aria-hidden', 'true');
+    connectionLabel = document.createElement('span');
+    connectionLabel.id = 'cai-connection-label'; connectionLabel.setAttribute('role', 'status');
+    connectionLabel.textContent = 'Vérification du serveur…';
+    indicator.append(dot, connectionLabel);
     panel = document.createElement('section');
     panel.className = 'cai-offline-panel';
     panel.setAttribute('aria-label', 'Synchronisation des fiches');
-    status = document.createElement('p'); status.setAttribute('role', 'status');
-    const link = document.createElement('a');
-    link.href = `/hors-ligne?event=${context.eventId}`;
-    link.textContent = 'Saisie et fiches hors ligne';
+    status = document.createElement('p');
     const button = document.createElement('button');
     button.type = 'button'; button.textContent = 'Synchroniser';
     button.addEventListener('click', () => sync().catch(report));
     queue = document.createElement('ul');
-    panel.append(status, link, button, queue);
-    (document.querySelector('main') || document.body).prepend(panel);
+    panel.append(status, button, queue);
+    details.append(indicator, panel); bar.append(details); document.body.prepend(bar);
   }
   function report(error) {
     if (!status) {
@@ -52,7 +68,7 @@
       }
       if (!record.server && !record.deliveryStarted) {
         const a = document.createElement('a');
-        a.href = `/hors-ligne?event=${record.eventId}&draft=${record.uuid}`;
+        a.href = `/fiche/new?evenement_id=${record.eventId}&draft=${record.uuid}`;
         a.textContent = ' Ouvrir / corriger'; li.append(a);
       }
       if (record.deliveryStarted && !record.server) {
@@ -102,13 +118,13 @@
   async function sync() {
     if (busy || !context) return;
     if (navigator.onLine === false) {
-      say('Hors ligne : les fiches restent sur cet appareil, en attente du serveur.');
+      say('Hors ligne : les fiches restent sur cet appareil, en attente du serveur.', 'offline');
       await renderQueue(); return;
     }
     busy = true;
     try {
       const pending = await store.pending(context.userId);
-      say('Vérification de la connexion au serveur…');
+      say('Vérification de la connexion au serveur…', 'pending', 'Synchronisation en cours…');
       const response = await fetch('/api/offline/session', {cache: 'no-store', signal: AbortSignal.timeout(10000)});
       if (!response.ok) throw new Error('Reconnectez-vous pour synchroniser. Vos fiches restent sur cet appareil.');
       const session = await response.json();
@@ -149,13 +165,14 @@
       await refreshSnapshot();
       const remaining = (await store.pending(context.userId)).length;
       say(remaining ? `${remaining} fiche(s) en attente sur cet appareil. Ouvrez l’évènement concerné pour consulter les messages.` :
-        'Toutes les fiches sont sur le serveur. Le mode hors ligne est prêt sur cet appareil.');
+        'Toutes les fiches sont sur le serveur. Le mode hors ligne est prêt sur cet appareil.', remaining ? 'pending' : 'synced');
       await renderQueue();
       window.dispatchEvent(new Event('cai:sync'));
     } catch (error) {
       const remaining = (await store.pending(context.userId)).length;
-      say(error.name === 'TypeError' || error.name === 'TimeoutError' ?
-        `Serveur inaccessible · ${remaining} fiche(s) en attente. Nouvel essai automatique au retour de la connexion.` : error.message);
+      const unreachable = error.name === 'TypeError' || error.name === 'TimeoutError';
+      say(unreachable ? `Serveur inaccessible · ${remaining} fiche(s) en attente. Nouvel essai automatique au retour de la connexion.` :
+        error.message, unreachable ? 'offline' : 'pending');
       await renderQueue();
     } finally { busy = false; }
   }
@@ -176,6 +193,8 @@
       `${field(record, 'nom')} ${field(record, 'prenom')}`.trim();
     // A previous transaction must finish successfully before showing success.
     await store.saveDraft(record);
+    say('Fiche enregistrée sur cet appareil, en attente de confirmation du serveur.',
+      navigator.onLine === false ? 'offline' : 'pending');
     form.dataset.savedUuid = uuid;
     editing = null;
     navigator.storage?.persist?.().catch(() => {});
@@ -192,25 +211,10 @@
       saving = true;
       const submit = form.querySelector('[type="submit"]'); if (submit) submit.disabled = true;
       try {
-        const record = await saveForm(form);
-        if (!shell) {
-          location.assign(record.server ? `/evenement/${context.eventId}/dashboard` : `/hors-ligne?event=${context.eventId}`);
-        } else {
-          form.reset(); setType(form);
-          delete form.dataset.savedUuid;
-          document.getElementById('cai-edit-title').textContent = 'Nouvelle fiche';
-          history.replaceState(null, '', `/hors-ligne?event=${context.eventId}`);
-        }
+        await saveForm(form);
+        location.assign(`/evenement/${context.eventId}/dashboard`);
       } catch (error) { report(error); }
       finally { saving = false; if (submit) submit.disabled = false; }
-    });
-  }
-  function setType(form) {
-    const type = form.elements.type_fiche.value;
-    form.querySelectorAll('[data-for]').forEach(section => {
-      const active = section.dataset.for === type;
-      section.hidden = !active;
-      section.querySelectorAll('input,select,textarea').forEach(input => { input.disabled = !active; });
     });
   }
   async function renderSnapshot() {
@@ -226,6 +230,11 @@
       for (const value of [fiche.numero, `${fiche.nom || ''} ${fiche.prenom || ''}`, fiche.statut]) {
         const td = document.createElement('td'); td.textContent = value; row.append(td);
       }
+      if (fiche.pending && !fiche.deliveryStarted) {
+        const link = document.createElement('a');
+        link.href = `/fiche/new?evenement_id=${context.eventId}&draft=${fiche.client_uuid}`;
+        link.textContent = fiche.numero; row.firstElementChild.replaceChildren(link);
+      }
       const td = document.createElement('td'); td.append(badge(!!fiche.pending)); row.append(td);
       container.append(row);
     }
@@ -238,14 +247,14 @@
       option.selected = record.eventId === context.eventId; picker.add(option);
     }
     picker.addEventListener('change', () => location.assign(`/hors-ligne?event=${picker.value}`));
-    document.getElementById('cai-online-link').href = `/evenement/${context.eventId}/dashboard`;
-    const form = document.getElementById('cai-offline-form');
-    const saved = await store.get(snapshotKey());
-    const referents = await listFiches(saved ? saved.data : {fiches: []});
-    for (const fiche of referents.fiches.filter(fiche => !fiche.est_animal)) {
-      form.elements.animal_referent_id.add(new Option(
-        `${fiche.numero} — ${fiche.nom} ${fiche.prenom || ''}`, fiche.pending ? fiche.client_uuid : String(fiche.id)));
-    }
+    document.getElementById('cai-create-fiche').href = `/fiche/new?evenement_id=${context.eventId}`;
+    document.getElementById('cai-workspace').hidden = false;
+  }
+  async function setupForm() {
+    const form = document.querySelector('form[data-initial-type]');
+    if (!form) return;
+    form.elements.evenement_id.value = context.eventId;
+    document.querySelector('[data-cai-dashboard-link]').href = `/evenement/${context.eventId}/dashboard`;
     const draftId = new URLSearchParams(location.search).get('draft');
     if (draftId) {
       const draft = await store.get(`fiche:${draftId}`);
@@ -254,16 +263,21 @@
         for (const input of form.elements) {
           if (!input.name) continue;
           const values = draft.fields.filter(pair => pair[0] === input.name).map(pair => pair[1]);
-          if (input.multiple) Array.from(input.options).forEach(option => { option.selected = values.includes(option.value); });
+          if (input.multiple) {
+            for (const value of values) {
+              if (!Array.from(input.options).some(option => option.value === value)) input.add(new Option(value, value));
+            }
+            Array.from(input.options).forEach(option => { option.selected = values.includes(option.value); });
+          }
           else input.value = values[0] || '';
         }
         document.getElementById('cai-edit-title').textContent = `Corriger la fiche ${draft.provisional}`;
+        document.getElementById('numero').value = draft.provisional;
+        form.dispatchEvent(new Event('cai:restore'));
       }
     }
-    setType(form);
-    form.elements.type_fiche.addEventListener('change', () => setType(form));
     interceptForm(form);
-    document.getElementById('cai-workspace').hidden = false;
+    form.dataset.caiReady = 'true';
   }
   async function init() {
     if (!store || !('indexedDB' in globalThis) || !globalThis.isSecureContext) {
@@ -275,13 +289,19 @@
       context = JSON.parse(config.textContent);
       await store.put({...context, kind: 'context', key: `context:${context.userId}:${context.eventId}`});
       await store.put({key: 'active', userId: context.userId, eventId: context.eventId});
-    } else if (shell) {
+    } else if (shell || offlineForm) {
       const active = await store.get('active');
       const match = location.pathname.match(/^\/evenement\/(\d+)\/dashboard$/);
       const parameters = new URLSearchParams(location.search);
       const eventId = Number(parameters.get('event') || parameters.get('evenement_id') || match?.[1] || active?.eventId);
       if (active?.userId) context = await store.get(`context:${active.userId}:${eventId}`);
-      if (!context) return;
+      if (!context) {
+        if (offlineForm) {
+          document.querySelector('form[data-initial-type]').hidden = true;
+          report(new Error('Ouvrez d’abord cet évènement avec une connexion pour préparer la saisie sur cet appareil.'));
+        }
+        return;
+      }
     } else {
       // Login page: hide the old account's local workspace, preserve its queue.
       if (document.querySelector('input[type="password"]')) await store.put({key: 'active'});
@@ -297,23 +317,28 @@
       form.requestSubmit();
     });
     if (shell) { document.getElementById('cai-start-message').hidden = true; await setupShell(); }
-    else {
-      const form = document.querySelector('form[data-initial-type]');
-      if (form && location.pathname === '/fiche/new') interceptForm(form);
-    }
+    else if (offlineForm || location.pathname === '/fiche/new') await setupForm();
     await renderQueue();
+    window.addEventListener('online', () => sync().catch(report));
+    window.addEventListener('offline', () => say('Hors ligne : les nouvelles fiches seront conservées sur cet appareil.', 'offline'));
     if ('serviceWorker' in navigator) {
       try { await navigator.serviceWorker.register('/service-worker.js', {scope: '/'}); await navigator.serviceWorker.ready; }
       catch { say('La préparation du mode hors ligne a échoué. Réessayez avec une connexion.'); return; }
     }
     await sync();
-    window.addEventListener('online', () => sync().catch(report));
-    window.addEventListener('offline', () => say('Hors ligne : les nouvelles fiches seront conservées sur cet appareil.'));
     document.addEventListener('visibilitychange', () => { if (!document.hidden) sync().catch(report); });
     setInterval(() => sync().catch(report), 30000);
   }
   window.CAIOffline = {
     listFiches, snapshot,
+    async findReferents(term) {
+      const saved = context && await store.get(snapshotKey());
+      const data = await listFiches(saved ? saved.data : {fiches: []});
+      return data.fiches.filter(fiche => !fiche.est_animal &&
+        `${fiche.numero} ${fiche.nom} ${fiche.prenom}`.toLocaleLowerCase('fr').includes(term.toLocaleLowerCase('fr')))
+        .slice(0, 20).map(fiche => ({id: fiche.pending ? fiche.client_uuid : fiche.id,
+          numero: fiche.numero, label: `${fiche.nom} ${fiche.prenom || ''}`.trim()}));
+    },
     async cached() { const record = context && await store.get(snapshotKey()); return record?.data || {fiches: []}; },
   };
   document.addEventListener('DOMContentLoaded', () => init().catch(report));

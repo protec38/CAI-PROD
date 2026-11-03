@@ -51,11 +51,16 @@ mettre aussi à jour le rôle PostgreSQL et `DATABASE_URL` de manière coordonn�
 ## Fiches hors ligne (téléphone, tablette et ordinateur)
 
 Ouvrir le tableau de bord de chaque évènement avec une connexion sur chaque
-appareil, et attendre le message « Le mode hors ligne est prêt ». Le lien
-**Saisie et fiches hors ligne** permet ensuite de créer des fiches humaines ou
-animales sans réseau, de consulter la dernière copie de la liste et de corriger
+appareil, et attendre la pastille verte « Synchronisé au serveur ». Le bouton
+**Créer une fiche impliquée** utilise le même formulaire avec ou sans réseau.
+Le tableau de bord conserve la dernière copie de la liste et permet de corriger
 une fiche en attente. L'écran fonctionne sans ressources externes. L'accès au
 tableau de bord ou à la création bascule aussi sur cet écran si le réseau tombe.
+
+La petite pastille en haut indique **Mode hors ligne** en orange, puis
+**Synchronisé au serveur** en vert après confirmation de tous les envois.
+Elle reste orange si des fiches attendent encore leur confirmation ; cliquer
+sur la pastille affiche les détails et permet de relancer la synchronisation.
 
 Chaque fiche affiche un point **orange : en attente du serveur**, ou **vert :
 sur le serveur**. Un numéro `001-LOCAL-…` identifie provisoirement une fiche sur

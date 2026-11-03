@@ -33,16 +33,19 @@ def test_offline_reload_and_automatic_recovery(app):
             page.locator('[name="password"]').fill("test-password-123")
             page.locator('button[type="submit"]').click()
             page.goto(base + "/evenement/1/dashboard")
-            expect(page.get_by_role("status")).to_contain_text("mode hors ligne est prêt", timeout=20000)
-            page.goto(base + "/hors-ligne?event=1")
-            expect(page.locator("#cai-workspace")).to_be_visible()
+            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur", timeout=20000)
+            expect(page.locator(".cai-connection-indicator")).to_have_attribute("data-state", "synced")
+            expect(page.locator(".cai-connection-indicator .cai-sync-dot")).to_have_css("background-color", "rgb(23, 128, 61)")
+            expect(page.get_by_text("Saisie et fiches hors ligne", exact=True)).to_have_count(0)
             context.set_offline(True)
-            page.reload()
-            expect(page.locator("#cai-workspace")).to_be_visible()
-            form = page.locator("#cai-offline-form")
+            expect(page.get_by_role("status")).to_have_text("Mode hors ligne")
+            expect(page.locator(".cai-connection-indicator .cai-sync-dot")).to_have_css("background-color", "rgb(237, 136, 0)")
+            page.get_by_role("link", name="Créer une fiche impliquée", exact=True).click()
+            expect(page.locator("body")).to_have_class("cai-offline-form-page")
+            form = page.locator("form[data-initial-type]")
             form.locator('[name="nom"]').fill("Hors Ligne")
             form.locator('[name="prenom"]').fill("Alice")
-            form.locator('[name="date_naissance"]').fill("1990-01-31")
+            form.locator("#date_naissance_display").fill("31/01/1990")
             form.locator('button[type="submit"]').click()
             expect(page.locator("#cai-offline-fiches")).to_contain_text("Hors Ligne")
             expect(page.locator("#cai-offline-fiches .cai-sync-pending")).to_have_count(1)
@@ -62,6 +65,7 @@ def test_offline_reload_and_automatic_recovery(app):
             context.set_offline(False)
             expect(page.locator("#cai-offline-fiches")).to_contain_text("001-0002", timeout=20000)
             expect(page.locator("#cai-offline-fiches .cai-sync-pending")).to_have_count(0)
+            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
             with app.app_context():
                 fiche = FicheImplique.query.filter_by(client_uuid=uuid).one()
                 assert fiche.numero == "001-0002"
@@ -85,10 +89,11 @@ def test_offline_reload_and_automatic_recovery(app):
 
             # Drop a response after the server has committed: the retry must
             # retrieve its receipt, preserving exactly one server fiche.
-            form = page.locator("#cai-offline-form")
+            page.get_by_role("link", name="Créer une fiche impliquée", exact=True).click()
+            form = page.locator("form[data-initial-type]")
             form.locator('[name="nom"]').fill("Réponse perdue")
             form.locator('[name="prenom"]').fill("Bob")
-            form.locator('[name="date_naissance"]').fill("1985-04-12")
+            form.locator("#date_naissance_display").fill("12/04/1985")
             form.locator('button[type="submit"]').click()
             expect(page.locator("#cai-offline-fiches")).to_contain_text("Réponse perdue")
             def lose_response(route):
@@ -96,11 +101,12 @@ def test_offline_reload_and_automatic_recovery(app):
                 route.abort("failed")
             page.route("**/api/evenement/1/fiches/sync", lose_response)
             context.set_offline(False)
-            expect(page.get_by_role("status")).to_contain_text("Serveur inaccessible", timeout=20000)
+            expect(page.locator(".cai-connection-indicator")).to_have_attribute("data-state", "offline", timeout=20000)
             assert len(page.evaluate("CAIOfflineStore.pending(2, 1)")) == 1
             with app.app_context():
                 assert FicheImplique.query.filter_by(nom="Réponse perdue").count() == 1
             page.unroute("**/api/evenement/1/fiches/sync", lose_response)
+            page.locator(".cai-connection-indicator").click()
             page.get_by_role("button", name="Synchroniser", exact=True).click()
             expect(page.locator("#cai-offline-fiches")).to_contain_text("001-0004", timeout=20000)
             assert page.evaluate("CAIOfflineStore.pending(2, 1)") == []

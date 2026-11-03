@@ -1,9 +1,11 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+{% if not offline_mode | default(false) %}
 <script id="cai-offline-context" type="application/json">{{ {
   'userId': user.id,
   'eventId': evenement.id,
   'eventName': evenement.nom,
   'numeroPrevu': numero_prevu | default(''),
 } | tojson }}</script>
+{% endif %}
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>
 <script src="{{ url_for('static', filename='offline.js') }}"></script>

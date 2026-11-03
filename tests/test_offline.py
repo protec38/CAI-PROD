@@ -105,6 +105,14 @@ def test_public_shell_has_no_account_data(app, client):
     response = app.test_client().get("/hors-ligne")
     assert response.status_code == 200
     assert b"Example" not in response.data
+    form = app.test_client().get("/hors-ligne/fiche")
+    assert form.status_code == 200
+    assert b"cai-offline-form-page" in form.data
+    assert b'name="csrf_token"' not in form.data
+    assert b'"userId"' not in form.data
+    assert "Set-Cookie" not in form.headers
+    # The cached form must be identical regardless of the connected account.
+    assert client.get("/hors-ligne/fiche").data == form.data
     worker = client.get("/service-worker.js")
     assert worker.status_code == 200
     assert worker.headers["Service-Worker-Allowed"] == "/"
