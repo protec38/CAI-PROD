@@ -1,0 +1,88 @@
+# CAI — suivi opérationnel
+
+Application Flask, PostgreSQL et Redis. Python 3.12.
+
+## Installation locale
+
+Créer un environnement virtuel, puis installer `requirements-dev.txt`. Définir
+`FLASK_CONFIG=dev` et `ADMIN_PASSWORD` (au moins 12 caractères), puis exécuter :
+
+```sh
+python manage.py init-db
+python run.py
+```
+
+Le mode développement utilise SQLite dans `instance/cai.db` et un limiteur en mémoire.
+Les variables doivent être exportées dans le terminal ; le lancement Python direct
+ne charge pas automatiquement `.env`.
+
+## Déploiement Docker
+
+Copier `.env.example` vers `.env`, renseigner une clé `SECRET_KEY` aléatoire,
+les identifiants PostgreSQL et l'URL correspondante. Définir `ADMIN_PASSWORD`
+pour le premier démarrage ou pour remplacer un ancien mot de passe `admin`.
+La commande `docker compose up --build -d` initialise le schéma avant de démarrer
+les workers. Toute erreur d'initialisation interrompt le démarrage.
+
+Conserver HTTPS en production. Derrière un reverse proxy, définir
+`TRUSTED_PROXY_COUNT=1` uniquement si le proxy écrase les en-têtes transférés
+et si les clients ne peuvent pas accéder directement au serveur applicatif.
+Le contrôle `/healthz` reste accessible en HTTP pour la sonde Docker et renvoie
+503 quand PostgreSQL ou Redis est indisponible.
+
+Le fichier `.env` est retiré du suivi Git et exclu de l'image Docker. Les secrets
+déjà enregistrés dans l'historique Git doivent être renouvelés au déploiement,
+y compris `SECRET_KEY` et le mot de passe PostgreSQL. Modifier la variable
+`POSTGRES_PASSWORD` ne change pas le mot de passe d'une base déjà initialisée :
+mettre aussi à jour le rôle PostgreSQL et `DATABASE_URL` de manière coordonnée.
+
+## Sauvegardes et restauration
+
+Les exports contiennent les données opérationnelles, actualités et historiques,
+sans les comptes utilisateurs. Une sélection vide n'exporte aucune donnée.
+La restauration remplace toutes les données opérationnelles en une transaction ;
+un échec conserve les données précédentes. L'option « Forcer » autorise ce
+remplacement sur une base non vide. Une sauvegarde partielle remplace donc aussi
+les autres événements : conserver une sauvegarde complète avant restauration.
+
+Les comptes existants sont préservés. Les auteurs obligatoires des fiches, tickets
+et commentaires doivent exister avec les mêmes identifiants dans la base cible ;
+sinon l'import est refusé. Les anciens exports qui omettent actualités et
+historiques ne permettent pas de les récupérer. Une restauration réussie ne peut
+pas reconstituer des données absentes du fichier source.
+
+## Vérifications
+
+```sh
+python -m pytest -q
+node tests/test_frontend.cjs
+python -m ruff check app manage.py config.py run.py tests --select E9,F63,F7,F82
+python -m pip check
+python -m pip_audit -r requirements.txt --no-deps --disable-pip
+```
+
+La CI exécute les tests sur SQLite et PostgreSQL 16. Pour PostgreSQL local,
+`CAI_TEST_DATABASE_URL` doit désigner une base **réservée aux tests**, car les
+tables sont supprimées à la fin de chaque test.
+
+`requirements.in` liste les dépendances directes ; `requirements.txt` fige les
+versions résolues, y compris les dépendances transitives, pour Python 3.12/Linux.
+Les bibliothèques inutilisées bcrypt, Flask-Bcrypt, Flask-Migrate et pycountry
+ont été retirées. Le parsing ISO utilise désormais la bibliothèque standard.
+
+## Revue du 31 octobre 2026
+
+Corrections : autorisations entre événements, sessions Flask-Login cohérentes,
+comptes désactivés ou expirés refusés, suppression et déconnexion par POST avec
+CSRF, protection des comptes administrateurs contre les rôles inférieurs,
+échappement HTML des fiches/tickets, absence de formules dans les exports Excel,
+validation des tickets/actualités, restauration atomique, sauvegardes complètes,
+sonde de santé unique, confiance explicite dans le proxy et conteneur sans root.
+Les comptes provisoires expirés sont désactivés pour préserver leurs références.
+
+Validation locale : tests Python et JavaScript, analyse des erreurs Python,
+résolution Linux des dépendances et audit sans vulnérabilité connue. Docker et
+PostgreSQL ne sont pas disponibles localement ; leur validation est configurée
+dans la CI et doit être confirmée avant déploiement. Les appels SQLAlchemy
+dépréciés et `datetime.utcnow` ont été modernisés en conservant le format UTC
+des colonnes existantes.

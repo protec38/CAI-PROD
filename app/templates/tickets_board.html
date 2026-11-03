@@ -469,6 +469,10 @@
       {% endfor %}
     ];
 
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[ch]));
+    }
+
     /* ===== Helpers ===== */
     function toast(msg){
       const t=document.getElementById('toast');
@@ -483,7 +487,7 @@
       if(s==="en cours") return `<span class="status-badge st-encours"><i class="fa-solid fa-spinner"></i> En cours</span>`;
       if(s==="terminé"||s==="termine") return `<span class="status-badge st-termine"><i class="fa-solid fa-check"></i> Terminé</span>`;
       if(s==="archivé"||s==="archive") return `<span class="status-badge st-archive"><i class="fa-solid fa-box-archive"></i> Archivé</span>`;
-      return status||"";
+      return escapeHTML(status);
     }
     function prioClass(priority){
       const p=(priority||"").toLowerCase();
@@ -495,8 +499,7 @@
       if(!iso) return "—";
       try{
         const d = new Date(iso);
-        const adjusted = new Date(d.getTime() + 120*60*1000); // heuristique +2h si besoin
-        return adjusted.toLocaleString();
+        return d.toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});
       }catch{ return "—"; }
     }
     function assigneeNameById(id){
@@ -506,7 +509,7 @@
 
     /* ===== Carte ticket ===== */
     function ticketCardHTML(t){
-      const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${t.priority||"—"}</span>`;
+      const prChip = `<span class="chip ${prioClass(t.priority)}"><i class="fa-solid fa-signal"></i> ${escapeHTML(t.priority||"—")}</span>`;
       const meBadge = (String(t.assigned_to_id) === String(CURRENT_USER_ID))
         ? `<span class="chip chip--me"><i class="fa-solid fa-user-check"></i> Assigné à moi</span>`
         : "";
@@ -527,7 +530,7 @@
             </select>
             <select name="assigned_to_id">
               <option value="">— Non assigné —</option>
-              ${USERS.map(u=>`<option value="${u.id}" ${String(t.assigned_to_id)===String(u.id)?"selected":""}>${u.nom} (${u.role})</option>`).join("")}
+              ${USERS.map(u=>`<option value="${u.id}" ${String(t.assigned_to_id)===String(u.id)?"selected":""}>${escapeHTML(u.nom)} (${escapeHTML(u.role)})</option>`).join("")}
             </select>
             <button class="btn-soft" type="submit"><i class="fa-solid fa-floppy-disk"></i> Enregistrer</button>
           </form>
@@ -541,20 +544,20 @@
         <article class="ticket" id="ticket-${t.id}">
           <header class="ticket__header">
             <div class="ticket__heading">
-              <h4 class="ticket__title">${t.title || 'Ticket'}</h4>
+              <h4 class="ticket__title">${escapeHTML(t.title || 'Ticket')}</h4>
               ${statusBadge(t.status)}
             </div>
             <div class="ticket__badges">
               ${prChip}
-              <span class="chip"><i class="fa-solid fa-tags"></i> ${t.category||"—"}</span>
+              <span class="chip"><i class="fa-solid fa-tags"></i> ${escapeHTML(t.category||"—")}</span>
               <span class="chip"><i class="fa-regular fa-clock"></i> ${fmtDateIsoLocalPlus2(t.created_at)}</span>
               ${meBadge}
             </div>
           </header>
-          ${t.description ? `<p class="ticket__description">${t.description}</p>`:``}
+          ${t.description ? `<p class="ticket__description">${escapeHTML(t.description)}</p>`:``}
           <div class="ticket__meta">
-            <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${t.created_by||"—"}</span>
-            <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${assigneeLabel||"—"}</span>
+            <span class="chip"><i class="fa-solid fa-user"></i> Demandeur&nbsp;: ${escapeHTML(t.created_by||"—")}</span>
+            <span class="chip"><i class="fa-solid fa-user-gear"></i> Assigné&nbsp;: ${escapeHTML(assigneeLabel||"—")}</span>
           </div>
           ${managePart}
         </article>`;

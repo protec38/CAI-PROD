@@ -402,8 +402,10 @@
 
         const badge = document.createElement('span');
         badge.className = 'badge ' + (n.priority==1 ? 'b-urgent' : (n.priority==2 ? 'b-important' : 'b-info'));
-        badge.innerHTML = `<i class="fa-solid ${n.icon||'fa-circle-info'}"></i>` +
-                          (n.priority==1 ? ' Urgent' : (n.priority==2 ? ' Important' : ' Info'));
+        const icon = document.createElement('i');
+        icon.className = 'fa-solid ' + (/^fa-[a-z0-9-]+$/.test(n.icon || '') ? n.icon : 'fa-circle-info');
+        badge.appendChild(icon);
+        badge.appendChild(document.createTextNode(n.priority==1 ? ' Urgent' : (n.priority==2 ? ' Important' : ' Info')));
 
         const textCol = document.createElement('div');
         textCol.textContent = n.message;

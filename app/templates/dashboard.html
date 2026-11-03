@@ -506,7 +506,7 @@
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-ticket"></i> Tickets</a>
       {% endif %}
-      <a href="{{ url_for('main_bp.logout') }}" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</a>
+      <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
     </div>
   </header>
 
@@ -703,12 +703,16 @@
       if(next!==prev) el.textContent=text;
     }
 
+    function escapeHTML(value) {
+      return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[ch]));
+    }
+
     /* UI helpers */
     function getStatutHtml(statut){
       if(statut==='présent') return '<span class="badge present"><i class="fas fa-check-circle"></i> Présent</span>';
       if(statut==='sorti') return '<span class="badge sorti"><i class="fas fa-sign-out-alt"></i> Sorti</span>';
       if(statut==='supprimé') return '<span class="badge supprime"><i class="fas fa-trash-alt"></i> Supprimé</span>';
-      return statut || '';
+      return escapeHTML(statut);
     }
     function getStatutEvenementHTML(statut) {
       switch (statut) {
@@ -717,7 +721,7 @@
         case "Effectif dépassé": return `<span class="badge badge-red"><i class="fa-solid fa-user-times"></i> ${statut}</span>`;
         case "Complet": return `<span class="badge badge-blue"><i class="fa-solid fa-circle-check"></i> ${statut}</span>`;
         case "Fermé": return `<span class="badge badge-dark"><i class="fa-solid fa-lock"></i> ${statut}</span>`;
-        default: return statut || '';
+        default: return escapeHTML(statut);
       }
     }
     function renderCompetenceBadges(raw){
@@ -725,21 +729,21 @@
       const colorMap={{ competence_colors | tojson | safe }};
       return raw.split(',').map(c=>{
         const comp=c.trim(); const color=colorMap[comp]||"#999";
-        return `<span class="badge-competence" style="background:${color}">${comp}</span>`;
+        return `<span class="badge-competence" style="background:${color}">${escapeHTML(comp)}</span>`;
       }).join(" ");
     }
     function renderBagageBadges(numeros){
       if(!numeros || !numeros.length) return '<em>Aucun</em>';
-      return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${n}</span>`).join(' ');
+      return numeros.map(n=>`<span class="badge-bagage"><i class="fa-solid fa-suitcase-rolling"></i> ${escapeHTML(n)}</span>`).join(' ');
     }
 
     function formatNomCell(f){
       const base = (f.nom || '').trim();
       if(f.est_animal){
         const label = base || '(Sans nom)';
-        return `<span class="fiche-animal-label"><span class="fiche-animal-flag" title="Animal">🐾</span><span>${label}</span></span>`;
+        return `<span class="fiche-animal-label"><span class="fiche-animal-flag" title="Animal">🐾</span><span>${escapeHTML(label)}</span></span>`;
       }
-      return base;
+      return escapeHTML(base);
     }
 
     function formatPrenomCell(f){
@@ -781,10 +785,10 @@
         <div class="actions">
           <a class="btn-action btn-blue" href="/fiche/${f.id}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
           <a class="btn-action btn-yellow" href="/fiche/edit/${f.id}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
-          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, '${f.numero}')">
+          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, ${escapeHTML(JSON.stringify(f.numero))})">
             <i class="fa-solid fa-person-walking-arrow-right"></i> <span>Sortie</span>
           </button>
-          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, '${f.numero}')">
+          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, ${escapeHTML(JSON.stringify(f.numero))})">
             <i class="fa-solid fa-suitcase-rolling"></i> <span>Bagage</span>
           </button>
           ${delBtn}
@@ -794,12 +798,12 @@
     function ligneFicheHTML(f){
       return `
         <tr id="fiche-row-${f.id}">
-          <td data-col="numero">${f.numero}</td>
+          <td data-col="numero">${escapeHTML(f.numero)}</td>
           <td data-col="nom">${formatNomCell(f)}</td>
-          <td data-col="prenom">${formatPrenomCell(f)}</td>
+          <td data-col="prenom">${escapeHTML(formatPrenomCell(f))}</td>
           <td data-col="statut">${getStatutHtml(f.statut)}</td>
-          <td data-col="heure_arrivee">${f.heure_arrivee}</td>
-          <td data-col="difficultes">${f.difficultes || ""}</td>
+          <td data-col="heure_arrivee">${escapeHTML(f.heure_arrivee)}</td>
+          <td data-col="difficultes">${escapeHTML(f.difficultes)}</td>
           <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
           <td class="bagages-cell"><div id="bagages-${f.id}"><em>Chargement…</em></div></td>
           <td data-col="actions">${actionsHTML(f)}</td>

@@ -242,9 +242,7 @@
               <td>
                 <div class="table-actions">
                   <a href="{{ url_for('main_bp.utilisateur_edit', id=u.id) }}" class="btn edit">📝 Modifier</a>
-                  <a href="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}"
-                     class="btn del"
-                     onclick="return confirm('Supprimer cet utilisateur ?')">🗑 Supprimer</a>
+                  <form class="inline" method="POST" action="{{ url_for('main_bp.utilisateur_delete', id=u.id) }}" onsubmit="return confirm('Supprimer cet utilisateur ?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn del">🗑 Supprimer</button></form>
                   <form class="inline" method="POST" action="{{ url_for('main_bp.admin_toggle_utilisateur', utilisateur_id=u.id, page=pagination.page if pagination else 1) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button class="btn {{ 'btn-danger' if u.actif else 'btn-success' }}" type="submit" {% if u.id == user.id %}disabled{% endif %}>

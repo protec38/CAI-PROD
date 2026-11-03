@@ -21,28 +21,23 @@ document.addEventListener('DOMContentLoaded', function () {
   var _fetch = window.fetch;
   window.fetch = function (input, init) {
     init = init || {};
-    var method = (init.method || 'GET').toUpperCase();
+    var originalRequest = (input instanceof Request) ? input : null;
+    var method = (init.method || (originalRequest && originalRequest.method) || 'GET').toUpperCase();
     var isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
-    var url = (typeof input === 'string') ? input : (input.url || '');
+    var url = (typeof input === 'string' || input instanceof URL) ? String(input) : (input.url || '');
 
     // Même origine ?
-    var sameOrigin = true;
+    var sameOrigin = false;
     try {
       var u = new URL(url, window.location.origin);
       sameOrigin = (u.origin === window.location.origin);
-    } catch (e) { /* relative URL => même origine */ }
+    } catch (e) { /* Une URL invalide ne doit jamais recevoir le jeton. */ }
 
     if (isMutating && sameOrigin) {
-      init.headers = init.headers || {};
-      if (init.headers instanceof Headers) {
-        init.headers.set('X-CSRFToken', token);
-        init.headers.set('X-CSRF-Token', token);
-      } else if (Array.isArray(init.headers)) {
-        init.headers.push(['X-CSRFToken', token], ['X-CSRF-Token', token]);
-      } else {
-        init.headers['X-CSRFToken'] = token;
-        init.headers['X-CSRF-Token'] = token;
-      }
+      init = Object.assign({}, init);
+      init.headers = new Headers(init.headers || (originalRequest && originalRequest.headers) || {});
+      init.headers.set('X-CSRFToken', token);
+      init.headers.set('X-CSRF-Token', token);
       // Toujours envoyer les cookies (session)
       if (init.credentials === undefined) {
         init.credentials = 'same-origin';

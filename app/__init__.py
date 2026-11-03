@@ -1,6 +1,6 @@
 # app/__init__.py
 import os
-from flask import Flask, render_template
+from flask import Flask, render_template, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_talisman import Talisman
 from flask_wtf.csrf import CSRFError
@@ -10,11 +10,11 @@ from sqlalchemy import inspect, text
 
 
 def _ensure_database_schema(app: Flask) -> None:
-    """Ensure critical columns exist when the app boots.
+    """Ensure critical columns exist during the init-db command.
 
     Older deployments might miss newer columns because ``db.create_all``
     does not alter existing tables.  We patch the schema at runtime so the
-    application can start even on an outdated database.
+    application can start even on an outdated database. Run once before workers.
     """
 
     with app.app_context():
@@ -31,37 +31,11 @@ def _ensure_database_schema(app: Flask) -> None:
             if "created_at" not in columns:
                 app.logger.info("Adding missing utilisateur.created_at column")
                 with db.engine.begin() as conn:
-                    conn.execute(
-                        text(
-                            """
-                            ALTER TABLE utilisateur
-                            ADD COLUMN created_at TIMESTAMP WITHOUT TIME ZONE
-                            DEFAULT (NOW() AT TIME ZONE 'UTC')
-                            """
-                        )
-                    )
-                    conn.execute(
-                        text(
-                            """
-                            UPDATE utilisateur
-                            SET created_at = NOW() AT TIME ZONE 'UTC'
-                            WHERE created_at IS NULL
-                            """
-                        )
-                    )
-                    conn.execute(
-                        text(
-                            "ALTER TABLE utilisateur ALTER COLUMN created_at SET NOT NULL"
-                        )
-                    )
-                    conn.execute(
-                        text(
-                            """
-                            CREATE INDEX IF NOT EXISTS ix_utilisateur_created_at
-                            ON utilisateur (created_at)
-                            """
-                        )
-                    )
+                    conn.execute(text("ALTER TABLE utilisateur ADD COLUMN created_at TIMESTAMP"))
+                    conn.execute(text("UPDATE utilisateur SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+                    if db.engine.dialect.name == "postgresql":
+                        conn.execute(text("ALTER TABLE utilisateur ALTER COLUMN created_at SET NOT NULL"))
+                    conn.execute(text("CREATE INDEX IF NOT EXISTS ix_utilisateur_created_at ON utilisateur (created_at)"))
 
         if "broadcast_notification" in table_names:
             columns = {col["name"] for col in inspector.get_columns("broadcast_notification")}
@@ -109,7 +83,7 @@ def _ensure_database_schema(app: Flask) -> None:
                             """
                             UPDATE fiche_implique
                             SET type_fiche = CASE WHEN est_animal IS TRUE THEN 'animal' ELSE 'humain' END
-                            WHERE type_fiche IS NULL
+                            WHERE est_animal IS TRUE
                             """
                         )
                     )
@@ -151,13 +125,20 @@ def _ensure_database_schema(app: Flask) -> None:
                     )
 
 
-def create_app(config_name: str | None = None) -> Flask:
+def create_app(config_name: str | None = None, config_overrides: dict | None = None) -> Flask:
     app = Flask(__name__)
 
     # --- Config ---
     from config import config_by_name, ProductionConfig
     cfg_cls = config_by_name.get(config_name or os.environ.get("FLASK_CONFIG", "prod"), ProductionConfig)
     app.config.from_object(cfg_cls)
+    if config_overrides:
+        app.config.update(config_overrides)
+    if not app.debug and not app.testing and app.config["SECRET_KEY"] in {None, "", "dev-secret"}:
+        raise RuntimeError("SECRET_KEY doit être configurée en production.")
+    os.makedirs(app.instance_path, exist_ok=True)
+    if app.config["SQLALCHEMY_DATABASE_URI"].startswith("sqlite:"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {"pool_pre_ping": True}
     app.config.setdefault("BROADCAST_AUTO_CLEAR_SECONDS", 15)
 
     # ===== CSRF (Flask-WTF) =====
@@ -167,7 +148,15 @@ def create_app(config_name: str | None = None) -> Flask:
     app.config["WTF_CSRF_HEADERS"] = ["X-CSRFToken", "X-CSRF-Token"]
 
     # --- Proxy / HTTPS / Sécurité ---
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+    proxy_count = app.config["TRUSTED_PROXY_COUNT"]
+    if proxy_count:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=proxy_count, x_proto=proxy_count)
+
+    @app.before_request
+    def discard_raw_forwarded_proto():
+        # ProxyFix has already applied trusted headers to request.is_secure.
+        # Talisman must not trust an additional, unvalidated raw header.
+        request.environ.pop("HTTP_X_FORWARDED_PROTO", None)
 
     # IMPORTANT : autoriser le JS inline (dashboard) et les CDN utilisés
     csp = {
@@ -181,15 +170,15 @@ def create_app(config_name: str | None = None) -> Flask:
         "connect-src": "'self'",
     }
 
-    Talisman(
+    talisman = Talisman(
         app,
         content_security_policy=csp,
-        force_https=bool(int(os.getenv("FORCE_HTTPS", "1"))),
+        force_https=app.config["FORCE_HTTPS"],
+        session_cookie_secure=app.config["SESSION_COOKIE_SECURE"],
     )
 
     # --- Extensions ---
     db.init_app(app)
-    _ensure_database_schema(app)
     login_manager.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
@@ -205,10 +194,10 @@ def create_app(config_name: str | None = None) -> Flask:
     @login_manager.user_loader
     def load_user(user_id: str):
         try:
-            return db.session.get(UserModel, int(user_id))
-        except Exception:
-            # Compat si la PK n'est pas un int
-            return UserModel.query.get(user_id)
+            user = db.session.get(UserModel, int(user_id))
+        except (ValueError, TypeError):
+            return None
+        return user if user and user.is_active else None
 
     @app.context_processor
     def inject_broadcast_banner():
@@ -282,10 +271,6 @@ def create_app(config_name: str | None = None) -> Flask:
     # --- Blueprints ---
     from .routes import main_bp
     app.register_blueprint(main_bp)
-
-    # --- Healthcheck ---
-    @app.route("/healthz")
-    def healthz():
-        return {"status": "ok"}, 200
+    talisman(force_https=False)(app.view_functions["main_bp._healthz"])
 
     return app

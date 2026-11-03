@@ -1,0 +1,16 @@
+# Direct production dependencies. requirements.txt pins the resolved versions.
+Flask
+Flask-SQLAlchemy
+SQLAlchemy
+Werkzeug
+pytz
+reportlab
+Flask-Login
+openpyxl
+gunicorn
+flask-talisman
+Flask-Limiter
+Flask-WTF
+psycopg2-binary
+redis
+tzdata

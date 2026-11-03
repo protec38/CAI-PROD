@@ -8,7 +8,7 @@ done
 echo "[start] Database is ready."
 
 echo "[start] Running manage.py init-db (idempotent)"
-python manage.py init-db || true
+python manage.py init-db
 
 echo "[start] Launching gunicorn"
-exec gunicorn 'run:app' --workers 4 --threads 2 --bind 0.0.0.0:5000 --timeout 60 --forwarded-allow-ips='*'
+exec gunicorn 'run:app' --workers 4 --threads 2 --bind 0.0.0.0:5000 --timeout 60

@@ -1,3 +1,4 @@
+from .time_utils import utcnow
 from .extensions import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta, timezone
@@ -36,7 +37,7 @@ class Utilisateur(db.Model, UserMixin):
     type_utilisateur = db.Column(db.String(20), nullable=False)
     niveau = db.Column(db.String(20), nullable=True)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
     provisional_expires_at = db.Column(db.DateTime, nullable=True, index=True)
 
     fiches = db.relationship('FicheImplique', backref='createur', lazy=True)
@@ -62,6 +63,13 @@ class Utilisateur(db.Model, UserMixin):
     def check_password(self, password):
         return check_password_hash(self.mot_de_passe_hash, password)
 
+    @property
+    def is_active(self):
+        return bool(self.actif) and not (
+            self.is_provisional and self.provisional_expires_at
+            and self.provisional_expires_at <= utcnow()
+        )
+
     def __repr__(self):
         return f'<Utilisateur {self.nom_utilisateur}>'
 
@@ -73,7 +81,7 @@ class Utilisateur(db.Model, UserMixin):
     def provisional_time_left(self):
         if not self.is_provisional or not self.provisional_expires_at:
             return None
-        return self.provisional_expires_at - datetime.utcnow()
+        return self.provisional_expires_at - utcnow()
 
 
 # ======================
@@ -86,7 +94,7 @@ class Evenement(db.Model):
     adresse = db.Column(db.String(200), nullable=True)
     statut = db.Column(db.String(50), nullable=True)
     type_evt = db.Column(db.String(50), nullable=True)
-    date_ouverture = db.Column(db.DateTime, default=datetime.utcnow)
+    date_ouverture = db.Column(db.DateTime, default=utcnow)
 
     archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     archived_at = db.Column(db.DateTime, nullable=True)
@@ -140,7 +148,7 @@ class Evenement(db.Model):
 class BroadcastNotification(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     message = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False, index=True)
     created_by_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=True, index=True)
     is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
     emoji = db.Column(db.String(8), nullable=False, default="⚠️")
@@ -202,7 +210,7 @@ class FicheImplique(db.Model):
     numero_recherche = db.Column(db.String(20), nullable=True)
 
     statut = db.Column(db.String(20), nullable=False, default="présent")
-    heure_arrivee = db.Column(db.DateTime, default=datetime.utcnow)
+    heure_arrivee = db.Column(db.DateTime, default=utcnow)
     autres_informations = db.Column(db.Text, nullable=True)
 
     # Timeline relation
@@ -336,7 +344,7 @@ class Ticket(db.Model):
     category    = db.Column(db.String(30))     # Logistique / Technique / Secours / Autre
     priority    = db.Column(db.String(10))     # Basse / Normal / Haute
     status      = db.Column(db.String(15))     # Ouvert / En cours / Terminé / Archivé
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)  # ✅ UTC
+    created_at  = db.Column(db.DateTime, default=utcnow)  # ✅ UTC
 
     # Relations cohérentes avec Evenement.tickets
     evenement   = db.relationship("Evenement", back_populates="tickets")
@@ -351,7 +359,7 @@ class Ticket(db.Model):
             "category": self.category or "",
             "priority": self.priority or "Normal",
             "status": self.status or "Ouvert",
-            "created_at": (self.created_at.isoformat() if self.created_at else None),
+            "created_at": (self.created_at.replace(tzinfo=timezone.utc).isoformat() if self.created_at else None),
             "created_by": (self.created_by.nom if self.created_by else None),
             "assigned_to": (self.assigned_to.nom if self.assigned_to else None),
             "assigned_to_id": (self.assigned_to_id or None),
@@ -365,7 +373,7 @@ class Ticket(db.Model):
 class AuditLog(db.Model):
     __tablename__ = "audit_log"
     id = db.Column(db.Integer, primary_key=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True, nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=True)
     action = db.Column(db.String(200), nullable=False)
     entity_type = db.Column(db.String(50), nullable=True)
@@ -384,7 +392,7 @@ class TimelineEntry(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     fiche_id = db.Column(db.Integer, db.ForeignKey("fiche_implique.id"), nullable=False, index=True)
     user_id = db.Column(db.Integer, db.ForeignKey("utilisateur.id"), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, index=True, nullable=False)
     kind = db.Column(db.String(20), default="comment", nullable=False)  # comment/status/etc.
     user = db.relationship("Utilisateur", backref="timeline_comments")
     content = db.Column(db.Text, nullable=False)

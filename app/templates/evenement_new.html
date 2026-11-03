@@ -823,7 +823,7 @@
   </header>
 
   <nav class="top-actions" aria-label="Navigation principale">
-    <a href="{{ url_for('main_bp.logout') }}" class="logout">🚪 Déconnexion</a>
+    <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="logout">🚪 Déconnexion</button></form>
     {% if user.is_admin %}
       <a href="{{ url_for('main_bp.admin_logs') }}">🛡️ Journal d'audit</a>
     {% endif %}

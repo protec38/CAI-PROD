@@ -1,3 +1,4 @@
+from .time_utils import utcnow
 from flask import (
     Blueprint,
     render_template,
@@ -33,14 +34,14 @@ from functools import wraps
 from .audit import log_action
 from datetime import datetime, timedelta, date, timezone
 from collections import Counter
-from flask_login import current_user
+from flask_login import current_user, login_user, logout_user
 from flask import make_response
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 import io
-from .backup_utils import is_db_empty, backup_to_bytesio, wipe_db, bulk_restore
+from .backup_utils import is_db_empty, backup_to_bytesio, bulk_restore, validate_backup
 from flask import send_file
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_LEFT
@@ -87,6 +88,10 @@ def _build_safe_redirect(target: str | None, fallback_endpoint: str, **fallback_
     cleaned_target = target.strip()
     if not cleaned_target:
         return fallback_url
+    if cleaned_target.startswith("//"):
+        return fallback_url
+    if "\\" in cleaned_target or any(ord(ch) < 32 or ord(ch) == 127 for ch in cleaned_target):
+        return fallback_url
 
     host_url = request.host_url
     ref_url = urlparse(host_url)
@@ -99,6 +104,8 @@ def _build_safe_redirect(target: str | None, fallback_endpoint: str, **fallback_
         return fallback_url
 
     safe_path = test_url.path or "/"
+    if safe_path.startswith("//"):
+        return fallback_url
     if test_url.query:
         safe_path = f"{safe_path}?{test_url.query}"
     if test_url.fragment:
@@ -206,7 +213,7 @@ def add_timeline(fiche_id: int, user_id: int | None, content: str, kind: str):
         user_id=user_id,
         content=(content or "").strip(),
         kind=(kind or "comment"),
-        created_at=datetime.utcnow(),
+        created_at=utcnow(),
     )
     db.session.add(e)
     return e
@@ -226,14 +233,44 @@ def json_nocache(payload: dict, status: int = 200):
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if "user_id" not in session:
+        user = get_current_user()
+        if user is None or not user.is_active:
+            logout_user()
+            session.clear()
             return redirect(url_for("main_bp.login"))
         return f(*args, **kwargs)
     return decorated_function
 
 # 🔧 Fonction utilitaire
 def get_current_user():
-    return Utilisateur.query.get(session["user_id"])
+    user_id = session.get("user_id")
+    try:
+        return db.session.get(Utilisateur, int(user_id)) if user_id is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def event_access_required(f):
+    """Check the event owning a resource before reading or modifying it."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if "evenement_id" in kwargs:
+            event = db.get_or_404(Evenement, kwargs["evenement_id"])
+        elif "news_id" in kwargs:
+            news = db.get_or_404(EventNews, kwargs["news_id"])
+            event = db.get_or_404(Evenement, news.evenement_id)
+        elif "link_id" in kwargs:
+            event = db.get_or_404(ShareLink, kwargs["link_id"]).evenement
+        else:
+            fiche = db.get_or_404(FicheImplique, kwargs.get("fiche_id", kwargs.get("id")))
+            event = fiche.evenement
+        user = get_current_user()
+        if not user_can_access_event(user, event):
+            abort(403)
+        if f.__name__ in {"create_event_news", "toggle_event_news", "delete_event_news"} and not can_manage_sharing(user):
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
 
 
 AUDIT_LOG_RETENTION = timedelta(days=40)
@@ -242,7 +279,7 @@ _HOUSEKEEPING_STATE: dict[str, datetime | None] = {"last_run": None}
 
 
 def _purge_old_audit_logs() -> int:
-    cutoff = datetime.utcnow() - AUDIT_LOG_RETENTION
+    cutoff = utcnow() - AUDIT_LOG_RETENTION
     deleted = AuditLog.query.filter(AuditLog.created_at < cutoff).delete(synchronize_session=False)
     if deleted:
         try:
@@ -260,7 +297,7 @@ def _ensure_provisional_deadlines() -> int:
         func.lower(Utilisateur.type_utilisateur) == "provisoire",
         Utilisateur.provisional_expires_at.is_(None),
     )
-    now = datetime.utcnow()
+    now = utcnow()
     for account in query:
         base = account.created_at or now
         account.provisional_expires_at = base + PROVISIONAL_ACCOUNT_LIFETIME
@@ -275,11 +312,12 @@ def _ensure_provisional_deadlines() -> int:
 
 
 def _purge_expired_provisional_accounts() -> int:
-    now = datetime.utcnow()
+    now = utcnow()
     expired = Utilisateur.query.filter(
         func.lower(Utilisateur.type_utilisateur) == "provisoire",
         Utilisateur.provisional_expires_at.isnot(None),
         Utilisateur.provisional_expires_at <= now,
+        Utilisateur.actif.is_(True),
     ).all()
 
     if not expired:
@@ -288,7 +326,7 @@ def _purge_expired_provisional_accounts() -> int:
     removed = 0
     for account in expired:
         removed += 1
-        db.session.delete(account)
+        account.actif = False
 
     try:
         db.session.commit()
@@ -301,7 +339,9 @@ def _purge_expired_provisional_accounts() -> int:
 
 @main_bp.before_app_request
 def _run_housekeeping():
-    now = datetime.utcnow()
+    if request.endpoint in {"main_bp._healthz", "static"}:
+        return
+    now = utcnow()
     last_run = _HOUSEKEEPING_STATE.get("last_run")
     if last_run and (now - last_run) < timedelta(hours=1):
         return
@@ -324,10 +364,7 @@ TIMELINE_COMMENT_MAX_LENGTH = 1000
 
 
 def _get_client_ip() -> str:
-    """Retourne l'adresse IP du client en tenant compte de X-Forwarded-For."""
-    forwarded_for = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
-    if forwarded_for:
-        return forwarded_for
+    """Use the address validated by the configured trusted proxy middleware."""
     return request.remote_addr or "unknown"
 
 
@@ -338,7 +375,7 @@ def _cleanup_login_attempts(client_ip: str) -> None:
         return
 
     lock_until = record.get("lock_until")
-    if lock_until and datetime.utcnow() >= lock_until:
+    if lock_until and utcnow() >= lock_until:
         ip_login_attempts.pop(client_ip, None)
 
 
@@ -352,7 +389,7 @@ def _get_lock_remaining(client_ip: str) -> timedelta | None:
     if not lock_until:
         return None
 
-    remaining = lock_until - datetime.utcnow()
+    remaining = lock_until - utcnow()
     if remaining.total_seconds() <= 0:
         ip_login_attempts.pop(client_ip, None)
         return None
@@ -431,8 +468,11 @@ def login():
 
         user = Utilisateur.query.filter_by(nom_utilisateur=nom_utilisateur).first()
         password_ok = user.check_password(mot_de_passe) if user else False
-        if user and password_ok and user.actif:
+        if user and password_ok and user.is_active:
+            session.clear()
+            login_user(user)
             session["user_id"] = user.id
+            session.permanent = True
             log_action("login_success", "utilisateur", user.id)
             ip_login_attempts.pop(client_ip, None)
             return redirect(url_for("main_bp.evenement_new"))
@@ -464,7 +504,7 @@ def login():
             record["count"] = int(record.get("count", 0)) + 1
 
             if record["count"] >= LOGIN_LOCK_THRESHOLD:
-                record["lock_until"] = datetime.utcnow() + LOGIN_LOCK_DURATION
+                record["lock_until"] = utcnow() + LOGIN_LOCK_DURATION
                 context = _build_lock_context(client_ip)
                 context["hide_broadcast"] = True
                 if context["lock_message"]:
@@ -481,9 +521,10 @@ def login():
 
     return render_template("login.html", **context)
 # 🔓 Déconnexion
-@main_bp.route("/logout")
+@main_bp.route("/logout", methods=["POST"])
 def logout():
     log_action("logout")
+    logout_user()
     session.clear()
     return redirect(url_for("main_bp.login"))
 
@@ -517,7 +558,7 @@ def evenement_new():
             adresse=adresse,
             statut=statut,
             createur_id=user.id,
-            date_ouverture=datetime.utcnow()
+            date_ouverture=utcnow()
         )
 
         db.session.add(nouvel_evt)
@@ -660,11 +701,12 @@ def get_broadcast_status():
 
 @main_bp.route("/evenement/<int:evenement_id>/dashboard")
 @login_required
+@event_access_required
 def dashboard(evenement_id):
     session["evenement_id"] = evenement_id
     user = get_current_user()
 
-    evenement = Evenement.query.get(evenement_id)
+    evenement = db.session.get(Evenement, evenement_id)
     if not evenement or not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
@@ -734,7 +776,7 @@ def _format_duration(delta: timedelta | None) -> str:
 def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
     fiches = FicheImplique.query.filter_by(evenement_id=evenement.id).all()
 
-    now_utc = datetime.utcnow()
+    now_utc = utcnow()
 
     def _is_present(fiche: FicheImplique) -> bool:
         return (fiche.statut or "").strip().lower() == "présent"
@@ -867,7 +909,7 @@ def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
     elif paris:
         generated_at = datetime.now(paris)
     else:
-        generated_at = datetime.utcnow()
+        generated_at = utcnow()
 
     return {
         "event": event_info,
@@ -881,9 +923,10 @@ def _build_panorama_data(evenement: Evenement) -> dict[str, typing.Any]:
 
 @main_bp.route("/evenement/<int:evenement_id>/panorama")
 @login_required
+@event_access_required
 def evenement_panorama(evenement_id: int):
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
 
     if not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
@@ -905,9 +948,10 @@ def evenement_panorama(evenement_id: int):
 
 @main_bp.route("/evenement/<int:evenement_id>/panorama_json", methods=["GET"])
 @login_required
+@event_access_required
 def evenement_panorama_json(evenement_id: int):
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
 
     if not user_can_access_event(user, evenement):
         return json_nocache({"error": "unauthorized"}, 403)
@@ -935,9 +979,11 @@ def evenement_panorama_json(evenement_id: int):
 @login_required
 def select_evenement():
     user = get_current_user()
-    evt_id = request.form.get("evenement_id")
+    evt_id = request.form.get("evenement_id", type=int)
 
     if evt_id:
+        if not user_can_access_event(user, db.get_or_404(Evenement, evt_id)):
+            abort(403)
         session["evenement_id"] = int(evt_id)  # 🧠 on stocke dans la session
         return redirect(url_for("main_bp.dashboard", evenement_id=int(evt_id)))
     else:
@@ -959,7 +1005,7 @@ def fiche_new():
         flash("⛔ Aucun évènement actif. Veuillez d'abord accéder à un évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    evenement = Evenement.query.get(evenement_id)
+    evenement = db.session.get(Evenement, evenement_id)
     if not evenement or not user_can_access_event(user, evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
@@ -978,7 +1024,7 @@ def fiche_new():
             heure_arrivee = local_dt.astimezone(timezone.utc).replace(tzinfo=None)
         except Exception:
             # fallback si vide ou format inattendu
-            heure_arrivee = datetime.utcnow()
+            heure_arrivee = utcnow()
 
         # --- Numérotation automatique locale à l’évènement
         last_fiche_evt = (
@@ -1249,7 +1295,9 @@ def admin_toggle_utilisateur(utilisateur_id: int):
     if not (user.is_admin or user.role == "codep"):
         abort(403)
 
-    target = Utilisateur.query.get_or_404(utilisateur_id)
+    target = db.get_or_404(Utilisateur, utilisateur_id)
+    if not user.is_admin and (target.is_admin or target.role == "codep"):
+        abort(403)
     if target.id == user.id:
         flash("Vous ne pouvez pas désactiver votre propre compte.", "warning")
         return redirect(url_for("main_bp.admin_utilisateurs", page=request.args.get("page", 1)))
@@ -1283,7 +1331,7 @@ def utilisateur_create():
     user = get_current_user()
     if not (user.is_admin or user.role == "codep"):
         flash("Accès refusé", "danger")
-        return redirect(url_for("main_bp.dashboard"))
+        return redirect(url_for("main_bp.evenement_new"))
 
     from app.models import Evenement
     all_evenements = Evenement.query.all()
@@ -1310,7 +1358,7 @@ def utilisateur_create():
             flash("Nom d'utilisateur déjà utilisé.", "danger")
             return redirect(url_for("main_bp.utilisateur_create"))
 
-        created_now = datetime.utcnow()
+        created_now = utcnow()
         new_user = Utilisateur(
             nom=nom,
             nom_utilisateur=nom_utilisateur,
@@ -1325,7 +1373,7 @@ def utilisateur_create():
             new_user.provisional_expires_at = created_now + PROVISIONAL_ACCOUNT_LIFETIME
 
         for evt_id in evenement_ids:
-            evt = Evenement.query.get(int(evt_id))
+            evt = db.session.get(Evenement, int(evt_id))
             if evt:
                 new_user.evenements.append(evt)
 
@@ -1352,9 +1400,9 @@ def utilisateur_edit(id):
     user = get_current_user()
     if not (user.is_admin or user.role == "codep"):
         flash("Accès refusé", "danger")
-        return redirect(url_for("main_bp.dashboard"))
+        return redirect(url_for("main_bp.evenement_new"))
 
-    utilisateur = Utilisateur.query.get_or_404(id)
+    utilisateur = db.get_or_404(Utilisateur, id)
     from app.models import Evenement
     all_evenements = Evenement.query.all()
 
@@ -1387,7 +1435,7 @@ def utilisateur_edit(id):
 
         if utilisateur.is_provisional:
             if utilisateur.provisional_expires_at is None or (previous_type or "").lower() != "provisoire":
-                utilisateur.provisional_expires_at = datetime.utcnow() + PROVISIONAL_ACCOUNT_LIFETIME
+                utilisateur.provisional_expires_at = utcnow() + PROVISIONAL_ACCOUNT_LIFETIME
         else:
             utilisateur.provisional_expires_at = None
 
@@ -1405,7 +1453,7 @@ def utilisateur_edit(id):
 
         utilisateur.evenements = []
         for evt_id in request.form.getlist("evenements"):
-            evt = Evenement.query.get(int(evt_id))
+            evt = db.session.get(Evenement, int(evt_id))
             if evt:
                 utilisateur.evenements.append(evt)
 
@@ -1424,15 +1472,15 @@ def utilisateur_edit(id):
 
 
 
-@main_bp.route("/admin/utilisateur/delete/<int:id>")
+@main_bp.route("/admin/utilisateur/delete/<int:id>", methods=["POST"])
 @login_required
 def utilisateur_delete(id):
     user = get_current_user()
-    if not (user.is_admin or user.role in ["responsable", "codep"]):
+    if not (user.is_admin or user.role == "codep"):
         flash("Accès refusé.", "danger")
-        return redirect(url_for("main_bp.dashboard"))
+        return redirect(url_for("main_bp.evenement_new"))
 
-    utilisateur = Utilisateur.query.get_or_404(id)
+    utilisateur = db.get_or_404(Utilisateur, id)
     if not user.is_admin and user.role == "codep" and (utilisateur.is_admin or utilisateur.role == "codep"):
         flash("Seul un administrateur peut supprimer ce compte.", "danger")
         return redirect(url_for("main_bp.admin_utilisateurs"))
@@ -1511,9 +1559,10 @@ def utilisateur_delete(id):
 # 🔍 Détail d’une fiche impliqué
 @main_bp.route("/fiche/<int:id>")
 @login_required
+@event_access_required
 def fiche_detail(id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(id)
+    fiche = db.get_or_404(FicheImplique, id)
 
     if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n'avez pas accès à cette fiche.", "danger")
@@ -1528,9 +1577,10 @@ from datetime import datetime
 # ✏️ Modification d’une fiche impliqué (MÀJ)
 @main_bp.route("/fiche/edit/<int:id>", methods=["GET", "POST"])
 @login_required
+@event_access_required
 def fiche_edit(id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(id)
+    fiche = db.get_or_404(FicheImplique, id)
     role_lower = (user.role or "").lower()
 
     # Vérification d'accès à l'évènement
@@ -1828,9 +1878,10 @@ def fiche_edit(id):
 
 @main_bp.route("/fiche/delete/<int:id>", methods=["POST"])
 @login_required
+@event_access_required
 def fiche_delete(id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(id)
+    fiche = db.get_or_404(FicheImplique, id)
 
     # Doit avoir les droits de rôle
     roles_autorises = {"responsable", "codep"}
@@ -1857,8 +1908,9 @@ def fiche_delete(id):
 
 @main_bp.route("/fiche/<int:id>/sortie", methods=["POST"])
 @login_required
+@event_access_required
 def fiche_sortie(id):
-    fiche = FicheImplique.query.get_or_404(id)
+    fiche = db.get_or_404(FicheImplique, id)
     user = get_current_user()
 
     if not user_can_access_event(user, fiche.evenement):
@@ -1876,7 +1928,7 @@ def fiche_sortie(id):
         fiche.moyen_transport = moyen_transport
 
     fiche.statut = "sorti"
-    fiche.heure_sortie = datetime.utcnow()
+    fiche.heure_sortie = utcnow()
 
     # 1er commit : on valide la mise à jour de la fiche
     db.session.commit()
@@ -1907,9 +1959,10 @@ def fiche_sortie(id):
 
 @main_bp.route("/evenement/<int:evenement_id>/update_statut", methods=["POST"])
 @login_required
+@event_access_required
 def update_evenement_statut(evenement_id):
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
 
     if not user_can_access_event(user, evenement):
         flash("⛔ Accès refusé.", "danger")
@@ -1927,9 +1980,10 @@ def update_evenement_statut(evenement_id):
 
 @main_bp.route("/evenement/<int:evenement_id>/fiches_json", methods=["GET"])
 @login_required
+@event_access_required
 def fiches_json(evenement_id):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
     if not user_can_access_event(user, evt):
@@ -2013,9 +2067,10 @@ def fiches_json(evenement_id):
 
 @main_bp.route("/evenement/<int:evenement_id>/referents", methods=["GET"])
 @login_required
+@event_access_required
 def fiche_referent_lookup(evenement_id: int):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     if not user_can_access_event(user, evt):
         return json_nocache({"error": "unauthorized"}, 403)
@@ -2102,8 +2157,9 @@ def _styled_table(data):
 
 @main_bp.route("/fiche/<int:id>/pdf")
 @login_required
+@event_access_required
 def export_pdf_fiche(id):
-    fiche = FicheImplique.query.get_or_404(id)
+    fiche = db.get_or_404(FicheImplique, id)
 
     tmp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
     tmp_file.close()
@@ -2118,7 +2174,7 @@ def export_pdf_fiche(id):
     styles.add(ParagraphStyle(name='NormalBold', parent=styles['Normal'], fontName='Helvetica-Bold'))
 
     # === LOGO + TITRE ===
-    logo_path = os.path.join("static", "img", "logo-protection-civile.jpg")
+    logo_path = os.path.join(current_app.static_folder, "img", "logo-protection-civile.jpg")
     if os.path.exists(logo_path):
         img = Image(logo_path, width=70, height=70)
         img.hAlign = 'CENTER'
@@ -2285,9 +2341,10 @@ def admin_evenements():
 
 @main_bp.route('/evenement/<int:evenement_id>/edit', methods=['GET', 'POST'])
 @login_required
+@event_access_required
 def edit_evenement(evenement_id):
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
 
     if not user.is_admin and user.role != "codep" and evenement.createur_id != user.id:
         flash("⛔ Accès interdit.", "danger")
@@ -2309,9 +2366,10 @@ def edit_evenement(evenement_id):
 
 @main_bp.route("/evenements/<int:evenement_id>/supprimer", methods=["POST"])
 @login_required
+@event_access_required
 def delete_evenement(evenement_id):
     user = get_current_user()  # ✅ au lieu de current_user
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     # 🔐 Vérifie si l'utilisateur est admin OU le créateur (codep)
     if not (user.is_admin or user.role == "codep" or evt.createur_id == user.id):
@@ -2347,16 +2405,17 @@ def delete_evenement(evenement_id):
 
 @main_bp.route("/evenements/<int:evenement_id>/archiver", methods=["POST"])
 @login_required
+@event_access_required
 def archive_evenement(evenement_id: int):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     if not (user.is_admin or user.role == "codep"):
         abort(403)
 
     if not evt.archived:
         evt.archived = True
-        evt.archived_at = datetime.utcnow()
+        evt.archived_at = utcnow()
         db.session.commit()
         log_action(
             "evenement_archived",
@@ -2373,9 +2432,10 @@ def archive_evenement(evenement_id: int):
 
 @main_bp.route("/evenements/<int:evenement_id>/restaurer", methods=["POST"])
 @login_required
+@event_access_required
 def restore_evenement(evenement_id: int):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     if not (user.is_admin or user.role == "codep"):
         abort(403)
@@ -2404,6 +2464,7 @@ def restore_evenement(evenement_id: int):
 
 @main_bp.route("/evenement/<int:evenement_id>/export/pdf")
 @login_required
+@event_access_required
 def export_evenement_fiches_pdf(evenement_id):
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -2413,7 +2474,7 @@ def export_evenement_fiches_pdf(evenement_id):
     import io
     import pytz
 
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
     fiches = FicheImplique.query.filter_by(evenement_id=evenement_id).all()
 
     buffer = io.BytesIO()
@@ -2506,9 +2567,10 @@ def export_evenement_fiches_pdf(evenement_id):
 
 @main_bp.route("/fiche/<int:fiche_id>/bagages/ajouter", methods=["POST"])
 @login_required
+@event_access_required
 def fiche_bagages_ajouter(fiche_id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(fiche_id)
+    fiche = db.get_or_404(FicheImplique, fiche_id)
 
     if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
@@ -2585,9 +2647,10 @@ def fiche_bagages_ajouter(fiche_id):
 
 @main_bp.route("/fiche/<int:fiche_id>/bagages_json", methods=["GET"])
 @login_required
+@event_access_required
 def fiche_bagages_json(fiche_id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(fiche_id)
+    fiche = db.get_or_404(FicheImplique, fiche_id)
 
     # 🔐 Accès lecture : rattaché à l’évènement OU admin/codep
     if not user_can_access_event(user, fiche.evenement):
@@ -2607,6 +2670,7 @@ def fiche_bagages_json(fiche_id):
 
 @main_bp.route("/evenement/<int:evenement_id>/export/csv")
 @login_required
+@event_access_required
 def export_evenement_fiches_csv(evenement_id):
     from datetime import datetime
     import pytz
@@ -2619,7 +2683,7 @@ def export_evenement_fiches_csv(evenement_id):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
 
     # Permissions : admin, codep, responsable rattaché
     if not (
@@ -2692,6 +2756,8 @@ def export_evenement_fiches_csv(evenement_id):
 
     def make_cell(value, font=None, fill=None, alignment=None, border=None, number_format=None):
         cell = WriteOnlyCell(ws, value=value)
+        if isinstance(value, str):
+            cell.data_type = "s"
         if font:
             cell.font = font
         if fill:
@@ -2832,9 +2898,10 @@ def can_manage_sharing(user):
 @main_bp.route("/evenement/<int:evenement_id>/share/create", methods=["POST"])
 @limiter.limit("5 per minute", error_message="Trop de créations de lien de partage, réessayez ultérieurement.")
 @login_required
+@event_access_required
 def create_share_link(evenement_id):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     if not can_manage_sharing(user):
         abort(403)
@@ -2864,12 +2931,13 @@ def create_share_link(evenement_id):
 # ===== Gestion des liens : page opérateur =====
 @main_bp.route("/evenement/<int:evenement_id>/autorite", methods=["GET"])
 @login_required
+@event_access_required
 def autorite_dashboard_manage(evenement_id):
     import pytz
     paris = pytz.timezone("Europe/Paris")
 
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     if not (user.is_admin or user.role in {"codep", "responsable"} or evt.createur_id == user.id):
         flash("⛔ Accès refusé.", "danger")
@@ -2954,9 +3022,10 @@ def autorite_dashboard_manage(evenement_id):
 # ===== Révocation par ID (pas par token qu’on ne stocke pas) =====
 @main_bp.route("/share/<int:link_id>/revoke", methods=["POST"])
 @login_required
+@event_access_required
 def revoke_share_link(link_id):
     user = get_current_user()
-    link = ShareLink.query.get_or_404(link_id)
+    link = db.get_or_404(ShareLink, link_id)
 
     if not (user.is_admin or user.role in {"codep", "responsable"} or link.evenement.createur_id == user.id):
         abort(403)
@@ -2985,7 +3054,7 @@ def autorite_share_public(token):
         }
 
     # Lien valide -> on charge l'évènement
-    ev = Evenement.query.get_or_404(link.evenement_id)
+    ev = db.get_or_404(Evenement, link.evenement_id)
 
     try:
         access_log = ShareLinkAccessLog(
@@ -3027,11 +3096,14 @@ def autorite_json(evenement_id):
                 "Pragma": "no-cache",
                 "Expires": "0",
             }
-        ev = Evenement.query.get_or_404(evenement_id)
+        ev = db.get_or_404(Evenement, evenement_id)
     else:
-        if not current_user.is_authenticated:
+        user = get_current_user()
+        if not user or not user.is_active:
             abort(401)
-        ev = Evenement.query.get_or_404(evenement_id)
+        ev = db.get_or_404(Evenement, evenement_id)
+        if not user_can_access_event(user, ev):
+            abort(403)
 
     fiches = (
         db.session.query(FicheImplique)
@@ -3148,13 +3220,41 @@ def has_ticket_rights(user):
     )
 
 
+def _ticket_fields(event, ticket=None):
+    values = {}
+    for field, default, choices in (
+        ("status", "Ouvert", {"Ouvert", "En cours", "Terminé", "Archivé"}),
+        ("priority", "Normal", {"Basse", "Normal", "Haute"}),
+        ("category", "Logistique", {"Logistique", "Technique", "Secours", "Autre"}),
+    ):
+        value = request.form.get(field, getattr(ticket, field, default))
+        if value not in choices:
+            abort(400)
+        values[field] = value
+    if "assigned_to_id" in request.form or ticket is None:
+        raw_id = request.form.get("assigned_to_id")
+        assignee_id = None
+        if raw_id:
+            try:
+                assignee_id = int(raw_id)
+            except ValueError:
+                abort(400)
+            assignee = db.session.get(Utilisateur, assignee_id)
+            if not assignee or not assignee.is_active or not user_can_access_event(assignee, event):
+                abort(400)
+        values["assigned_to_id"] = assignee_id
+    values["description"] = request.form.get("description", getattr(ticket, "description", ""))
+    return values
+
+
 # ===== TICKETS =====
 
 @main_bp.route("/evenement/<int:evenement_id>/tickets")
 @login_required
+@event_access_required
 def tickets_board(evenement_id):
     user = get_current_user()
-    evenement = Evenement.query.get_or_404(evenement_id)
+    evenement = db.get_or_404(Evenement, evenement_id)
     users = evenement.utilisateurs  # ou ta logique de sélection
     
     can_manage = user.is_admin or user.role in ["codep", "responsable", "logisticien"]
@@ -3178,12 +3278,17 @@ def tickets_board(evenement_id):
 # --- Création d'une actu depuis la page de gestion ---
 @main_bp.route("/evenement/<int:evenement_id>/news", methods=["POST"])
 @login_required
+@event_access_required
 def create_event_news(evenement_id):
-    ev = Evenement.query.get_or_404(evenement_id)
+    ev = db.get_or_404(Evenement, evenement_id)
 
     msg = (request.form.get("message") or "").strip()
-    priority = int(request.form.get("priority") or 3)
+    priority = request.form.get("priority", default=3, type=int)
+    if priority is None:
+        abort(400)
     icon = (request.form.get("icon") or "fa-circle-info").strip()  # classe fa-... sans le 'fa-solid' devant
+    if not re.fullmatch(r"fa-[a-z0-9-]{1,46}", icon):
+        abort(400)
 
     if not msg:
         flash("Le message est obligatoire.", "danger")
@@ -3191,7 +3296,7 @@ def create_event_news(evenement_id):
 
     news = EventNews(
         evenement_id=ev.id,
-        created_by=(current_user.id if current_user.is_authenticated else None),
+        created_by=get_current_user().id,
         message=msg,
         priority=max(1, min(priority, 3)),
         icon=icon,
@@ -3205,8 +3310,9 @@ def create_event_news(evenement_id):
 # --- Basculer actif/inactif ---
 @main_bp.route("/news/<int:news_id>/toggle", methods=["POST"])
 @login_required
+@event_access_required
 def toggle_event_news(news_id):
-    news = EventNews.query.get_or_404(news_id)
+    news = db.get_or_404(EventNews, news_id)
     news.is_active = not news.is_active
     db.session.commit()
     flash("Actualité mise à jour.", "success")
@@ -3215,8 +3321,9 @@ def toggle_event_news(news_id):
 # --- Supprimer ---
 @main_bp.route("/news/<int:news_id>/delete", methods=["POST"])
 @login_required
+@event_access_required
 def delete_event_news(news_id):
-    news = EventNews.query.get_or_404(news_id)
+    news = db.get_or_404(EventNews, news_id)
     eid = news.evenement_id
     db.session.delete(news)
     db.session.commit()
@@ -3227,9 +3334,10 @@ def delete_event_news(news_id):
 
 @main_bp.route("/evenement/<int:evenement_id>/tickets_json", methods=["GET"])
 @login_required
+@event_access_required
 def tickets_json(evenement_id):
     user = get_current_user()
-    evt = Evenement.query.get_or_404(evenement_id)
+    evt = db.get_or_404(Evenement, evenement_id)
 
     # Accès lecture : toute personne rattachée à l’évènement ou admin
     if not user_can_access_event(user, evt):
@@ -3253,13 +3361,17 @@ def ticket_create():
         flash("⛔ Vous n'êtes pas autorisé à créer des tickets.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    evenement_id = int(request.form.get("evenement_id"))
-    evt = Evenement.query.get_or_404(evenement_id)
+    evenement_id = request.form.get("evenement_id", type=int)
+    if evenement_id is None:
+        abort(400)
+    evt = db.get_or_404(Evenement, evenement_id)
     if not user_can_access_event(user, evt):
         flash("⛔ Accès refusé.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
     title = (request.form.get("title") or "").strip()
+    if len(title) > 200:
+        abort(400)
     if not title:
         flash("Le titre est obligatoire.", "danger")
         return redirect(url_for("main_bp.tickets_board", evenement_id=evenement_id))
@@ -3268,11 +3380,7 @@ def ticket_create():
         evenement_id=evenement_id,
         created_by_id=user.id,
         title=title,
-        description=(request.form.get("description") or "").strip(),
-        status=(request.form.get("status") or "Ouvert"),
-        priority=(request.form.get("priority") or "Normal"),
-        category=(request.form.get("category") or "Logistique"),
-        assigned_to_id=(int(request.form.get("assigned_to_id")) if request.form.get("assigned_to_id") else None),
+        **_ticket_fields(evt),
     )
     db.session.add(t)
     db.session.commit()
@@ -3284,21 +3392,15 @@ def ticket_create():
 @login_required
 def ticket_update(ticket_id):
     user = get_current_user()
-    t = Ticket.query.get_or_404(ticket_id)
-    evt = Evenement.query.get_or_404(t.evenement_id)
+    t = db.get_or_404(Ticket, ticket_id)
+    evt = db.get_or_404(Evenement, t.evenement_id)
     if not user_can_access_event(user, evt):
         return jsonify({"error": "unauthorized"}), 403
     if not has_ticket_rights(user):
         return jsonify({"error": "forbidden"}), 403
 
-    # champs autorisés à modifier
-    t.status = request.form.get("status", t.status)
-    t.priority = request.form.get("priority", t.priority)
-    t.category = request.form.get("category", t.category)
-    t.description = request.form.get("description", t.description)
-    if "assigned_to_id" in request.form:
-        val = request.form.get("assigned_to_id")
-        t.assigned_to_id = int(val) if val else None
+    for field, value in _ticket_fields(evt, t).items():
+        setattr(t, field, value)
 
     db.session.commit()
     return jsonify({"ok": True})
@@ -3308,8 +3410,8 @@ def ticket_update(ticket_id):
 @login_required
 def ticket_delete(ticket_id):
     user = get_current_user()
-    t = Ticket.query.get_or_404(ticket_id)
-    evt = Evenement.query.get_or_404(t.evenement_id)
+    t = db.get_or_404(Ticket, ticket_id)
+    evt = db.get_or_404(Evenement, t.evenement_id)
 
     if not user_can_access_event(user, evt) or not has_ticket_rights(user):
         flash("⛔ Suppression non autorisée.", "danger")
@@ -3332,9 +3434,12 @@ def admin_backup():
     evenement_ids: list[int] = []
     for raw_id in request.args.getlist("evenement_id"):
         try:
-            evenement_ids.append(int(raw_id))
+            selected_id = int(raw_id)
         except (TypeError, ValueError):
-            continue
+            abort(400)
+        if selected_id <= 0:
+            abort(400)
+        evenement_ids.append(selected_id)
 
     buf = backup_to_bytesio(evenement_ids or None)
     if evenement_ids:
@@ -3381,6 +3486,7 @@ def admin_restore():
     try:
         raw = file.read()
         payload = json.loads(raw.decode("utf-8"))
+        validate_backup(payload)
     except Exception as e:
         flash(f"Fichier invalide (JSON) : {e}", "danger")
         return redirect(url_for("main_bp.admin_backup_restore_page"))
@@ -3402,16 +3508,6 @@ def admin_restore():
     except Exception as e:
         flash(f"Vérification de base vide impossible : {e}", "danger")
         return redirect(url_for("main_bp.admin_backup_restore_page"))
-
-    # --- Si 'forcer', on efface proprement avant de restaurer ---
-    if force:
-        try:
-            # Ferme toute session en cours (évite 'database is locked')
-            db.session.remove()
-            wipe_db(preserve_users=True)
-        except Exception as e:
-            flash(f"Impossible d’effacer la base : {e}", "danger")
-            return redirect(url_for("main_bp.admin_backup_restore_page"))
 
     # --- Injection en base ---
     try:
@@ -3439,16 +3535,18 @@ def _healthz():
         health["checks"]["database"] = "ok"
     except Exception as exc:
         health["status"] = "error"
-        health["checks"]["database"] = str(exc)
+        db.session.rollback()
+        health["checks"]["database"] = "error"
 
     try:
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379/0")
-        client = redis.from_url(redis_url)
-        client.ping()
+        redis_url = current_app.config["RATELIMIT_STORAGE_URI"]
+        if redis_url.startswith("redis"):
+            with redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2) as client:
+                client.ping()
         health["checks"]["redis"] = "ok"
     except Exception as exc:
         health["status"] = "error"
-        health["checks"]["redis"] = str(exc)
+        health["checks"]["redis"] = "error"
 
     status_code = 200 if health["status"] == "ok" else 503
     return jsonify(health), status_code
@@ -3463,9 +3561,9 @@ def admin_logs():
     user = get_current_user()
     if not getattr(user, "is_admin", False):
         flash("⛔ Accès réservé à l'administrateur.", "danger")
-        return redirect(url_for("main_bp.dashboard"))
-    page = max(int(request.args.get("page", 1)), 1)
-    per_page = max(min(int(request.args.get("per_page", 50)), 200), 10)
+        return redirect(url_for("main_bp.evenement_new"))
+    page = max(request.args.get("page", 1, type=int), 1)
+    per_page = max(min(request.args.get("per_page", 50, type=int), 200), 10)
 
     filters = {
         "user_id": request.args.get("user_id", type=int),
@@ -3525,7 +3623,7 @@ def admin_logs_delete():
     user = get_current_user()
     if not getattr(user, "is_admin", False):
         flash("⛔ Accès réservé à l'administrateur.", "danger")
-        return redirect(url_for("main_bp.dashboard"))
+        return redirect(url_for("main_bp.evenement_new"))
 
     if request.form.get("delete_all"):
         deleted = AuditLog.query.delete()
@@ -3560,15 +3658,15 @@ def admin_logs_delete():
 # =====================
 @main_bp.route("/fiche/<int:fiche_id>/timeline/add", methods=["POST"])
 @login_required
+@event_access_required
 def add_timeline_comment(fiche_id):
     user = get_current_user()
-    fiche = FicheImplique.query.get_or_404(fiche_id)
-    # TODO: autorisations fines si besoin (mêmes règles que l'édition de fiche)
+    fiche = db.get_or_404(FicheImplique, fiche_id)
     raw_content = (request.form.get("comment") or "")
     content = re.sub(r"\r\n?", "\n", raw_content).strip()
     if not content:
         flash("Le commentaire est vide.", "warning")
-        return redirect(url_for("main_bp.fiche_detail", fiche_id=fiche_id))
+        return redirect(url_for("main_bp.fiche_detail", id=fiche_id))
     if len(content) > TIMELINE_COMMENT_MAX_LENGTH:
         content = content[:TIMELINE_COMMENT_MAX_LENGTH].rstrip()
         flash(

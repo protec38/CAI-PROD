@@ -29,6 +29,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       FORCE_HTTPS: ${FORCE_HTTPS:-1}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-0}
     depends_on:
       db:
         condition: service_healthy
@@ -39,7 +40,7 @@ services:
     networks: [cai-net]
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/healthz'); print('ok')"]
+      test: ["CMD", "python", "-c", "import http.client; c=http.client.HTTPConnection('localhost',5000,timeout=5); c.request('GET','/healthz'); r=c.getresponse(); raise SystemExit(0 if r.status==200 else 1)"]
       interval: 50s
       timeout: 20s
       retries: 3

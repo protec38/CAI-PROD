@@ -17,8 +17,7 @@ def _to_dt(val: Union[datetime, int, float, str, None]) -> Optional[datetime]:
     elif isinstance(val, str):
         # ISO 8601 souple
         try:
-            from dateutil import parser  # python-dateutil
-            dt = parser.isoparse(val)
+            dt = datetime.fromisoformat(val.replace("Z", "+00:00"))
         except Exception:
             # fallback naïf: essaye format commun "YYYY-MM-DD HH:MM:SS"
             try:

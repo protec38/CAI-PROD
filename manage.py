@@ -4,7 +4,7 @@ from flask import Flask
 from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash
 
-from app import create_app
+from app import create_app, _ensure_database_schema
 from app.extensions import db
 
 app = create_app()
@@ -47,6 +47,7 @@ def cli():
 def init_db():
     with app.app_context():
         db.create_all()
+        _ensure_database_schema(app)
         _ensure_evenement_archive_columns()
         _ensure_provisional_expiry_column()
         _ensure_share_link_label_column()
@@ -56,6 +57,9 @@ def init_db():
         fil = _get_username_filter(Model, "admin")
         exists = db.session.query(db.exists().where(fil)).scalar()
         if not exists:
+            password = os.environ.get("ADMIN_PASSWORD")
+            if not password or len(password) < 12:
+                raise click.ClickException("Définissez ADMIN_PASSWORD (12 caractères minimum) pour créer le premier administrateur.")
             # Créer l'admin
             user = Model()
             # Remplir quelques champs courants si existants
@@ -70,12 +74,21 @@ def init_db():
             ):
                 if hasattr(user, field):
                     setattr(user, field, value)
-            _set_password(user, "admin")
+            _set_password(user, password)
             db.session.add(user)
             db.session.commit()
-            print("[init-db] admin/admin créé avec succès")
+            print("[init-db] administrateur créé avec succès")
         else:
-            print("[init-db] admin existe déjà")
+            admin = db.session.query(Model).filter(fil).one()
+            if admin.check_password("admin"):
+                password = os.environ.get("ADMIN_PASSWORD")
+                if not password or len(password) < 12:
+                    raise click.ClickException("Le compte admin utilise encore le mot de passe par défaut. Définissez ADMIN_PASSWORD (12 caractères minimum).")
+                _set_password(admin, password)
+                db.session.commit()
+                print("[init-db] mot de passe administrateur par défaut remplacé")
+            else:
+                print("[init-db] admin existe déjà")
 
 
 def _ensure_provisional_expiry_column():

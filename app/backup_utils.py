@@ -1,329 +1,132 @@
-# app/backup_utils.py
-from sqlalchemy import select, text
+"""Operational backups. Accounts are preserved; replacement is atomic."""
+from datetime import date, datetime, timezone
 from io import BytesIO
+import hashlib
 import json
-from datetime import datetime, date, timezone
 
-from . import db
+from sqlalchemy import Date, DateTime, func, select, text
+
+from .extensions import db
 from .models import (
-    Utilisateur,
-    Evenement,
-    FicheImplique,
-    Bagage,
-    Animal,
-    ShareLink,
-    ShareLinkAccessLog,
-    Ticket,
-    utilisateur_evenement,
+    Animal, Bagage, Evenement, EventNews, FicheImplique, ShareLink,
+    ShareLinkAccessLog, Ticket, TimelineEntry, Utilisateur, utilisateur_evenement,
 )
 
-# -------------------------------------------------------------------
-# JSON helpers
-# -------------------------------------------------------------------
+BACKUP_MODELS = {
+    "evenements": Evenement, "fiches": FicheImplique, "bagages": Bagage,
+    "animaux": Animal, "share_links": ShareLink,
+    "share_link_access_logs": ShareLinkAccessLog, "tickets": Ticket,
+    "news": EventNews, "timeline_entries": TimelineEntry,
+}
 
-def _json_default(o):
-    """Sérialisation sûre pour datetime/date en ISO 8601."""
-    if isinstance(o, (datetime, date)):
-        return o.isoformat()
-    return str(o)
-
-# -------------------------------------------------------------------
-# DB state
-# -------------------------------------------------------------------
 
 def is_db_empty() -> bool:
-    """
-    Retourne True si la base est vide (aucun utilisateur/évènement/fiche),
-    et si la table d'association n'a pas de lignes.
-    """
-    if (Utilisateur.query.first() or Evenement.query.first() or FicheImplique.query.first()):
-        return False
-    # Vérifie aussi la table d'association
-    row = db.session.execute(select(utilisateur_evenement.c.utilisateur_id)).first()
-    if row:
-        return False
-    return True
+    return not any(db.session.query(model.id).first() for model in BACKUP_MODELS.values())
 
-# -------------------------------------------------------------------
-# BACKUP (export)
-# -------------------------------------------------------------------
+
+def _row(obj):
+    return {column.name: getattr(obj, column.name) for column in obj.__table__.columns}
+
 
 def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
-    """Exporte un instantané JSON centré sur les évènements.
-
-    ⚠️ Nouvel impératif : on exclut totalement les comptes utilisateurs pour ne
-    conserver que les données opérationnelles (évènements, fiches, bagages,
-    animaux, tickets, etc.). Cela évite d’écraser / de divulguer des comptes lors
-    d’une restauration.
-
-    - Si ``evenement_ids`` est fourni, on limite aux évènements sélectionnés et à
-      leurs objets associés.
-    - Sinon, export global de tous les évènements.
-    """
-
-    evenement_query = Evenement.query
-    if evenement_ids:
-        evenement_query = evenement_query.filter(Evenement.id.in_(evenement_ids))
-    evenements = evenement_query.all()
-    evenement_id_list = [e.id for e in evenements]
-
-    fiche_query = FicheImplique.query
-    bagage_query = Bagage.query
-    animal_query = Animal.query
-    share_link_query = ShareLink.query
-    ticket_query = Ticket.query
-
-    if evenement_id_list:
-        fiche_query = fiche_query.filter(FicheImplique.evenement_id.in_(evenement_id_list))
-        bagage_query = bagage_query.filter(Bagage.evenement_id.in_(evenement_id_list))
-        share_link_query = share_link_query.filter(ShareLink.evenement_id.in_(evenement_id_list))
-        ticket_query = ticket_query.filter(Ticket.evenement_id.in_(evenement_id_list))
-
-    fiches = fiche_query.all()
-    fiche_ids = [f.id for f in fiches]
-    if fiche_ids:
-        animal_query = animal_query.filter(Animal.fiche_id.in_(fiche_ids))
-
-    bagages = bagage_query.all()
-    animaux = animal_query.all()
-    share_links = share_link_query.all()
-    share_link_ids = [s.id for s in share_links]
-
-    if share_link_ids:
-        share_link_logs = ShareLinkAccessLog.query.filter(
-            ShareLinkAccessLog.share_link_id.in_(share_link_ids)
-        ).all()
-    else:
-        share_link_logs = []
-
-    tickets = ticket_query.all()
-
-    # On conserve les associations pour rebrancher les comptes existants après restauration
-    if evenement_id_list:
-        with db.engine.connect() as conn:
-            res = conn.execute(
-                utilisateur_evenement.select().where(
-                    utilisateur_evenement.c.evenement_id.in_(evenement_id_list)
-                )
-            ).mappings()
-            assoc_rows = [dict(r) for r in res]
-    else:
-        with db.engine.connect() as conn:
-            res = conn.execute(utilisateur_evenement.select()).mappings()
-            assoc_rows = [dict(r) for r in res]
-
-    payload = {
-        "evenements":   [e.__dict__ | {"_sa_instance_state": None} for e in evenements],
-        "fiches":       [f.__dict__ | {"_sa_instance_state": None} for f in fiches],
-        "bagages":      [b.__dict__ | {"_sa_instance_state": None} for b in bagages],
-        "animaux":      [a.__dict__ | {"_sa_instance_state": None} for a in animaux],
-        "share_links":  [s.__dict__ | {"_sa_instance_state": None} for s in share_links],
-        "share_link_access_logs": [
-            log.__dict__ | {"_sa_instance_state": None} for log in share_link_logs
-        ],
-        "tickets":      [t.__dict__ | {"_sa_instance_state": None} for t in tickets],
-        "assoc_utilisateur_evenement": assoc_rows if evenement_ids else assoc_rows,
+    events = Evenement.query
+    if evenement_ids is not None:
+        events = events.filter(Evenement.id.in_(evenement_ids))
+    events = events.all()
+    event_ids = [event.id for event in events]
+    fiches = FicheImplique.query.filter(FicheImplique.evenement_id.in_(event_ids)).all()
+    fiche_ids = [fiche.id for fiche in fiches]
+    links = ShareLink.query.filter(ShareLink.evenement_id.in_(event_ids)).all()
+    objects = {
+        "evenements": events, "fiches": fiches, "share_links": links,
+        "animaux": Animal.query.filter(Animal.fiche_id.in_(fiche_ids)).all(),
+        "share_link_access_logs": ShareLinkAccessLog.query.filter(
+            ShareLinkAccessLog.share_link_id.in_([link.id for link in links])
+        ).all(),
+        "timeline_entries": TimelineEntry.query.filter(TimelineEntry.fiche_id.in_(fiche_ids)).all(),
     }
+    for key, model in (("bagages", Bagage), ("tickets", Ticket), ("news", EventNews)):
+        objects[key] = model.query.filter(model.evenement_id.in_(event_ids)).all()
+    payload = {key: [_row(obj) for obj in rows] for key, rows in objects.items()}
+    payload["assoc_utilisateur_evenement"] = [dict(row) for row in db.session.execute(
+        select(utilisateur_evenement).where(utilisateur_evenement.c.evenement_id.in_(event_ids))
+    ).mappings()]
+    payload["version"] = 2
+    return BytesIO(json.dumps(payload, ensure_ascii=False, indent=2,
+                             default=lambda value: value.isoformat()).encode("utf-8"))
 
-    # Nettoyage des champs SQLAlchemy
-    def clean(d):
-        d.pop("_sa_instance_state", None)
-        return d
 
-    for k, v in list(payload.items()):
-        if isinstance(v, list):
-            payload[k] = [clean(x) for x in v]
+def validate_backup(payload):
+    if not isinstance(payload, dict) or not isinstance(payload.get("evenements"), list):
+        raise ValueError("La sauvegarde doit contenir une liste 'evenements'.")
+    for key in (*BACKUP_MODELS, "assoc_utilisateur_evenement"):
+        rows = payload.get(key, [])
+        if not isinstance(rows, list) or any(not isinstance(row, dict) for row in rows):
+            raise ValueError(f"Liste de données invalide : {key}")
 
-    buf = BytesIO()
-    buf.write(json.dumps(payload, ensure_ascii=False, indent=2, default=_json_default).encode("utf-8"))
-    buf.seek(0)
-    return buf
 
-# -------------------------------------------------------------------
-# WIPE (danger)
-# -------------------------------------------------------------------
+def _delete_operational_data():
+    # Children before parents, with foreign keys enabled on both database engines.
+    for model in (TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
+        db.session.execute(model.__table__.delete())
+    db.session.execute(utilisateur_evenement.delete())
+    db.session.execute(FicheImplique.__table__.update().values(referent_humain_id=None))
+    db.session.execute(FicheImplique.__table__.delete())
+    db.session.execute(Evenement.__table__.delete())
 
-def wipe_db(max_retries: int = 5, sleep_seconds: float = 0.5, *, preserve_users: bool = False):
-    """
-    Vide proprement toutes les tables applicatives.
-    Conserve le schéma ; utile avant un bulk_restore.
-    """
-    last_err = None
-    for attempt in range(1, max_retries + 1):
-        try:
-            db.session.rollback()
-            db.session.close()
-            db.session.remove()
-
-            with db.engine.begin() as conn:
-                # Désactive temporairement les contraintes (Postgres/SQLite)
-                try:
-                    conn.execute(text("SET session_replication_role = 'replica'"))
-                    has_replica_toggle = True
-                except Exception:
-                    has_replica_toggle = False
-
-                # Ordre important (FK)
-                conn.execute(text(f"DELETE FROM {Ticket.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {ShareLinkAccessLog.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {ShareLink.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {Animal.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {Bagage.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {FicheImplique.__tablename__}"))
-                conn.execute(text(f"DELETE FROM {Evenement.__tablename__}"))
-                if not preserve_users:
-                    conn.execute(text(f"DELETE FROM {Utilisateur.__tablename__}"))
-                # table d’association (toujours vidée car dépend des évènements)
-                conn.execute(utilisateur_evenement.delete())
-
-                if has_replica_toggle:
-                    conn.execute(text("SET session_replication_role = 'origin'"))
-
-            return  # OK
-        except Exception as e:
-            last_err = e
-            # petite attente pour SQLite "database is locked"
-            try:
-                import time
-                time.sleep(sleep_seconds)
-            except Exception:
-                pass
-    # si on arrive ici, on lève la dernière erreur vue
-    raise last_err
-
-# -------------------------------------------------------------------
-# RESTORE (import)
-# -------------------------------------------------------------------
-
-# --- Helpers de parsing ---
-def _parse_dt(val):
-    """Accepte None, datetime, ou str ISO (avec ou sans 'Z') -> datetime (timezone-aware si possible)."""
-    if not val:
-        return None
-    if isinstance(val, datetime):
-        return val
-    if isinstance(val, str):
-        s = val.strip()
-        if s.endswith('Z'):  # supporte 'Z'
-            s = s[:-1] + '+00:00'
-        try:
-            dt = datetime.fromisoformat(s)
-            # si naïf, force UTC
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
-            return dt
-        except Exception:
-            return None
-    return None
-
-def _parse_date(val):
-    """Accepte None, date, datetime, ou str ISO -> date."""
-    if not val:
-        return None
-    if isinstance(val, date) and not isinstance(val, datetime):
-        return val
-    if isinstance(val, datetime):
-        return val.date()
-    if isinstance(val, str):
-        try:
-            return date.fromisoformat(val.strip()[:10])
-        except Exception:
-            return None
-    return None
-
-def _coerce_fields(items, mapping):
-    """
-    Applique un mapping {champ: fonction} à chaque dict d'une liste.
-    Exemple: {"created_at": _parse_dt}
-    """
-    if not items:
-        return
-    for it in items:
-        for k, fn in mapping.items():
-            if k in it:
-                it[k] = fn(it.get(k))
 
 def bulk_restore(payload: dict):
-    """
-    Restaure un export (JSON -> dict déjà chargé).
-    - Vide la base (wipe_db)
-    - Insère en masse (bulk_insert_mappings)
-    - Gère la rétro‑compatibilité (ShareLink: token -> token_hash, suppression expires_at)
-    """
-    # Sécurité : tout doit être transactionnel
-    wipe_db(preserve_users=True)
-
-    # 1) Utilisateurs — ignorés volontairement (préservation comptes existants)
-    # On se contente de garder les associations si les IDs correspondent.
-
-    # 1) Evènements
-    evenements = payload.get("evenements", []) or []
-    _coerce_fields(evenements, {
-        "date": _parse_date,
-        "created_at": _parse_dt,
-        "updated_at": _parse_dt,
-    })
-    db.session.bulk_insert_mappings(Evenement, evenements)
-    db.session.flush()
-
-    # 2) Fiches
-    fiches = payload.get("fiches", []) or []
-    _coerce_fields(fiches, {
-        "heure_arrivee": _parse_dt,
-        "heure_sortie": _parse_dt,
-        "date_naissance": _parse_date,
-        "created_at": _parse_dt,
-        "updated_at": _parse_dt,
-    })
-    db.session.bulk_insert_mappings(FicheImplique, fiches)
-    db.session.flush()
-
-    # 3) Bagages / Animaux
-    bagages = payload.get("bagages", []) or []
-    _coerce_fields(bagages, {"created_at": _parse_dt})
-    db.session.bulk_insert_mappings(Bagage, bagages)
-    db.session.flush()
-
-    animaux = payload.get("animaux", []) or []
-    _coerce_fields(animaux, {"created_at": _parse_dt})
-    db.session.bulk_insert_mappings(Animal, animaux)
-    db.session.flush()
-
-    # 4) ShareLinks (expiration supprimée, token hashé)
-    share_links = payload.get("share_links", []) or []
-    _coerce_fields(share_links, {
-        "created_at": _parse_dt,
-    })
-    # Migration d’anciens exports :
-    #  - drop 'expires_at'
-    #  - convertir 'token' -> 'token_hash' (sha256)
-    for sl in share_links:
-        sl.pop("expires_at", None)
-        if "token" in sl and sl.get("token") is not None and "token_hash" not in sl:
-            import hashlib
-            sl["token_hash"] = hashlib.sha256(sl["token"].encode()).hexdigest()
-        if "token" not in sl:
-            sl["token"] = None
-
-    db.session.bulk_insert_mappings(ShareLink, share_links)
-    db.session.flush()
-
-    # 5) Journaux d'accès aux liens de partage
-    share_link_access_logs = payload.get("share_link_access_logs", []) or []
-    _coerce_fields(share_link_access_logs, {"accessed_at": _parse_dt})
-    if share_link_access_logs:
-        db.session.bulk_insert_mappings(ShareLinkAccessLog, share_link_access_logs)
-        db.session.flush()
-
-    # 6) Tickets
-    tickets = payload.get("tickets", []) or []
-    _coerce_fields(tickets, {"created_at": _parse_dt})
-    db.session.bulk_insert_mappings(Ticket, tickets)
-    db.session.flush()
-
-    # 7) Table d’association utilisateurs ↔ évènements
-    assoc = payload.get("assoc_utilisateur_evenement", []) or []
-    if assoc:
-        db.session.execute(utilisateur_evenement.insert(), assoc)
-
-    db.session.commit()
+    """Replace operational data in one transaction; any failure preserves it all."""
+    validate_backup(payload)
+    prepared = {}
+    for key, model in BACKUP_MODELS.items():
+        rows = []
+        for source in payload.get(key, []):
+            row = {column.name: source[column.name] for column in model.__table__.columns
+                   if column.name in source}
+            if model is ShareLink and source.get("token") and not row.get("token_hash"):
+                row["token_hash"] = hashlib.sha256(source["token"].encode()).hexdigest()
+            for column in model.__table__.columns:
+                value = row.get(column.name)
+                if value is not None and isinstance(column.type, (DateTime, Date)):
+                    if isinstance(value, str):
+                        value = (datetime.fromisoformat(value.replace("Z", "+00:00"))
+                                 if isinstance(column.type, DateTime) else date.fromisoformat(value))
+                    if isinstance(value, datetime) and isinstance(column.type, DateTime) and not column.type.timezone:
+                        if value.tzinfo:
+                            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+                    row[column.name] = value
+            rows.append(row)
+        prepared[key] = rows
+    user_ids = set(db.session.scalars(select(Utilisateur.id)))
+    for key, model in BACKUP_MODELS.items():
+        for row in prepared[key]:
+            for column in model.__table__.columns:
+                if any(fk.target_fullname == "utilisateur.id" for fk in column.foreign_keys):
+                    if row.get(column.name) is not None and row[column.name] not in user_ids:
+                        if not column.nullable:
+                            raise ValueError(f"Compte utilisateur absent pour {key}.{column.name}")
+                        row[column.name] = None
+    try:
+        _delete_operational_data()
+        references = [(row["id"], row.pop("referent_humain_id")) for row in prepared["fiches"]
+                      if row.get("referent_humain_id") is not None]
+        for key, model in BACKUP_MODELS.items():
+            if prepared[key]:
+                db.session.bulk_insert_mappings(model, prepared[key])
+        for fiche_id, referent_id in references:
+            db.session.execute(FicheImplique.__table__.update().where(
+                FicheImplique.id == fiche_id).values(referent_humain_id=referent_id))
+        assoc = [dict(row) for row in payload.get("assoc_utilisateur_evenement", [])
+                 if row.get("utilisateur_id") in user_ids]
+        if assoc:
+            db.session.execute(utilisateur_evenement.insert(), assoc)
+        if db.engine.dialect.name == "postgresql":
+            for model in BACKUP_MODELS.values():
+                next_id = (db.session.scalar(select(func.max(model.id))) or 0) + 1
+                db.session.execute(text("SELECT setval(pg_get_serial_sequence(:table, 'id'), :next_id, false)"),
+                                   {"table": model.__tablename__, "next_id": next_id})
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
