@@ -44,6 +44,7 @@ def test_edit_conflict_drafts_and_tools(app, width, tmp_path):
             page.goto(base+'/evenement/1/dashboard')
             expect(page.locator('#cai-connection-label')).to_have_text('Synchronisé au serveur')
             expect(page.locator('#capacity-alert')).to_contain_text('Seuil d’alerte atteint')
+            page.locator('.dashboard-menu > summary').click()
             page.get_by_role('button',name='Disponibilité hors ligne').click()
             prep=page.get_by_role('dialog',name='Disponibilité hors ligne')
             expect(prep).to_contain_text('1 fiche(s) disponibles')
@@ -124,6 +125,7 @@ def test_edit_conflict_drafts_and_tools(app, width, tmp_path):
             page.once('dialog',lambda dialog:dialog.accept())
             local.get_by_role('button',name='Supprimer',exact=True).click()
             expect(local).to_have_count(0)
+            page.locator('.dashboard-menu > summary').click()
             page.get_by_role('button',name='Disponibilité hors ligne').click()
             prep=page.get_by_role('dialog',name='Disponibilité hors ligne')
             expect(prep).to_contain_text('Corbeille de cet appareil')
@@ -151,7 +153,7 @@ def test_edit_conflict_drafts_and_tools(app, width, tmp_path):
             page.get_by_role('button',name='Enregistrer les réglages',exact=True).click()
             expect(page.get_by_text('Les réglages de l’évènement ont été enregistrés.',exact=True)).to_be_visible()
 
-            # Recycle a server fiche, restore it, customize the dashboard, then lock it.
+            # Recycle a server fiche, restore it and customize the dashboard.
             page.goto(base+'/evenement/1/dashboard')
             expect(page.locator('#cai-connection-label')).to_have_text('Synchronisé au serveur')
             page.once('dialog',lambda dialog:dialog.accept())
@@ -167,14 +169,6 @@ def test_edit_conflict_drafts_and_tools(app, width, tmp_path):
             page.get_by_role('button',name='Enregistrer mes préférences').click()
             expect(page.locator('body')).to_have_class(__import__('re').compile(r'\bcai-compact\b'))
             expect(page.locator('#fiche-row-1 .bagages-cell')).not_to_be_visible()
-            page.get_by_role('button',name='Verrouiller',exact=True).click()
-            lock=page.get_by_role('dialog',name='Appareil verrouillé')
-            expect(lock).to_be_visible()
-            page.keyboard.press('Escape')
-            expect(lock).to_be_visible()
-            lock.get_by_label('Mot de passe du compte',exact=True).fill('test-password-123')
-            lock.get_by_role('button',name='Déverrouiller',exact=True).click()
-            expect(lock).to_have_count(0)
             # The inactivity clock survives an offline reload.
             context.set_offline(True)
             page.evaluate("async()=> CAIOfflineStore.put({key:'activity:2',at:Date.now()-61000})")

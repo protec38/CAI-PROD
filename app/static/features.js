@@ -63,15 +63,19 @@
     dialog.addEventListener('close', () => dialog.remove()); await render(); dialog.showModal();
   }
   function toolbar() {
-    if (document.getElementById('feature-toolbar')) return;
-    const bar = el('nav', undefined, 'feature-toolbar'); bar.id = 'feature-toolbar'; bar.setAttribute('aria-label','Outils et préférences');
-    link('Outils de l’évènement', `/evenement/${context.eventId}/outils`, bar);
-    link('Personnaliser mon affichage', `/mes-preferences?next=${encodeURIComponent(`/evenement/${context.eventId}/dashboard`)}`, bar);
-    button('Disponibilité hors ligne', () => preparation().catch(error => announce(error.message)), bar);
-    button('Verrouiller', () => lock(), bar);
-    const host = document.querySelector('.event-info') || document.querySelector('.container') || document.querySelector('main');
-    if (host) host.prepend(bar);
-    else document.querySelector('.cai-connection-bar')?.after(bar);
+    const menu = document.querySelector('.dashboard-menu__items');
+    if (!menu || document.getElementById('feature-event-tools')) return;
+    const tools = link('Outils de l’évènement', `/evenement/${context.eventId}/outils`, menu);
+    tools.id = 'feature-event-tools';
+    const preferences = link('Personnaliser mon affichage', `/mes-preferences?next=${encodeURIComponent(`/evenement/${context.eventId}/dashboard`)}`, menu);
+    const availability = button('Disponibilité hors ligne', () => {
+      const details = menu.closest('details');
+      details.open = false;
+      details.querySelector('summary').focus();
+      preparation().catch(error => announce(error.message));
+    }, menu);
+    for (const item of [tools, preferences, availability]) item.className = 'btn';
+    menu.prepend(tools, preferences, availability);
   }
   async function lock() {
     if (locked) return;

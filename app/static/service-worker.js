@@ -1,7 +1,7 @@
 /* Only the public shell and local assets are cached. Never cache sessions,
    authenticated HTML, API responses, mutations, exports or shared links. */
 // Bump the cache version whenever a shell asset changes.
-const CACHE = 'cai-shell-v6';
+const CACHE = 'cai-shell-v7';
 const ASSETS = ['/hors-ligne', '/hors-ligne/fiche', '/hors-ligne/fiche/detail', '/hors-ligne/fiche/edit', '/static/features.js', '/static/features.css', '/static/offline.css', '/static/offline-store.js', '/static/offline.js', '/static/responsive.css', '/static/accessibility.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));

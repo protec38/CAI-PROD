@@ -200,7 +200,7 @@ des colonnes existantes.
 
 ## Outils supplémentaires et réglages
 
-Depuis le tableau de bord classique, **Outils de l’évènement** rassemble les réglages,
+Dans le menu **Autres actions** du tableau de bord classique, **Outils de l’évènement** rassemble les réglages,
 les groupes, les étiquettes, la corbeille et le bilan. **Personnaliser mon affichage**
 ouvre les préférences du compte. **Disponibilité hors ligne** indique les évènements
 conservés sur cet appareil, la dernière actualisation et les envois en attente.
@@ -221,7 +221,7 @@ conservés sur cet appareil, la dernière actualisation et les envois en attente
 | 14 | Capacité d’accueil des personnes et seuil d’alerte configurable, avec prise en compte des envois locaux en attente. |
 | 17 | Jusqu’à 20 champs personnalisés par évènement : texte, nombre, date, liste ou case à cocher ; obligatoires ou facultatifs, pour personnes et/ou animaux. |
 | 18 | Listes de destinations, transports, zones et compétences. Destinations et transports acceptent aussi la saisie libre. |
-| 21 | Verrouillage manuel ou après inactivité (1, 5, 10, 15 ou 30 minutes), déverrouillage par mot de passe avec connexion. |
+| 21 | Verrouillage après inactivité (1, 5, 10, 15 ou 30 minutes), déverrouillage par mot de passe avec connexion. |
 | 23 | Bilan PDF des accueils, sorties, bagages, arrivées et orientations reçus par le serveur. Synchroniser les appareils avant le bilan définitif. |
 | 24 | Préférences personnelles : colonnes facultatives, compteurs et affichage compact. |
 
