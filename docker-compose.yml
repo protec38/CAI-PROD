@@ -7,13 +7,13 @@ services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-cai}
+      POSTGRES_USER: ${POSTGRES_USER:-cai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     volumes:
       - cai-db:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 50s
       timeout: 30s
       retries: 10
@@ -22,11 +22,15 @@ services:
 
   web:
     build: .
-    env_file: [.env]
     environment:
-      FLASK_CONFIG: ${FLASK_CONFIG}
-      SECRET_KEY: ${SECRET_KEY}
-      DATABASE_URL: ${DATABASE_URL}
+      FLASK_CONFIG: ${FLASK_CONFIG:-prod}
+      SECRET_KEY: ${SECRET_KEY:?SECRET_KEY is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      POSTGRES_DB: ${POSTGRES_DB:-cai}
+      POSTGRES_USER: ${POSTGRES_USER:-cai}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
       FORCE_HTTPS: ${FORCE_HTTPS:-1}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-0}

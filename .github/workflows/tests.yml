@@ -20,6 +20,12 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v7
+      - name: Validate Compose without a local .env file
+        run: docker compose --env-file /dev/null config --quiet
+        env:
+          SECRET_KEY: ci-test-only-secret-key
+          POSTGRES_PASSWORD: test-only-password
+          DATABASE_URL: postgresql+psycopg2://cai:test-only-password@db:5432/cai
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"

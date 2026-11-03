@@ -24,6 +24,18 @@ pour le premier démarrage ou pour remplacer un ancien mot de passe `admin`.
 La commande `docker compose up --build -d` initialise le schéma avant de démarrer
 les workers. Toute erreur d'initialisation interrompt le démarrage.
 
+Pour une stack déployée depuis Git dans Portainer, renseigner les variables dans
+la section **Environment variables** de la stack, puis récupérer la dernière
+révision et redéployer. Aucun fichier `.env` n'est requis dans le dépôt cloné.
+`POSTGRES_PASSWORD`, `SECRET_KEY` et `DATABASE_URL` sont obligatoires ; réutiliser
+les identifiants de la base existante. `POSTGRES_DB` et `POSTGRES_USER` valent
+`cai` par défaut : les renseigner si la base existante utilise d'autres noms.
+`ADMIN_PASSWORD` est nécessaire uniquement pour créer le premier administrateur
+ou remplacer l'ancien mot de passe par défaut. Toutes ces variables sont
+transmises explicitement au service web ; elles ne dépendent plus de `env_file`.
+En lancement local, Compose peut toujours lire un `.env` à côté du fichier YAML
+pour remplacer les `${VARIABLE}` ([documentation Docker](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/)).
+
 Conserver HTTPS en production. Derrière un reverse proxy, définir
 `TRUSTED_PROXY_COUNT=1` uniquement si le proxy écrase les en-têtes transférés
 et si les clients ne peuvent pas accéder directement au serveur applicatif.
