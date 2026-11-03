@@ -500,8 +500,6 @@
       <details class="dashboard-menu">
         <summary class="btn">Autres actions</summary>
         <div class="dashboard-menu__items">
-      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i aria-hidden="true" class="fa-solid fa-gear"></i> Gestion des évènements</a>
-      <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-chart-pie"></i> Vue synthétique</a>
       {% if user.is_admin or user.role in ["codep", "responsable"] %}
         <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
       {% endif %}
@@ -512,6 +510,7 @@
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-ticket"></i> Tickets</a>
       {% endif %}
+      <a href="{{ url_for('main_bp.evenement_new') }}" class="btn btn-main-menu">Retour au menu principal</a>
       <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}"><button type="submit" class="btn btn-logout"><i aria-hidden="true" class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
         </div>
       </details>
@@ -769,7 +768,7 @@
         const label = base || '(Sans nom)';
         return `<span class="fiche-animal-label"><span class="fiche-animal-flag" title="Animal">🐾</span><span>${escapeHTML(label)}</span></span>`;
       }
-      return escapeHTML(base);
+      return escapeHTML(base) + (f.family_count > 1 ? '<small class="family-hint">Famille · ' + escapeHTML(f.family_count) + ' fiches</small>' : '');
     }
 
     function formatPrenomCell(f){
@@ -866,7 +865,7 @@
       const searchTerm=(document.getElementById("search-bar").value||"").toLowerCase();
       const nom=row.children[1]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
       const prenom=row.children[2]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
-      const searchable = [nom, prenom, f?.telephone, String(f?.telephone || '').replace(/\D/g,''), f?.tel_personne_a_prevenir, String(f?.tel_personne_a_prevenir || '').replace(/\D/g,''), f?.code_sinus, f?.numero, f?.numero_pec, f?.family_key, ...(f?.bagages || [])].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const searchable = [nom, prenom, f?.telephone, String(f?.telephone || '').replace(/\D/g,''), f?.tel_personne_a_prevenir, String(f?.tel_personne_a_prevenir || '').replace(/\D/g,''), f?.code_sinus, f?.numero, f?.family_key, ...(f?.bagages || [])].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       const terms = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\s+/).filter(Boolean);
       const searchOk=terms.every(term=>searchable.includes(term));
 

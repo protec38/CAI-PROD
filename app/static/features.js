@@ -16,6 +16,7 @@
   function announce(message, parent) { const p = el('p', message, 'feature-alert'); p.setAttribute('role', 'status'); (parent || document.querySelector('main') || document.body).prepend(p); return p; }
   function applyPreferences() {
     const prefs = context.preferences?.dashboard || {};
+    window.CAIAppearance?.apply(prefs);
     for (const key of ['heure_arrivee','difficultes','competences','bagages']) document.body.classList.toggle('cai-hide-' + key, prefs[key] === false);
     document.body.classList.toggle('cai-compact', !!prefs.compact);
     document.body.classList.toggle('cai-hide-counters', prefs.show_counters === false);
@@ -64,10 +65,14 @@
   }
   function toolbar() {
     const menu = document.querySelector('.dashboard-menu__items');
-    if (!menu || document.getElementById('feature-event-tools')) return;
+    if (!menu) return;
+    const oldAlert=document.getElementById('feature-broadcast');
+    if(context.permissions?.canBroadcast && !oldAlert){const a=link('Envoyer une alerte ou un message','/notifications/broadcast',menu);a.id='feature-broadcast';a.className='btn';menu.querySelector('.btn-main-menu')?.before(a);}
+    else if(!context.permissions?.canBroadcast)oldAlert?.remove();
+    if(document.getElementById('feature-event-tools'))return;
     const tools = link('Outils de l’évènement', `/evenement/${context.eventId}/outils`, menu);
     tools.id = 'feature-event-tools';
-    const preferences = link('Personnaliser mon affichage', `/mes-preferences?next=${encodeURIComponent(`/evenement/${context.eventId}/dashboard`)}`, menu);
+    const preferences = link('Personnaliser mon apparence', `/mes-preferences?next=${encodeURIComponent(`/evenement/${context.eventId}/dashboard`)}`, menu);
     const availability = button('Disponibilité hors ligne', () => {
       const details = menu.closest('details');
       details.open = false;
@@ -75,7 +80,8 @@
       preparation().catch(error => announce(error.message));
     }, menu);
     for (const item of [tools, preferences, availability]) item.className = 'btn';
-    menu.prepend(tools, preferences, availability);
+    const search=link('Recherche de personnes','/evenement/'+context.eventId+'/recherches',menu);search.className='btn';search.id='feature-person-search';
+    menu.prepend(tools, preferences, availability, search);
   }
   async function lock() {
     if (locked) return;
@@ -129,7 +135,7 @@
   async function ready(ctx) { context=ctx; applyPreferences(); if(ctx.eventId) toolbar(); await initLock(); }
   async function refresh() {
     if (!context || locked) return;
-    applyPreferences();
+    applyPreferences();if(context.eventId)toolbar();
     const payload = await data(), settings=payload.evenement?.settings || context.eventSettings || {};
     for (const [id,key] of [['sortie-destination','destinations'],['sortie-moyen','transports']]) {
       const input=document.getElementById(id);if(!input)continue;
@@ -164,6 +170,12 @@
       if(group && !search.dataset.groupLoaded) {search.value=group;search.dataset.groupLoaded='1';search.dispatchEvent(new Event('input'));}
     }
     if(document.body.classList.contains('cai-fiche-detail')) await detailExtras(payload);
+    if(document.body.classList.contains('cai-dashboard')) await showWantedNotices();
+    if(document.body.classList.contains('cai-offline-search')) {
+      const root=document.getElementById('offline-search-list');document.querySelector('[data-cai-dashboard-link]').href='/evenement/'+context.eventId+'/dashboard';root.replaceChildren(el('h2','Recherches disponibles sur cet appareil'),el('p','Connectez cet appareil pour déclarer ou terminer une recherche.'));
+      for(const row of payload.person_searches || []){const article=el('article',undefined,'search-entry');article.append(el('h3',row.target_nom+' '+row.target_prenom),el('p','Recherchée par : '+row.seeker_nom+' '+row.seeker_prenom));root.append(article);}
+      if(!payload.person_searches?.length)root.append(el('p','Aucune recherche active dans la copie de cet appareil.'));
+    }
   }
   function canonical(form, base) {
     const result={...base}; const entries=new FormData(form), animal=(entries.get('type_fiche') || base.type_fiche)==='animal';
@@ -218,11 +230,14 @@
       document.getElementById('cai-edit-title')?.replaceChildren(document.createTextNode('Modifier la fiche'));
     }
     const extra=el('section',undefined,'feature-form');extra.append(el('h2','Groupe et informations complémentaires'));
-    const label=el('label','Famille / groupe'), family=el('input');family.name='family_key';family.maxLength=80;family.setAttribute('list','family-choices');family.value=base?.family_key || '';
+    const label=el('label','Groupe manuel (facultatif)'), family=el('input');family.name='family_key';family.maxLength=80;family.setAttribute('list','family-choices');family.value=base?.family_key || '';
     const choices=el('datalist');choices.id='family-choices';
     for(const value of [...new Set(payload.fiches.map(f=>f.family_key).filter(Boolean))]) {const o=el('option');o.value=value;choices.append(o);}
-    label.append(family,choices);extra.append(label);
-    for(const [key,title] of Object.entries(labels).filter(([key])=>['nationalite','effets_perso','numero_recherche','numero_pec',...(id?['destination','moyen_transport','statut']:[])].includes(key))) {
+    label.append(family,choices);extra.append(label,el('p','Les personnes portant le même nom de famille sont regroupées automatiquement. Un groupe manuel permet de relier aussi des noms différents.'));
+    const autoFamily=el('p');autoFamily.id='automatic-family';extra.prepend(autoFamily);
+    const updateFamily=()=>{const name=form.elements.nom?.value || '';const members=payload.fiches.filter(f=>!f.est_animal && norm(f.nom)===norm(name));autoFamily.textContent=form.elements.type_fiche?.value==='animal'?'':name.trim()?'Famille automatique : '+name.trim()+' · '+members.length+' fiche(s) déjà disponible(s).':'La famille sera déterminée à partir du nom.';};
+    form.addEventListener('input',updateFamily);form.addEventListener('cai:restore',updateFamily);form.addEventListener('change',updateFamily);updateFamily();
+    for(const [key,title] of Object.entries(labels).filter(([key])=>[...(id?['destination','moyen_transport','statut']:[])].includes(key))) {
       if(form.elements[key]) continue;
       const row=el('label',title), input=key==='statut'?el('select'):el('input');input.name=key;
       if(key==='statut') for(const value of ['présent','sorti']) {const o=el('option',value);o.value=value;input.append(o);}
@@ -268,8 +283,43 @@
     let timer;
     const check=async()=>{const found=await findDuplicates(form);warning.replaceChildren();if(found.length){warning.className='feature-alert';warning.append(el('strong','Doublon possible : même identité et date de naissance.'));for(const f of found)link(` Ouvrir ${f.numero}`,`/fiche/${f.id}?evenement_id=${context.eventId}`,warning);}else warning.className='';};
     for(const key of ['nom','prenom','date_naissance','date_naissance_display']) form.elements[key]?.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>check().catch(()=>{}),350);});
+    const wanted=el('div');wanted.id='wanted-warning';wanted.setAttribute('role','status');form.prepend(wanted);
+    let wantedTimer,wantedSequence=0;
+    const checkWanted=async()=>{
+      const sequence=++wantedSequence,rows=await matchesForForm(form,true);if(sequence!==wantedSequence)return;
+      wanted.replaceChildren();wanted.className=rows.length?'feature-alert':'';
+      if(rows.length)wanted.append(el('strong','Cette personne est recherchée par : '+[...new Set(rows.map(r=>r.seeker_nom+' '+r.seeker_prenom))].join(', ')));
+    };
+    for(const name of ['nom','prenom'])form.elements[name]?.addEventListener('input',()=>{++wantedSequence;wanted.replaceChildren();clearTimeout(wantedTimer);wantedTimer=setTimeout(()=>checkWanted().catch(()=>{}),250);});
+    form.addEventListener('cai:restore',()=>checkWanted().catch(()=>{}));
+    form.addEventListener('change',()=>checkWanted().catch(()=>{}));
+    form.addEventListener('click',event=>{if(event.target.closest('[data-fiche-type]')){++wantedSequence;wanted.replaceChildren();warning.replaceChildren();checkWanted().catch(()=>{});}});
+    await checkWanted();
     await draft(form);form.dataset.featuresReady='true';
   }
+  async function matchesForForm(form,online) {
+    const fields=new FormData(form);if(fields.get('type_fiche')==='animal')return [];
+    const nom=fields.get('nom') || '',prenom=fields.get('prenom') || '';if(!norm(nom)||!norm(prenom))return [];
+    let rows=((await data()).person_searches || []).filter(r=>!r.resolved_at && norm(r.target_nom)===norm(nom) && norm(r.target_prenom)===norm(prenom));
+    if(online && navigator.onLine)try{const response=await fetch('/api/evenement/'+context.eventId+'/recherches/correspondances?'+new URLSearchParams({nom,prenom}),{cache:'no-store',signal:AbortSignal.timeout(5000)});if(response.ok)rows=(await response.json()).matches;}catch{}
+    return rows;
+  }
+  async function notifyWanted(matches,eventId,name,key) {
+    if(!matches?.length || !context)return;
+    const storageKey='wanted-notices:'+context.userId+':'+eventId;
+    await store().change(storageKey,old=>({key:storageKey,entries:[...(old?.entries || []).filter(e=>e.key!==key),{key,name,matches}].slice(-30)}));
+    if(eventId===context.eventId)await showWantedNotices();
+  }
+  async function showWantedNotices() {
+    if(!document.body.classList.contains('cai-dashboard'))return;
+    const key='wanted-notices:'+context.userId+':'+context.eventId,record=await store().get(key);
+    let box=document.getElementById('wanted-person-notice');if(!record?.entries?.length){box?.remove();return;}
+    if(!box){box=el('section',undefined,'feature-alert');box.id='wanted-person-notice';box.setAttribute('role','status');document.querySelector('main').prepend(box);}
+    box.replaceChildren(el('h2','Personne recherchée'));
+    for(const entry of record.entries)box.append(el('p',entry.name+' est recherchée par : '+[...new Set(entry.matches.map(m=>m.seeker_nom+' '+m.seeker_prenom))].join(', ')));
+    button('Fermer ce message',async()=>{await store().put({key,entries:[]});box.remove();},box);
+  }
+  async function createdNotice(form,record) {try{await notifyWanted(await matchesForForm(form,false),context.eventId,record.label,record.uuid);}catch{}}
   async function findDuplicates(form) {
     const entries=new FormData(form);if(entries.get('type_fiche')==='animal')return [];
     const nom=entries.get('nom'),prenom=entries.get('prenom'),birth=entries.get('date_naissance');
@@ -354,9 +404,10 @@
     const id=location.pathname.split('/').pop(), fiche=payload.fiches.find(f=>String(f.id)===id || 'local-'+f.client_uuid===id);
     if(!fiche)return;
     let root=document.getElementById('feature-detail');if(!root){root=el('section',undefined,'feature-extra');root.id='feature-detail';(document.querySelector('.wrapper') || document.querySelector('main')).append(root);}
-    root.replaceChildren(el('h2','Groupe, QR et historique détaillé'));
+    root.replaceChildren(el('h2','Famille, groupe, QR et historique détaillé'));
+    if(!fiche.est_animal && norm(fiche.nom)){root.append(el('h3','Famille : '+fiche.nom));for(const member of payload.fiches.filter(f=>!f.est_animal && norm(f.nom)===norm(fiche.nom) && f.id!==fiche.id)){const p=el('p');link(member.numero+' — '+member.nom+' '+(member.prenom || ''),'/fiche/'+member.id+'?evenement_id='+context.eventId,p);root.append(p);}}
     const group=fiche.family_key;
-    if(group) {const p=el('p','Famille / groupe : ');link(group,`/evenement/${context.eventId}/dashboard?groupe=${encodeURIComponent(group)}`,p);root.append(p);const members=payload.fiches.filter(f=>f.family_key && norm(f.family_key)===norm(group) && f.id!==fiche.id);for(const member of members){const p=el('p');link(`${member.numero} — ${member.nom} ${member.prenom || ''}`,`/fiche/${member.id}?evenement_id=${context.eventId}`,p);root.append(p);}}
+    if(group) {const p=el('p','Groupe manuel : ');link(group,`/evenement/${context.eventId}/dashboard?groupe=${encodeURIComponent(group)}`,p);root.append(p);const members=payload.fiches.filter(f=>f.family_key && norm(f.family_key)===norm(group) && f.id!==fiche.id);for(const member of members){const p=el('p');link(`${member.numero} — ${member.nom} ${member.prenom || ''}`,`/fiche/${member.id}?evenement_id=${context.eventId}`,p);root.append(p);}}
     const dl=el('dl');for(const [key,value] of Object.entries(fiche.custom_values || {})){const def=payload.evenement?.settings?.custom_fields?.find(f=>f.key===key);dl.append(el('dt',def?.label || (key==='zone_accueil'?'Zone d’accueil':key)),el('dd',readable(value)));}root.append(dl);
     if(fiche.qr_data){const img=el('img');img.src=fiche.qr_data;img.alt=`QR d’accès à la fiche ${fiche.numero}`;root.append(img,el('p','Le QR ouvre cette fiche après connexion avec un compte autorisé.'));}
     else root.append(el('p','Le QR sera disponible après la première synchronisation.'));
@@ -390,7 +441,7 @@
       }catch(error){event.preventDefault();document.getElementById('settings-error').textContent=error.message;}
     });
   }
-  window.CAIFeatures={ready,refresh,setupForm,saveEdit,confirmDuplicate,draftSaved,conflict,resolveConflict,isLocked:()=>locked};
+  window.CAIFeatures={createdNotice,notifyWanted,ready,refresh,setupForm,saveEdit,confirmDuplicate,draftSaved,conflict,resolveConflict,isLocked:()=>locked};
   document.addEventListener('DOMContentLoaded',()=>{const device=document.getElementById('cai-device-context');if(device)ready(JSON.parse(device.textContent)).catch(()=>{});settingsEditor();document.getElementById('select-labels')?.addEventListener('change',event=>document.querySelectorAll('input[name=fiche_ids]').forEach(input=>input.checked=event.target.checked));});
   window.addEventListener('cai:local',()=>refresh().catch(()=>{}));window.addEventListener('cai:sync',()=>refresh().catch(()=>{}));
 })();

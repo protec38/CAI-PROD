@@ -201,7 +201,7 @@ des colonnes existantes.
 ## Outils supplémentaires et réglages
 
 Dans le menu **Autres actions** du tableau de bord classique, **Outils de l’évènement** rassemble les réglages,
-les groupes, les étiquettes, la corbeille et le bilan. **Personnaliser mon affichage**
+les groupes, les étiquettes, la corbeille et le bilan. **Personnaliser mon apparence**
 ouvre les préférences du compte. **Disponibilité hors ligne** indique les évènements
 conservés sur cet appareil, la dernière actualisation et les envois en attente.
 
@@ -209,10 +209,10 @@ conservés sur cet appareil, la dernière actualisation et les envois en attente
 | --- | --- |
 | 1 | Modification des champs dans le formulaire habituel, avec ou sans réseau. |
 | 2 | Avertissement de doublon sur nom, prénom et date de naissance, avec confirmation avant enregistrement. |
-| 3 | Familles / groupes communs aux fiches, liste des membres et recherche dans le tableau de bord. |
+| 3 | Familles automatiques par nom dans chaque évènement ; groupes manuels pour relier des profils de noms différents. |
 | 4 | QR individuel protégé par connexion et autorisation d’évènement, consultable dans le détail. |
 | 5 | Étiquettes de fiche ou de bagage : sélection et exemplaires, PDF A4 de 24 étiquettes de 63 × 34 mm, impression à 100 %. |
-| 6 | Recherche sur identité, téléphones, Sinus, numéros de fiche et PEC, bagages et groupe. |
+| 6 | Recherche sur identité, téléphones, Sinus, numéros de fiche, bagages et groupe. |
 | 7 | Corbeille et restauration. Numéro réattribué si nécessaire ; restauration refusée sans perte si un bagage est déjà attribué ailleurs. |
 | 8 | Historique avec auteur, date, anciennes et nouvelles valeurs pour les nouvelles opérations. Le suivi antérieur reste conservé. |
 | 9 | Brouillon automatique sur cet appareil, reprise ou abandon après rechargement, effacement après enregistrement durable. |
@@ -223,7 +223,7 @@ conservés sur cet appareil, la dernière actualisation et les envois en attente
 | 18 | Listes de destinations, transports, zones et compétences. Destinations et transports acceptent aussi la saisie libre. |
 | 21 | Verrouillage après inactivité (1, 5, 10, 15 ou 30 minutes), déverrouillage par mot de passe avec connexion. |
 | 23 | Bilan PDF des accueils, sorties, bagages, arrivées et orientations reçus par le serveur. Synchroniser les appareils avant le bilan définitif. |
-| 24 | Préférences personnelles : colonnes facultatives, compteurs et affichage compact. |
+| 24 | Préférences privées du compte : thème clair/sombre/système, couleur, taille du texte, largeur, formes, animations, lignes alternées, colonnes et compteurs. |
 
 Avant le redémarrage des workers, lancer la commande de mise à jour existante
 `python manage.py init-db` pour créer les nouvelles tables. Les réglages d’évènement,
@@ -237,3 +237,27 @@ identité : une ancienne suppression hors ligne ne peut pas la supprimer à nouv
 Les fiches locales supprimées avant leur premier envoi sont récupérables depuis
 **Disponibilité hors ligne**, dans la corbeille de cet appareil. Après envoi, utiliser
 la corbeille de l’évènement.
+
+### Recherche de personnes et menus
+
+Le menu **Autres actions** propose la **Recherche de personnes**. Le menu principal
+permet également de choisir l’évènement concerné. Chaque demande précise le nom et
+le prénom de la personne qui recherche et ceux de la personne recherchée. Les
+correspondances de nom/prénom sont comparées sans tenir compte des accents, de la
+casse ni des espaces superflus. Une demande terminée ne déclenche plus de message.
+La saisie d’une fiche affiche le nom des personnes qui la recherchent, puis conserve
+un message au retour sur le tableau de bord. Les recherches actives de la dernière
+copie préparée servent aussi hors ligne ; leur création et leur clôture nécessitent
+une connexion. Les recherches sont comprises dans les sauvegardes de l’évènement.
+
+Les familles automatiques sont recalculées à partir des noms : elles suivent donc
+les corrections de fiche. Les groupes manuels restent indépendants. On peut choisir
+un groupe dans le formulaire ou relier plusieurs profils depuis les outils.
+
+Le bouton jaune **Retour au menu principal** précède **Déconnexion**. La vue
+synthétique a été retirée ; ses anciens liens renvoient vers le tableau de bord.
+**Envoyer une alerte ou un message** est accessible aux administrateurs et aux
+responsables uniquement, avec contrôle côté serveur. Le champ de notes utilise la
+largeur du formulaire. Nationalité, numéro PEC, numéro de recherche et effets
+personnels sont retirés des formulaires, des détails et des exports usuels ; leurs
+anciennes données restent conservées dans la base et les sauvegardes historiques.

@@ -832,6 +832,8 @@
     {% if user.is_admin or user.role == "codep" %}
       <a href="{{ url_for('main_bp.admin_utilisateurs') }}">👥 Gérer les utilisateurs</a>
       <a href="{{ url_for('main_bp.admin_evenements') }}">🛠️ Administrer les évènements</a>
+    {% endif %}
+    {% if can_send_broadcast %}
       <button type="button" class="broadcast-trigger" data-broadcast-open>
         📣 Notifier tous les utilisateurs
         {% if active_broadcast %}
@@ -843,6 +845,8 @@
         {% endif %}
       </button>
     {% endif %}
+    <a href="{{ url_for('person_search.event_selector') }}">Recherche de personnes</a>
+    <a href="{{ url_for('features.user_preferences') }}">Personnaliser mon apparence</a>
   </nav>
 
   <main id="contenu-principal" class="layout" tabindex="-1">
@@ -988,7 +992,7 @@
     {% endif %}
   </main>
 
-  {% if user.is_admin or user.role == "codep" %}
+  {% if can_send_broadcast %}
     <div class="broadcast-modal" id="broadcast-modal" role="dialog" aria-modal="true" aria-labelledby="broadcast-modal-title" hidden>
       <div class="broadcast-modal__dialog" role="document">
         <div class="broadcast-modal__header">

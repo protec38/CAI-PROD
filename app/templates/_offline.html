@@ -7,6 +7,7 @@
   'preferences': personal_preferences | default({}),
   'numeroPrevu': numero_prevu | default(''),
   'permissions': {
+    'canBroadcast': can_send_broadcast | default(false),
     'canEditPec': user.is_admin or user.role | lower not in ['technicien', 'logisticien'],
     'canDelete': user.is_admin or user.role | lower in ['codep', 'responsable'],
     'canBagages': user.is_admin or user.role | lower in ['codep', 'responsable', 'technicien']
@@ -14,6 +15,8 @@
 } | tojson }}</script>
 {% endif %}
 <link rel="stylesheet" href="{{ url_for('static', filename='features.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='appearance.css') }}">
+<script src="{{ url_for('static', filename='appearance.js') }}"></script>
 <script src="{{ url_for('static', filename='features.js') }}"></script>
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>
 <script src="{{ url_for('static', filename='offline.js') }}"></script>

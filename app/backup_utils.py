@@ -8,7 +8,7 @@ from sqlalchemy import Date, DateTime, Integer, func, select, text
 
 from .extensions import db
 from .models import (
-    EventSettings, FicheMetadata, FicheChange, FicheTrash,
+    EventSettings, FicheMetadata, FicheChange, FicheTrash, PersonSearch,
     Animal, Bagage, Evenement, EventNews, FicheImplique, ShareLink,
     ShareLinkAccessLog, Ticket, TimelineEntry, Utilisateur, utilisateur_evenement, OfflineMutation, OfflineDeletion,
 )
@@ -21,7 +21,7 @@ BACKUP_MODELS = {
     "offline_mutations": OfflineMutation,
     "offline_deletions": OfflineDeletion,
     "event_settings": EventSettings, "fiche_metadata": FicheMetadata,
-    "fiche_changes": FicheChange, "fiche_trash": FicheTrash,
+    "fiche_changes": FicheChange, "fiche_trash": FicheTrash, "person_searches": PersonSearch,
 }
 
 
@@ -53,6 +53,7 @@ def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
     objects['event_settings'] = EventSettings.query.filter(EventSettings.id.in_(event_ids)).all()
     objects['fiche_metadata'] = FicheMetadata.query.filter(FicheMetadata.id.in_(fiche_ids)).all()
     objects['fiche_changes'] = FicheChange.query.filter(FicheChange.fiche_id.in_(fiche_ids)).all()
+    objects['person_searches'] = PersonSearch.query.filter(PersonSearch.evenement_id.in_(event_ids)).all()
     objects['fiche_trash'] = FicheTrash.query.filter(FicheTrash.evenement_id.in_(event_ids)).all()
     for key, model in (("bagages", Bagage), ("tickets", Ticket), ("news", EventNews),
                        ("offline_mutations", OfflineMutation), ("offline_deletions", OfflineDeletion)):
@@ -77,7 +78,7 @@ def validate_backup(payload):
 
 def _delete_operational_data():
     # Children before parents, with foreign keys enabled on both database engines.
-    for model in (FicheTrash, FicheChange, FicheMetadata, EventSettings, OfflineDeletion, OfflineMutation, TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
+    for model in (PersonSearch, FicheTrash, FicheChange, FicheMetadata, EventSettings, OfflineDeletion, OfflineMutation, TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
         db.session.execute(model.__table__.delete())
     db.session.execute(utilisateur_evenement.delete())
     db.session.execute(FicheImplique.__table__.update().values(referent_humain_id=None))

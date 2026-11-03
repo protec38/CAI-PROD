@@ -215,15 +215,6 @@ button:hover { background-color: #e65c00; }
           </div>
 
           <div class="form-group">
-            <label for="numero_pec"><i aria-hidden="true" class="fa-solid fa-id-badge"></i> Numéro prise en charge secouriste (Argos/AEP)</label>
-            <input type="text" id="numero_pec" name="numero_pec" value="{{ fiche.numero_pec or '' }}" maxlength="30" placeholder="Ex : ARGOS-001234 / AEP-2024-001" {% if numero_pec_disabled %}disabled aria-disabled="true"{% endif %}>
-            <small>
-              Référence de prise en charge secouriste (Argos / AEP).
-              {% if numero_pec_disabled %}<strong>Champ réservé aux responsables, CODEP et administrateurs.</strong>{% endif %}
-            </small>
-          </div>
-
-          <div class="form-group">
             <label for="date_naissance">Date de naissance <span class="required">*</span></label>
             <div class="birth-row">
               <input type="date" id="date_naissance" name="date_naissance" value="{{ fiche.date_naissance.strftime('%Y-%m-%d') if fiche.date_naissance else '' }}" data-required-for="humain">
@@ -262,9 +253,9 @@ button:hover { background-color: #e65c00; }
             <textarea id="difficulte" name="difficulte" rows="2" maxlength="200">{{ fiche.difficultes or '' }}</textarea>
           </div>
 
-          <div class="form-group">
+          <div class="form-group-full">
             <label for="autres_informations"><i aria-hidden="true" class="fas fa-info-circle"></i> Autres informations</label>
-            <textarea id="autres_informations" name="autres_informations" rows="3" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici...">{{ fiche.autres_informations or '' }}</textarea>
+            <textarea id="autres_informations" name="autres_informations" rows="6" maxlength="200" placeholder="Ajoutez toute information supplémentaire ici...">{{ fiche.autres_informations or '' }}</textarea>
             <small>Maximum 200 caractères.</small>
           </div>
 

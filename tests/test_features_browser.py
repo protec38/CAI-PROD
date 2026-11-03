@@ -63,7 +63,7 @@ def test_edit_conflict_drafts_and_tools(app, width, tmp_path):
             expect(form).to_have_attribute('data-features-ready','true')
             expect(form.locator('[name=nom]')).to_have_value('Exemple')
             form.locator('[name=telephone]').fill('0612345678')
-            form.get_by_label('Famille / groupe',exact=True).fill('Famille Martin')
+            form.get_by_label('Groupe manuel (facultatif)',exact=True).fill('Famille Martin')
             form.get_by_label('Besoin particulier',exact=True).fill('Interprète')
             form.get_by_label('Zone d’accueil',exact=True).select_option('Nord')
             form.locator('button[type=submit]').click()

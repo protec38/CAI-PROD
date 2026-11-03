@@ -91,7 +91,7 @@ def test_responsive_layout_and_keyboard(app, width, height, tmp_path):
 
             menu = page.locator(".dashboard-menu")
             menu.locator("summary").click()
-            expect(menu.get_by_role("link", name="Gestion des évènements")).to_be_visible()
+            expect(menu.get_by_role("link", name="Retour au menu principal")).to_be_visible()
             page.keyboard.press("Escape")
             expect(menu).not_to_have_attribute("open", "")
 

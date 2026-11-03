@@ -3,6 +3,7 @@
   const store = globalThis.CAIOfflineStore;
   const shell = document.body.classList.contains('cai-offline-dashboard');
   const offlineForm = document.body.classList.contains('cai-offline-form-page');
+  const offlineSearch = document.body.classList.contains('cai-offline-search');
   const offlineDetail = document.body.classList.contains('cai-offline-detail');
   let context, busy = false, syncAgain = false, editing = null, panel, status, queue, indicator, connectionLabel;
   const field = (record, name) => (record.fields.find(pair => pair[0] === name) || [])[1] || '';
@@ -151,6 +152,9 @@
       }
     }
     const visible = fiches.filter(fiche => !fiche.deletedConfirmed);
+    const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').trim().replace(/\s+/g,' ');
+    const families=new Map();for(const f of visible)if(!f.est_animal && !f.deletionPending && normalizeName(f.nom))families.set(normalizeName(f.nom),(families.get(normalizeName(f.nom)) || 0)+1);
+    for(const f of visible){f.family_name=f.est_animal?'':f.nom;f.family_count=f.est_animal?0:families.get(normalizeName(f.nom)) || 0;}
     const result = {...data, fiches: visible};
     for (const animal of [false, true]) {
       const rows = visible.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
@@ -254,6 +258,7 @@
           continue;
         }
         await store.acknowledge(record.key, json);
+        if (json.wanted_matches?.length) await window.CAIFeatures?.notifyWanted(json.wanted_matches, record.eventId, record.label, record.uuid);
         if (record.kind === 'fiche' && json.deleted) {
           for (const action of (await store.pending(record.userId, record.eventId)).filter(action => action.target?.uuid === record.uuid)) {
             await store.change(action.key, current => ({...current, cancelled: true}));
@@ -298,6 +303,7 @@
       `${field(record, 'nom')} ${field(record, 'prenom')}`.trim();
     // A previous transaction must finish successfully before showing success.
     await store.saveDraft(record);
+    await window.CAIFeatures?.createdNotice(form, record);
     await window.CAIFeatures?.draftSaved(form);
     say('Fiche enregistrée sur cet appareil, en attente de confirmation du serveur.',
       navigator.onLine === false ? 'offline' : 'pending');
@@ -441,9 +447,9 @@
     ] : [
       ['nom', 'Nom', fiche.nom], ['prenom', 'Prénom', fiche.prenom],
       ['date_naissance', 'Date de naissance', fiche.date_naissance?.split('-').reverse().join('/')],
-      ['nationalite', 'Nationalité', fiche.nationalite], ['adresse', 'Adresse', fiche.adresse],
+      ['adresse', 'Adresse', fiche.adresse],
       ['telephone', 'Téléphone', fiche.telephone], ['code_sinus', 'Code Sinus', fiche.code_sinus],
-      ['numero_pec', 'Fiche Argos/AEP', fiche.numero_pec],
+
     ]));
     grid.append(detailCard('Statut et informations', [
       ['statut', 'Statut', fiche.statut], ['heure_arrivee', 'Heure d’arrivée', fiche.heure_arrivee],
@@ -452,9 +458,9 @@
       ['personne_a_prevenir', 'Personne à prévenir', fiche.personne_a_prevenir],
       ['tel_personne_a_prevenir', 'Téléphone à prévenir', fiche.tel_personne_a_prevenir],
       ['recherche_personne', 'Recherche une personne', fiche.recherche_personne],
-      ['numero_recherche', 'Numéro de recherche', fiche.numero_recherche], ['difficultes', 'Difficultés', fiche.difficultes],
+      ['difficultes', 'Difficultés', fiche.difficultes],
       ['competences', 'Compétences', fiche.competences], ['autres_informations', 'Autres informations', fiche.autres_informations],
-      ['effets_perso', 'Effets personnels', fiche.effets_perso], ['bagages', 'Bagages', fiche.bagages.join(', ') || 'Aucun'],
+      ['bagages', 'Bagages', fiche.bagages.join(', ') || 'Aucun'],
     ]));
     const related = data.fiches.filter(other => fiche.est_animal ?
       String(other.id) === String(fiche.referent?.id || fiche.referent_id) || other.client_uuid === fiche.referent_id :
@@ -521,9 +527,9 @@
       context = JSON.parse(config.textContent);
       await store.put({...context, kind: 'context', key: `context:${context.userId}:${context.eventId}`});
       await store.put({key: 'active', userId: context.userId, eventId: context.eventId});
-    } else if (shell || offlineForm || offlineDetail) {
+    } else if (shell || offlineForm || offlineDetail || offlineSearch) {
       const active = await store.get('active');
-      const match = location.pathname.match(/^\/evenement\/(\d+)\/dashboard$/);
+      const match = location.pathname.match(/^\/evenement\/(\d+)\/(?:dashboard|recherches)$/);
       const parameters = new URLSearchParams(location.search);
       let eventId = Number(parameters.get('event') || parameters.get('evenement_id') || match?.[1] || active?.eventId);
       if (active?.userId && location.pathname.startsWith('/q/')) {

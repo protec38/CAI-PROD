@@ -611,14 +611,21 @@ def evenement_new():
 
 
 
-@main_bp.route("/notifications/broadcast", methods=["POST"])
+def can_send_broadcast(user):
+    return bool(user and user.is_active and (user.is_admin or (user.role or '').lower() in {'admin', 'responsable'}))
+
+
+@main_bp.route('/notifications/broadcast', methods=['GET', 'POST'])
 @login_required
 def create_broadcast():
     user = get_current_user()
-    role = (user.role or "").lower() if user else ""
-    if not (user and (user.is_admin or role == "codep")):
+    if not can_send_broadcast(user):
         abort(403)
 
+    if request.method == 'GET':
+        return render_template('broadcast.html', user=user, broadcast_emojis=BROADCAST_ALLOWED_EMOJIS,
+            broadcast_levels=BROADCAST_ALLOWED_LEVELS, broadcast_level_labels=BROADCAST_LEVEL_LABELS,
+            default_emoji=BROADCAST_DEFAULT_EMOJI, default_level=BROADCAST_DEFAULT_LEVEL)
     action = (request.form.get("action") or "create").strip().lower()
 
     if action == "clear":
@@ -936,18 +943,7 @@ def evenement_panorama(evenement_id: int):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    data = _build_panorama_data(evenement)
-
-    return render_template(
-        "evenement_panorama.html",
-        user=user,
-        evenement=evenement,
-        stats=data["stats"],
-        competence_summary=data["competence_summary"],
-        recherches=data["recherches"],
-        total_fiches=data["total_fiches"],
-        generated_at=data["generated_at"],
-    )
+    return redirect(url_for('main_bp.dashboard', evenement_id=evenement_id))
 
 
 @main_bp.route("/evenement/<int:evenement_id>/panorama_json", methods=["GET"])
@@ -1026,6 +1022,9 @@ def fiche_new():
             db.session.rollback()
             flash(str(exc), "danger")
             return redirect(url_for("main_bp.fiche_new", type=fiche_type))
+        from .person_search import wanted_matches
+        for match in wanted_matches(evenement.id, fiche.nom, fiche.prenom) if not fiche.est_animal else []:
+            flash(f"Cette personne est recherchée par : {match['seeker_nom']} {match['seeker_prenom']}.", 'info')
         flash(f"✅ Fiche n°{fiche.numero} créée pour l’évènement en cours.", "success")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement.id))
 
@@ -1618,7 +1617,9 @@ def fiches_json(evenement_id):
     nb_present_animaux = sum(1 for f in animaux if _is_present(f))
     nb_total_animaux = len(animaux)
 
+    from .person_search import active_searches
     return json_nocache({
+        'person_searches': active_searches(evenement_id),
         "fiches": fiches_data,
         "nb_present": nb_present,
         "nb_total": nb_total,
@@ -1755,7 +1756,6 @@ def export_pdf_fiche(id):
         ["Nom", fiche.nom],
         ["Prénom", fiche.prenom],
         ["Date de naissance", fiche.date_naissance.strftime('%d/%m/%Y') if fiche.date_naissance else "Non renseignée"],
-        ["Nationalité", fiche.nationalite or "Non renseignée"],
         ["Adresse", fiche.adresse or "Non renseignée"],
         ["Téléphone", fiche.telephone or "Non renseigné"],
     ]
@@ -1767,7 +1767,6 @@ def export_pdf_fiche(id):
         ["Téléphone", fiche.telephone or "Non renseigné"],
         ["Personne à prévenir", fiche.personne_a_prevenir or "Non renseignée"],
         ["Téléphone personne à prévenir", fiche.tel_personne_a_prevenir or "Non renseigné"],
-        ["Numéro PEC", fiche.numero_pec or "Non renseigné"],
     ]
     story.append(_styled_table(data_contact))
 
@@ -1787,10 +1786,8 @@ def export_pdf_fiche(id):
     data_supp = [
         ["Code Sinus", fiche.code_sinus or "Non renseigné"],
         ["Recherche une personne", fiche.recherche_personne or "Non"],
-        ["Numéro de recherche", fiche.numero_recherche or "Non renseigné"],
         ["Difficultés", fiche.difficultes or "Non renseignées"],
         ["Compétences", fiche.competences or "Non renseignées"],
-        ["Effets personnels", fiche.effets_perso or "Non renseignés"],
         ["Est un animal", "Oui" if fiche.est_animal else "Non"],
         ["Est humain", "Oui" if fiche.humain else "Non"],
     ]
@@ -2087,8 +2084,8 @@ def export_evenement_fiches_pdf(evenement_id):
     elements.append(Paragraph("Liste des fiches impliquées", styles['SubHeader']))
 
     header = [
-        "Nom", "Prénom", "Naissance", "Nationalité", "Statut",
-        "Téléphone", "Adresse", "Compétences", "Destination", "Effets perso"
+        "Nom", "Prénom", "Naissance", "Statut",
+        "Téléphone", "Adresse", "Compétences", "Destination"
     ]
     data = [header]
 
@@ -2097,13 +2094,11 @@ def export_evenement_fiches_pdf(evenement_id):
             f.nom or "-",
             f.prenom or "-",
             f.date_naissance.strftime("%d/%m/%Y") if f.date_naissance else "-",
-            f.nationalite or "-",
             f.statut or "-",
             f.telephone or "-",
             f.adresse or "-",
             f.competences or "-",
             f.destination or "-",
-            f.effets_perso or "-",
         ]
         data.append(row)
 
@@ -2327,7 +2322,6 @@ def export_evenement_fiches_csv(evenement_id):
         "Destination",
         "Moyen de transport",
         "Recherche personne",
-        "N° recherche",
         "Personne à prévenir",
         "Tél. à prévenir",
         "Difficultés",
@@ -2357,7 +2351,6 @@ def export_evenement_fiches_csv(evenement_id):
             fiche.destination or "",
             fiche.moyen_transport or "",
             fiche.recherche_personne or "",
-            getattr(fiche, "numero_recherche", "") or "",
             fiche.personne_a_prevenir or "",
             fiche.tel_personne_a_prevenir or "",
             fiche.difficultes or "",

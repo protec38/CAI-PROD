@@ -2,5 +2,7 @@
 <script type="application/json" id="cai-device-context">{{ {'userId': device_user_id, 'eventId': 0, 'preferences': personal_preferences} | tojson }}</script>
 <link rel="stylesheet" href="{{ url_for('static', filename='features.css') }}">
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='appearance.css') }}">
+<script src="{{ url_for('static', filename='appearance.js') }}"></script>
 <script src="{{ url_for('static', filename='features.js') }}"></script>
 {% endif %}

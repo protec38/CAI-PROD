@@ -17,7 +17,7 @@ from flask import (
 from flask_wtf.csrf import generate_csrf
 
 from .extensions import db, limiter
-from .fiche_updates import duplicates, history, metadata, settings, state
+from .fiche_updates import duplicates, history, metadata, normalized, settings, state
 from .models import (
     Evenement,
     EventSettings,
@@ -117,15 +117,17 @@ def tools_page(event_id):
         return redirect(url_for('features.tools_page', event_id=event_id))
     fiches = FicheImplique.query.filter_by(evenement_id=event_id).order_by(FicheImplique.numero).all()
     trash = FicheTrash.query.filter_by(evenement_id=event_id, restored_at=None).order_by(FicheTrash.deleted_at.desc()).all()
-    groups = {}
+    groups, families = {}, {}
     for fiche in fiches:
+        if not fiche.est_animal and normalized(fiche.nom):
+            families.setdefault(normalized(fiche.nom), {'name': fiche.nom, 'members': []})['members'].append(fiche)
         key = metadata(fiche).family_key
         if key:
             groups.setdefault(key, []).append(fiche)
     db.session.commit()
     return render_template('features.html', user=user, evenement=event, settings=settings(event_id),
         manage=manager(user, event), can_restore=user.is_admin or user.role.lower() in {'codep', 'responsable'},
-        trash=trash, fiches=fiches, groups=groups)
+        trash=trash, fiches=fiches, groups=groups, families=families.values())
 
 
 @features_bp.post('/evenement/<int:event_id>/corbeille/<item_id>/restaurer')
@@ -147,6 +149,29 @@ def restore_fiche(event_id, item_id):
     return redirect(url_for('features.tools_page', event_id=event.id, _anchor='corbeille'))
 
 
+@features_bp.post('/evenement/<int:event_id>/groupes')
+def assign_group(event_id):
+    user, _event = access(event_id)
+    name = ' '.join(request.form.get('group_name', '').split())
+    ids = request.form.getlist('fiche_ids', type=int)
+    if not name or len(name) > 80 or not ids or len(ids) > 500:
+        flash('Choisissez au moins une fiche et un nom de groupe (80 caractères maximum).', 'danger')
+        return redirect(url_for('features.tools_page', event_id=event_id, _anchor='groupes'))
+    db.session.execute(db.select(Evenement.id).where(Evenement.id == event_id).with_for_update())
+    fiches = FicheImplique.query.filter(FicheImplique.evenement_id == event_id, FicheImplique.id.in_(ids)).all()
+    if len(fiches) != len(set(ids)):
+        abort(403)
+    from .fiche_updates import record_change
+    for fiche in fiches:
+        meta = metadata(fiche)
+        old = meta.family_key
+        meta.family_key = name
+        record_change(fiche, user.id, 'group', {'family_key': old}, {'family_key': name})
+    db.session.commit()
+    flash('Les fiches sélectionnées ont été reliées au groupe.', 'success')
+    return redirect(url_for('features.tools_page', event_id=event_id, _anchor='groupes'))
+
+
 @features_bp.get('/api/evenement/<int:event_id>/doublons')
 def duplicate_lookup(event_id):
     access(event_id)
@@ -166,7 +191,8 @@ def fiche_extra(fiche_id):
 
 def extra(fiche, full=False):
     meta = metadata(fiche)
-    result = {'family_key': meta.family_key, 'custom_values': meta.custom_values, 'revision': meta.revision,
+    result = {'family_name': fiche.nom if not fiche.est_animal else '',
+              'family_key': meta.family_key, 'custom_values': meta.custom_values, 'revision': meta.revision,
               'qr_url': url_for('features.qr_link', token=meta.qr_token, _external=True),
               'referent_humain_id': str(fiche.referent_humain_id or ''), 'edit_state': state(fiche)}
     if full:
@@ -234,14 +260,24 @@ def user_preferences():
             row = db.session.get(UserPreference, user.id) or UserPreference(id=user.id)
             row.lock_minutes = minutes
             row.dashboard = {key: request.form.get(key) == 'on' for key in
-                             ('show_counters', 'compact', 'heure_arrivee', 'difficultes', 'competences', 'bagages')}
+                             ('show_counters', 'compact', 'heure_arrivee', 'difficultes', 'competences', 'bagages',
+                              'stripe_rows', 'reduce_motion')}
+            choices = {'theme': ('light', 'dark', 'system'), 'accent': ('blue', 'teal', 'violet', 'orange'),
+                       'font_size': ('normal', 'large', 'extra'), 'layout_width': ('standard', 'wide'),
+                       'corners': ('rounded', 'square')}
+            for key, values in choices.items():
+                value = request.form.get(key, values[0])
+                if value not in values:
+                    raise ValueError
+                row.dashboard[key] = value
             db.session.add(row)
             db.session.commit()
             session['last_activity'] = time.time()
             flash('Vos préférences ont été enregistrées.', 'success')
             return redirect(_build_safe_redirect(request.form.get('next'), 'main_bp.evenement_new'))
         except ValueError:
-            flash('Durée de verrouillage incorrecte.', 'danger')
+            db.session.rollback()
+            flash('Vérifiez les valeurs de vos préférences.', 'danger')
     return render_template('preferences.html', prefs=preferences(user.id), user=user, next=_build_safe_redirect(request.args.get('next'), 'main_bp.evenement_new'))
 
 
@@ -309,9 +345,12 @@ def unlock():
 def init_features(app):
     app.register_blueprint(features_bp)
     app.before_request(lock_guard)
+    from .person_search import search_bp
+    app.register_blueprint(search_bp)
 
     @app.context_processor
     def feature_context():
         user = get_current_user()
-        return {'feature_settings': settings, 'personal_preferences': preferences(user.id) if user and user.is_active else {},
+        from .routes import can_send_broadcast
+        return {'can_send_broadcast': can_send_broadcast(user), 'feature_settings': settings, 'personal_preferences': preferences(user.id) if user and user.is_active else {},
                 'device_user_id': user.id if user and user.is_active and request.endpoint not in {'main_bp.login', 'features.unlock'} else None}

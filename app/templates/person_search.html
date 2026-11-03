@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="csrf-token" content="{{ '' if offline_mode | default(false) else csrf_token() }}"><title>Recherche de personnes</title><link rel="stylesheet" href="{{ url_for('static', filename='responsive.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='features.css') }}"></head>
+<body class="cai-tools{% if offline_mode | default(false) %} cai-offline-search{% endif %}"><main class="feature-page">
+<a data-cai-dashboard-link href="{{ '/hors-ligne' if offline_mode | default(false) else url_for('main_bp.dashboard', evenement_id=evenement.id) }}">← Tableau de bord</a>
+<h1>Recherche de personnes</h1>
+{% if not offline_mode | default(false) %}
+<p>{{ evenement.nom }}</p>
+{% for message in get_flashed_messages() %}<p class="feature-message" role="status">{{ message }}</p>{% endfor %}
+<section class="feature-card"><h2>Déclarer une recherche</h2><p>Lorsqu’une fiche correspond au nom et au prénom recherchés, un message indique qui recherche cette personne.</p>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="action" value="create">
+<fieldset><legend>Personne qui recherche</legend><div class="feature-grid"><label>Nom de la personne qui recherche<input name="seeker_nom" maxlength="100" required autocomplete="off"></label><label>Prénom de la personne qui recherche<input name="seeker_prenom" maxlength="100" required autocomplete="off"></label></div></fieldset>
+<fieldset><legend>Personne recherchée</legend><div class="feature-grid"><label>Nom de la personne recherchée<input name="target_nom" maxlength="100" required autocomplete="off"></label><label>Prénom de la personne recherchée<input name="target_prenom" maxlength="100" required autocomplete="off"></label></div></fieldset>
+<p><button class="primary" type="submit">Enregistrer la recherche</button></p></form></section>
+<section class="feature-card"><h2>Recherches enregistrées</h2>{% for row in searches %}<article class="search-entry"><h3>{{ row.target_nom }} {{ row.target_prenom }}</h3><p>Recherchée par : <strong>{{ row.seeker_nom }} {{ row.seeker_prenom }}</strong></p><p>{{ 'Recherche terminée' if row.resolved_at else 'Recherche en cours' }} · {{ row.created_at | fr_datetime }}</p>
+{% for fiche in matches[row.id] %}<p><a href="{{ url_for('main_bp.fiche_detail', id=fiche.id) }}">Fiche correspondante : {{ fiche.numero }} — {{ fiche.nom }} {{ fiche.prenom }}</a></p>{% endfor %}
+{% if row.created_by_id == user.id or user.is_admin or user.role | lower == 'responsable' %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="search_id" value="{{ row.id }}"><input type="hidden" name="action" value="{{ 'reopen' if row.resolved_at else 'resolve' }}"><button type="submit">{{ 'Relancer la recherche' if row.resolved_at else 'Terminer la recherche' }}</button></form>{% endif %}</article>{% else %}<p>Aucune recherche enregistrée.</p>{% endfor %}</section>
+{% else %}<section id="offline-search-list" class="feature-card" aria-live="polite"></section>{% endif %}
+</main>{% include '_offline.html' %}</body></html>

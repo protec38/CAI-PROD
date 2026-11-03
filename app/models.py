@@ -315,6 +315,19 @@ class UserPreference(db.Model):
     user = db.relationship('Utilisateur', backref=db.backref('preference_record', uselist=False, cascade='all, delete-orphan'))
 
 
+class PersonSearch(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False, index=True)
+    seeker_nom = db.Column(db.String(100), nullable=False)
+    seeker_prenom = db.Column(db.String(100), nullable=False)
+    target_nom = db.Column(db.String(100), nullable=False)
+    target_prenom = db.Column(db.String(100), nullable=False)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)
+    evenement = db.relationship('Evenement', backref=db.backref('person_searches', cascade='all, delete-orphan'))
+
+
 class Animal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     espece = db.Column(db.String(50), nullable=True)

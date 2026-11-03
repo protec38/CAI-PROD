@@ -56,6 +56,11 @@ def fiche_detail_shell():
     return render_template("fiche_detail.html", offline_mode=True)
 
 
+@offline_bp.get('/hors-ligne/recherches')
+def search_shell():
+    return render_template('person_search.html', offline_mode=True)
+
+
 @offline_bp.get("/api/offline/session")
 def offline_session():
     user = get_current_user()
@@ -63,6 +68,7 @@ def offline_session():
         return json_nocache({"error": "Reconnectez-vous pour synchroniser les fiches."}, 401)
     from .features import preferences
     return json_nocache({"preferences": preferences(user.id), "user_id": user.id, "csrf_token": generate_csrf(), "permissions": {
+        "canBroadcast": user.is_admin or user.role.lower() in {"admin", "responsable"},
         "canEditPec": user.is_admin or user.role.lower() not in {"technicien", "logisticien"},
         "canDelete": user.is_admin or user.role.lower() in {"codep", "responsable"},
         "canBagages": user.is_admin or user.role.lower() in {"codep", "responsable", "technicien"},
@@ -90,8 +96,10 @@ def sync_fiche(event_id):
     except (ValueError, TypeError) as exc:
         db.session.rollback()
         return json_nocache({"error": str(exc)}, 422)
+    from .person_search import wanted_matches
     return json_nocache({"id": fiche.id, "numero": fiche.numero,
-                         "client_uuid": fiche.client_uuid, "synced": True})
+        "client_uuid": fiche.client_uuid, "synced": True,
+        "wanted_matches": wanted_matches(event_id, fiche.nom, fiche.prenom) if not fiche.est_animal else []})
 
 
 @offline_bp.post("/api/evenement/<int:event_id>/fiches/actions/sync")
