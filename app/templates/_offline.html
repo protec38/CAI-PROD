@@ -1,0 +1,9 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
+<script id="cai-offline-context" type="application/json">{{ {
+  'userId': user.id,
+  'eventId': evenement.id,
+  'eventName': evenement.nom,
+  'numeroPrevu': numero_prevu | default(''),
+} | tojson }}</script>
+<script src="{{ url_for('static', filename='offline-store.js') }}"></script>
+<script src="{{ url_for('static', filename='offline.js') }}"></script>

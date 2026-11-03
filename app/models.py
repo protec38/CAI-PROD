@@ -175,6 +175,8 @@ class BroadcastNotification(db.Model):
 class FicheImplique(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     numero = db.Column(db.String(20), unique=True, nullable=False)
+    # Stable across retries, independently of the final server number.
+    client_uuid = db.Column(db.String(36), unique=True, nullable=True)
 
     nom = db.Column(db.String(100))
     prenom = db.Column(db.String(100))

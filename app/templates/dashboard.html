@@ -495,7 +495,7 @@
     <div class="actions-toolbar">
       <a href="{{ url_for('main_bp.evenement_new') }}" class="btn"><i class="fa-solid fa-gear"></i> Gestion des évènements</a>
       <a href="{{ url_for('main_bp.evenement_panorama', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-chart-pie"></i> Vue synthétique</a>
-      <a href="{{ url_for('main_bp.fiche_new') }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
+      <a href="{{ url_for('main_bp.fiche_new', evenement_id=evenement.id) }}" class="btn btn-green"><i class="fa-solid fa-user-plus"></i> Créer une fiche impliquée</a>
       {% if user.is_admin or user.role in ["codep", "responsable"] %}
         <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
       {% endif %}
@@ -773,6 +773,8 @@
     }
 
     function actionsHTML(f){
+      if(f.pending && f.deliveryStarted) return 'En attente de confirmation du serveur';
+      if(f.pending) return `<a href="/hors-ligne?event=${encodeURIComponent(f.event_id)}&draft=${encodeURIComponent(f.client_uuid)}">Ouvrir / corriger la fiche en attente</a>`;
       const delBtn = CAN_DELETE_FICHE ? `
         <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
           <input type="hidden" name="csrf_token" value="${CSRF_TOKEN}">
@@ -795,17 +797,21 @@
         </div>`;
     }
 
+    function syncBadgeHTML(f){
+      return `<span class="cai-sync-badge ${f.pending ? 'cai-sync-pending' : ''}"><span class="cai-sync-dot" aria-hidden="true"></span>${f.pending ? 'En attente du serveur' : 'Sur le serveur'}</span>`;
+    }
+
     function ligneFicheHTML(f){
       return `
         <tr id="fiche-row-${f.id}">
-          <td data-col="numero">${escapeHTML(f.numero)}</td>
+          <td data-col="numero">${escapeHTML(f.numero)}<br>${syncBadgeHTML(f)}</td>
           <td data-col="nom">${formatNomCell(f)}</td>
           <td data-col="prenom">${escapeHTML(formatPrenomCell(f))}</td>
           <td data-col="statut">${getStatutHtml(f.statut)}</td>
           <td data-col="heure_arrivee">${escapeHTML(f.heure_arrivee)}</td>
           <td data-col="difficultes">${escapeHTML(f.difficultes)}</td>
           <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
-          <td class="bagages-cell"><div id="bagages-${f.id}"><em>Chargement…</em></div></td>
+          <td class="bagages-cell"><div id="bagages-${f.id}"><em>${f.pending ? 'Après synchronisation' : 'Chargement…'}</em></div></td>
           <td data-col="actions">${actionsHTML(f)}</td>
         </tr>`;
     }
@@ -819,7 +825,7 @@
         tbody.insertAdjacentHTML('beforeend', ligneFicheHTML(f));
         tr=document.getElementById(`fiche-row-${f.id}`);
       }else{
-        setTextIfChanged(tr.querySelector('[data-col="numero"]'), f.numero);
+        setHTMLIfChanged(tr.querySelector('[data-col="numero"]'), escapeHTML(f.numero) + '<br>' + syncBadgeHTML(f));
         setHTMLIfChanged(tr.querySelector('[data-col="nom"]'), formatNomCell(f));
         setTextIfChanged(tr.querySelector('[data-col="prenom"]'), formatPrenomCell(f));
         setHTMLIfChanged(tr.querySelector('[data-col="statut"]'), getStatutHtml(f.statut));
@@ -833,7 +839,7 @@
         tr.dataset.typeFiche = (f.type_fiche || (f.est_animal ? 'animal' : 'humain'));
       }
       rowsCache.set(f.id, f);
-      majBagagesCell(f.id);
+      if(!f.pending) majBagagesCell(f.id);
     }
 
     async function majBagagesCell(ficheId){
@@ -933,10 +939,23 @@
       setInterval(refreshFiches, 3000);
     });
 
+    window.addEventListener("cai:sync", () => refreshFiches());
+    let refreshInProgress = false;
     async function refreshFiches(){
+      if(refreshInProgress) return;
+      refreshInProgress = true;
       try{
-        const res = await fetch(`/evenement/{{ evenement.id }}/fiches_json`, { credentials:'include', headers: FETCH_HEADERS });
-        const data = await res.json();
+        let data;
+        try {
+          const res = await fetch(`/evenement/{{ evenement.id }}/fiches_json`, { credentials:'include', headers: FETCH_HEADERS, signal: AbortSignal.timeout(8000) });
+          if(!res.ok || res.redirected) return;
+          data = await res.json();
+          if(window.CAIOffline) await window.CAIOffline.snapshot(data);
+        } catch(error) {
+          if(!window.CAIOffline) throw error;
+          data = await window.CAIOffline.cached();
+        }
+        if(window.CAIOffline) data = await window.CAIOffline.listFiches(data);
 
         const idsActuels = new Set();
         (data.fiches || []).forEach(f => {
@@ -982,7 +1001,7 @@
         applyAllFilters();
       }catch(err){
         console.error("Erreur refreshFiches:", err);
-      }
+      }finally{refreshInProgress = false;}
     }
 
     function ouvrirModalBagage(ficheId, ficheNumero){
@@ -1023,5 +1042,6 @@
       const m=document.getElementById('modal-sortie'); if(m) m.style.display='none';
     }
   </script>
+{% include "_offline.html" %}
 </body>
 </html>

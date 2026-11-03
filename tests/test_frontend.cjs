@@ -21,8 +21,14 @@ const row = dashboardContext.ligneFicheHTML({id: 1, numero: 'F1', nom: attack, p
 assert(!row.includes('<img'), row);
 assert(!dashboardContext.renderBagageBadges([attack]).includes('<img'));
 assert(!dashboardContext.formatNomCell({nom: attack, est_animal: true}).includes('<img'));
+assert(dashboardContext.syncBadgeHTML({pending: true}).includes('cai-sync-pending'));
+assert(dashboardContext.syncBadgeHTML({}).includes('Sur le serveur'));
+const pendingActions = dashboardContext.actionsHTML({pending: true, event_id: 1, client_uuid: 'test-uuid'});
+assert(pendingActions.includes('/hors-ligne?event=1&draft=test-uuid'));
+assert(!pendingActions.includes('/fiche/edit/'));
 
 let calls = [];
+let currentToken = 'csrf-token';
 const browser = {
   location: {origin: 'https://example.test'},
   fetch(input, init) { calls.push({input, init}); return Promise.resolve(); },
@@ -31,7 +37,7 @@ const csrfContext = vm.createContext({
   Request, Headers, URL, window: browser,
   document: {
     addEventListener(_event, callback) { callback(); },
-    querySelector() { return {getAttribute() { return 'csrf-token'; }}; },
+    querySelector() { return {getAttribute() { return currentToken; }}; },
     querySelectorAll() { return []; },
   },
 });
@@ -43,4 +49,7 @@ assert.equal(calls[0].init.headers.get('X-Existing'), 'retained');
 assert.equal(request.headers.get('X-CSRFToken'), null);
 browser.fetch(new URL('https://evil.test'), {method: 'POST'});
 assert.equal(calls[1].init.headers, undefined);
+currentToken = 'refreshed-after-reconnection';
+browser.fetch('/api/evenement/1/fiches/sync', {method: 'POST'});
+assert.equal(calls[2].init.headers.get('X-CSRFToken'), currentToken);
 console.log('Frontend: XSS escaping and CSRF Request handling passed.');

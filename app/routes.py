@@ -999,7 +999,7 @@ def select_evenement():
 @login_required
 def fiche_new():
     user = get_current_user()
-    evenement_id = session.get("evenement_id")
+    evenement_id = request.values.get("evenement_id", type=int) or session.get("evenement_id")
 
     if not evenement_id:
         flash("⛔ Aucun évènement actif. Veuillez d'abord accéder à un évènement.", "danger")
@@ -1015,230 +1015,23 @@ def fiche_new():
         fiche_type = "humain"
 
     if request.method == "POST":
-        form_redirect = url_for("main_bp.fiche_new", type=fiche_type)
-        # --- Heure d'arrivée envoyée par le front: "YYYY-MM-DD HH:MM:SS"
-        heure_js_str = (request.form.get("heure_arrivee_js") or "").strip()
+        from .fiche_service import save_fiche
         try:
-            parsed_local = datetime.strptime(heure_js_str, "%Y-%m-%d %H:%M:%S")
-            local_dt = PARIS_TZ.localize(parsed_local)
-            heure_arrivee = local_dt.astimezone(timezone.utc).replace(tzinfo=None)
-        except Exception:
-            # fallback si vide ou format inattendu
-            heure_arrivee = utcnow()
-
-        # --- Numérotation automatique locale à l’évènement
-        last_fiche_evt = (
-            FicheImplique.query
-            .filter_by(evenement_id=evenement.id)
-            .order_by(FicheImplique.id.desc())
-            .first()
-        )
-        next_local = 1
-        if last_fiche_evt and last_fiche_evt.numero:
-            try:
-                last_parts = last_fiche_evt.numero.split("-")
-                if len(last_parts) == 2:
-                    next_local = int(last_parts[1]) + 1
-            except ValueError:
-                pass
-        numero = f"{str(evenement.id).zfill(3)}-{str(next_local).zfill(4)}"
-
-        if fiche_type == "animal":
-            animal_nom = (request.form.get("animal_nom") or "").strip()
-            if not animal_nom:
-                flash("Le nom de l’animal est obligatoire.", "danger")
-                return redirect(form_redirect)
-
-            animal_espece = (request.form.get("animal_espece") or "").strip()
-            if len(animal_espece) > 120:
-                flash("L’espèce de l’animal ne peut pas dépasser 120 caractères.", "danger")
-                return redirect(form_redirect)
-
-            animal_particularites = (request.form.get("animal_particularites") or "").strip()
-            if len(animal_particularites) > 200:
-                flash("Le champ ‘Particularités’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(form_redirect)
-
-            animal_notes = (request.form.get("animal_notes") or "").strip()
-            if len(animal_notes) > 200:
-                flash("Le champ ‘Notes complémentaires’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(form_redirect)
-
-            referent_id_raw = (request.form.get("animal_referent_id") or "").strip()
-            referent = None
-            if referent_id_raw:
-                try:
-                    referent_id = int(referent_id_raw)
-                except ValueError:
-                    flash("La personne sélectionnée n’est pas valide.", "danger")
-                    return redirect(form_redirect)
-
-                referent = (
-                    FicheImplique.query
-                    .filter(
-                        FicheImplique.id == referent_id,
-                        FicheImplique.evenement_id == evenement.id,
-                        FicheImplique.est_animal.is_(False),
-                    )
-                    .first()
-                )
-                if not referent:
-                    flash("La personne sélectionnée n’existe plus.", "danger")
-                    return redirect(form_redirect)
-
-            fiche = FicheImplique(
-                numero=numero,
-                nom=animal_nom,
-                prenom="",
-                adresse=None,
-                telephone=None,
-                personne_a_prevenir=None,
-                tel_personne_a_prevenir=None,
-                recherche_personne=None,
-                difficultes=animal_particularites,
-                competences="",
-                est_animal=True,
-                humain=False,
-                type_fiche="animal",
-                animal_espece=animal_espece or None,
-                animal_details=animal_notes or None,
-                referent_humain=referent,
-                statut="présent",
-                heure_arrivee=heure_arrivee,
-                date_naissance=None,
-                utilisateur_id=user.id,
-                evenement_id=evenement.id,
-                autres_informations=animal_notes or None,
-                code_sinus=None,
-            )
-
-            db.session.add(fiche)
-            db.session.commit()
-
-            try:
-                add_timeline(
-                    fiche.id,
-                    user.id,
-                    "Création de la fiche animal",
-                    "create",
-                )
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-            flash(f"✅ Fiche animal n°{numero} créée pour l’évènement en cours.", "success")
-            return redirect(url_for("main_bp.dashboard", evenement_id=evenement.id, focus="animal"))
-
-        # --- Date de naissance (obligatoire) pour les humains
-        date_naissance_str = (request.form.get("date_naissance") or "").strip()
-        if not date_naissance_str:
-            flash("La date de naissance est obligatoire.", "danger")
-            return redirect(form_redirect)
-        try:
-            date_naissance = datetime.strptime(date_naissance_str, "%Y-%m-%d").date()
-        except ValueError:
-            flash("Format de date de naissance invalide.", "danger")
-            return redirect(form_redirect)
-        if date_naissance > date.today():
-            flash("La date de naissance ne peut pas être dans le futur.", "danger")
-            return redirect(form_redirect)
-
-        # --- Champs de base
-        nom = (request.form.get("nom") or "").strip()
-        prenom = (request.form.get("prenom") or "").strip()
-        adresse = (request.form.get("adresse") or "").strip()
-        telephone = (request.form.get("telephone") or "").strip()
-        personne_a_prevenir = (request.form.get("personne_a_prevenir") or "").strip()
-        tel_personne_a_prevenir = (request.form.get("tel_personne_a_prevenir") or "").strip()
-        recherche_personne = (request.form.get("recherche_personne") or "").strip()
-        difficulte = (request.form.get("difficulte") or "").strip()
-        numero_recherche = (request.form.get("numero_recherche") or "").strip()
-
-        code_sinus = (request.form.get("code_sinus") or "").strip()
-        if len(code_sinus) > 30:
-            flash("Le Code Sinus ne doit pas dépasser 30 caractères.", "danger")
-            return redirect(form_redirect)
-
-        selected_comps = request.form.getlist("competences")
-        if "Autre" in selected_comps:
-            autre_txt = (request.form.get("competence_autre") or "").strip()
-            if not autre_txt:
-                flash("Merci de préciser l’autre compétence (20 caractères max).", "danger")
-                return redirect(form_redirect)
-            if len(autre_txt) > 20:
-                flash("La compétence 'Autre' ne doit pas dépasser 20 caractères.", "danger")
-                return redirect(form_redirect)
-            selected_comps = [c for c in selected_comps if c != "Autre"]
-            if autre_txt not in selected_comps:
-                selected_comps.append(autre_txt)
-        if len(selected_comps) > 4:
-            flash("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.", "danger")
-            return redirect(form_redirect)
-        competences = ",".join(selected_comps)
-
-        autres_infos = (request.form.get("autres_informations") or "").strip()
-        if len(autres_infos) > 200:
-            flash("Le champ « Autres informations » ne peut pas dépasser 200 caractères.", "danger")
-            return redirect(form_redirect)
-
-        fiche = FicheImplique(
-            numero=numero,
-            nom=nom,
-            prenom=prenom,
-            adresse=adresse,
-            telephone=telephone,
-            personne_a_prevenir=personne_a_prevenir,
-            tel_personne_a_prevenir=tel_personne_a_prevenir,
-            recherche_personne=recherche_personne,
-            difficultes=difficulte,
-            competences=competences,
-            est_animal=False,
-            humain=True,
-            type_fiche="humain",
-            numero_recherche=numero_recherche,
-            statut="présent",
-            heure_arrivee=heure_arrivee,
-            date_naissance=date_naissance,
-            utilisateur_id=user.id,
-            evenement_id=evenement.id,
-            autres_informations=autres_infos,
-            code_sinus=code_sinus if hasattr(FicheImplique, "code_sinus") else None,
-        )
-
-        db.session.add(fiche)
-        db.session.commit()
-
-        try:
-            add_timeline(fiche.id, user.id, "Création de la fiche", "create")
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        flash(f"✅ Fiche n°{numero} créée pour l’évènement en cours.", "success")
+            fiche = save_fiche(request.form, evenement, user)
+        except ValueError as exc:
+            flash(str(exc), "danger")
+            return redirect(url_for("main_bp.fiche_new", type=fiche_type))
+        flash(f"✅ Fiche n°{fiche.numero} créée pour l’évènement en cours.", "success")
         return redirect(url_for("main_bp.dashboard", evenement_id=evenement.id))
 
-    # --- GET : prévisualisation du prochain numéro
-    last_fiche_evt = (
-        FicheImplique.query
-        .filter_by(evenement_id=evenement.id)
-        .order_by(FicheImplique.id.desc())
-        .first()
-    )
-    next_local = 1
-    if last_fiche_evt and last_fiche_evt.numero:
-        try:
-            last_parts = last_fiche_evt.numero.split("-")
-            if len(last_parts) == 2:
-                next_local = int(last_parts[1]) + 1
-        except ValueError:
-            pass
-
-    numero_prevu = f"{str(evenement.id).zfill(3)}-{str(next_local).zfill(4)}"
+    from .fiche_service import next_fiche_number
+    numero_prevu = next_fiche_number(evenement.id)
 
     return render_template(
         "fiche_new.html",
         user=user,
         numero_prevu=numero_prevu,
+        evenement=evenement,
         competences_list=COMPETENCES_CAI,
         fiche_type=fiche_type,
         referent_lookup_url=url_for("main_bp.fiche_referent_lookup", evenement_id=evenement.id),
@@ -2009,6 +1802,7 @@ def fiches_json(evenement_id):
         h_out = getattr(f, "heure_sortie_locale", None)
         fiches_data.append({
             "id": f.id,
+            "client_uuid": f.client_uuid,
             "numero": f.numero or "",
             "nom": f.nom or "",
             "prenom": f.prenom or "",

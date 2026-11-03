@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (isMutating && sameOrigin) {
       init = Object.assign({}, init);
       init.headers = new Headers(init.headers || (originalRequest && originalRequest.headers) || {});
+      token = meta ? meta.getAttribute('content') : token;
       init.headers.set('X-CSRFToken', token);
       init.headers.set('X-CSRF-Token', token);
       // Toujours envoyer les cookies (session)

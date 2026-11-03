@@ -67,6 +67,12 @@ def _ensure_database_schema(app: Flask) -> None:
         if "fiche_implique" in table_names:
             columns = {col["name"] for col in inspector.get_columns("fiche_implique")}
 
+            if "client_uuid" not in columns:
+                with db.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE fiche_implique ADD COLUMN client_uuid VARCHAR(36)"))
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ux_fiche_client_uuid ON fiche_implique (client_uuid)"))
+
             if "type_fiche" not in columns:
                 app.logger.info("Adding missing fiche_implique.type_fiche column")
                 with db.engine.begin() as conn:
@@ -271,6 +277,8 @@ def create_app(config_name: str | None = None, config_overrides: dict | None = N
     # --- Blueprints ---
     from .routes import main_bp
     app.register_blueprint(main_bp)
+    from .offline import offline_bp
+    app.register_blueprint(offline_bp)
     talisman(force_https=False)(app.view_functions["main_bp._healthz"])
 
     return app

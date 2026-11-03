@@ -48,6 +48,43 @@ y compris `SECRET_KEY` et le mot de passe PostgreSQL. Modifier la variable
 `POSTGRES_PASSWORD` ne change pas le mot de passe d'une base déjà initialisée :
 mettre aussi à jour le rôle PostgreSQL et `DATABASE_URL` de manière coordonnée.
 
+## Fiches hors ligne (téléphone, tablette et ordinateur)
+
+Ouvrir le tableau de bord de chaque évènement avec une connexion sur chaque
+appareil, et attendre le message « Le mode hors ligne est prêt ». Le lien
+**Saisie et fiches hors ligne** permet ensuite de créer des fiches humaines ou
+animales sans réseau, de consulter la dernière copie de la liste et de corriger
+une fiche en attente. L'écran fonctionne sans ressources externes. L'accès au
+tableau de bord ou à la création bascule aussi sur cet écran si le réseau tombe.
+
+Chaque fiche affiche un point **orange : en attente du serveur**, ou **vert :
+sur le serveur**. Un numéro `001-LOCAL-…` identifie provisoirement une fiche sur
+l'appareil. À la synchronisation, le serveur attribue le prochain numéro libre,
+et l'écran affiche le nouveau numéro et l'ancien identifiant provisoire.
+Les numéros restent uniques, y compris lors de créations simultanées. Un UUID
+rend les tentatives répétées sans doublon si la réponse du serveur est perdue.
+L'heure d'arrivée conservée est celle de la saisie, pas celle de la synchronisation.
+
+La synchronisation se relance au retour du réseau, à la réouverture de l'écran,
+et toutes les 30 secondes tant que l'application reste ouverte. Si le navigateur
+est fermé ou suspendu par le téléphone, rouvrir l'application pour synchroniser.
+Une session expirée demande une reconnexion avec le compte d'origine. Les
+droits d'accès sont vérifiés à chaque envoi ; une fiche refusée reste orange avec
+son message d'erreur. Les envois visent explicitement l'évènement d'origine.
+
+HTTPS est nécessaire (sauf `localhost` en développement). Les fiches en attente
+et la copie de la liste sont stockées dans IndexedDB sur cet appareil : utiliser
+le même navigateur et conserver ses données jusqu'à la synchronisation. Éviter
+la navigation privée ; le navigateur peut effacer ses données locales. La
+déconnexion masque l'espace local du compte et conserve ses fiches en attente
+pour sa prochaine connexion. Le service worker ne met en cache que l'écran
+statique et ses ressources, sans pages authentifiées ni réponses API.
+
+Au déploiement, exécuter `python manage.py init-db` avant de démarrer les
+workers (déjà prévu par le démarrage Docker). Cette commande ajoute
+`fiche_implique.client_uuid` et son index unique aux bases existantes. Les tests
+de concurrence PostgreSQL sont inclus dans la suite exécutée en CI.
+
 ## Sauvegardes et restauration
 
 Les exports contiennent les données opérationnelles, actualités et historiques,
@@ -68,6 +105,8 @@ pas reconstituer des données absentes du fichier source.
 ```sh
 python -m pytest -q
 node tests/test_frontend.cjs
+python -m playwright install chromium
+# Puis CAI_BROWSER_TEST=1 python -m pytest tests/test_offline_browser.py -q
 python -m ruff check app manage.py config.py run.py tests --select E9,F63,F7,F82
 python -m pip check
 python -m pip_audit -r requirements.txt --no-deps --disable-pip
@@ -76,6 +115,11 @@ python -m pip_audit -r requirements.txt --no-deps --disable-pip
 La CI exécute les tests sur SQLite et PostgreSQL 16. Pour PostgreSQL local,
 `CAI_TEST_DATABASE_URL` doit désigner une base **réservée aux tests**, car les
 tables sont supprimées à la fin de chaque test.
+
+Le test navigateur est aussi exécuté en CI avec Chromium. Sur Windows, définir
+`CAI_BROWSER_TEST=1` et `CAI_BROWSER_CHANNEL=msedge` pour utiliser Edge installé.
+Il vérifie le rechargement sans réseau, la persistance d'une fiche, la reprise
+automatique et la création depuis le formulaire existant.
 
 `requirements.in` liste les dépendances directes ; `requirements.txt` fige les
 versions résolues, y compris les dépendances transitives, pour Python 3.12/Linux.

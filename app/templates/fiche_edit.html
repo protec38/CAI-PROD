@@ -150,6 +150,7 @@ button:hover { background-color: #e65c00; }
     cursor: pointer;
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
 </head>
 <body>
 
@@ -170,6 +171,7 @@ button:hover { background-color: #e65c00; }
 {% endif %}
 
 <div class="container">
+    <span class="cai-sync-badge"><span class="cai-sync-dot" aria-hidden="true"></span>Sur le serveur</span>
     <h1><i class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
 
     <form method="POST" data-initial-type="{{ fiche_type }}">

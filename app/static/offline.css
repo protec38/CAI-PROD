@@ -1,0 +1,21 @@
+.cai-sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;white-space:normal}
+.cai-sync-dot{width:10px;height:10px;border-radius:50%;background:#17803d;display:inline-block;flex-shrink:0}
+.cai-sync-pending .cai-sync-dot{background:#ed8800}
+.cai-offline-panel{font:14px/1.5 system-ui,sans-serif;margin:16px;padding:16px;border:1px solid #cad4df;border-radius:10px;background:#fff;color:#172b40;overflow-wrap:anywhere}
+.cai-offline-panel a{color:#003b71;text-decoration:underline}
+.cai-offline-panel button{width:auto;cursor:pointer;padding:8px 14px;border:0;border-radius:5px;background:#003b71;color:white;margin:5px}
+.cai-offline-panel [hidden]{display:none!important}
+.cai-offline-panel ul{padding-left:20px}
+.cai-offline-panel li{margin:10px 0}
+.cai-offline-error{color:#a12e00}
+.cai-offline-shell{margin:0;background:#edf2f7;font:16px/1.5 system-ui,sans-serif;color:#172b40}
+.cai-offline-shell main{max-width:1000px;margin:auto;padding:16px}
+.cai-offline-shell h1{color:#003b71;font-size:26px}
+.cai-offline-shell form{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px}
+.cai-offline-shell label{display:flex;flex-direction:column;gap:6px}
+.cai-offline-shell input,.cai-offline-shell select,.cai-offline-shell textarea{font:inherit;box-sizing:border-box;width:100%;padding:10px;border:1px solid #9eafc0;border-radius:5px}
+.cai-offline-shell fieldset{border:1px solid #cad4df;border-radius:8px;min-width:0}
+.cai-offline-shell .cai-wide{grid-column:1/-1}
+.cai-offline-shell table{width:100%;border-collapse:collapse}
+.cai-offline-shell td,.cai-offline-shell th{padding:10px;text-align:left;border-bottom:1px solid #cad4df}
+.cai-offline-shell .cai-table-wrap{overflow-x:auto}

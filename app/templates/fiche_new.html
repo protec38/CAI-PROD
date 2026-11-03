@@ -170,6 +170,7 @@ button:hover { background-color: #e65c00; }
 
     <form method="POST" data-initial-type="{{ fiche_type or 'humain' }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="evenement_id" value="{{ evenement.id }}">
       <input type="hidden" name="type_fiche" id="type_fiche" value="{{ fiche_type or 'humain' }}">
 
       <div class="form-grid">
@@ -673,5 +674,6 @@ function onCompetencesChange(select) {
 }
 </script>
 
+{% include "_offline.html" %}
 </body>
 </html>

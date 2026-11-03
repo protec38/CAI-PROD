@@ -243,6 +243,7 @@ body{
   .tform textarea{ min-height:140px; }
 }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
 </head>
 <body>
 
@@ -292,6 +293,7 @@ body{
 
   <!-- ===== Hero fiche ===== -->
   <section class="hero">
+    <span class="cai-sync-badge"><span class="cai-sync-dot" aria-hidden="true"></span>Sur le serveur</span>
     <h1>Fiche impliqué</h1>
     <div class="meta">
       {% if fiche.statut == 'présent' %}

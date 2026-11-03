@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="">
+  <title>CAI — Fiches hors ligne</title>
+  <link rel="stylesheet" href="/static/offline.css">
+  <script src="/static/offline-store.js" defer></script>
+  <script src="/static/offline.js" defer></script>
+</head>
+<body class="cai-offline-shell">
+<main>
+  <h1>CAI — Fiches hors ligne</h1>
+  <p id="cai-start-message">Ouvrez d’abord le tableau de bord de l’évènement avec une connexion pour préparer cet appareil. <a href="/">Se connecter</a></p>
+  <div id="cai-workspace" hidden>
+    <section class="cai-offline-panel">
+      <h2 id="cai-event-name"></h2>
+      <label>Évènement préparé sur cet appareil <select id="cai-event"></select></label>
+      <p><a id="cai-online-link" href="/">Revenir au tableau de bord</a></p>
+      <p>Les numéros locaux sont provisoires. Le serveur attribue un numéro disponible à la synchronisation. Gardez l’application ouverte ou rouvrez-la au retour du réseau pour synchroniser.</p>
+    </section>
+    <section class="cai-offline-panel">
+      <h2 id="cai-edit-title">Nouvelle fiche</h2>
+      <form id="cai-offline-form">
+        <label class="cai-wide">Type de fiche
+          <select name="type_fiche"><option value="humain">Humain</option><option value="animal">Animal</option></select>
+        </label>
+        <fieldset data-for="humain" class="cai-wide">
+          <legend>Identité et accueil</legend>
+          <label>Nom * <input name="nom" required maxlength="40" autocomplete="off"></label>
+          <label>Prénom * <input name="prenom" required maxlength="40" autocomplete="off"></label>
+          <label>Date de naissance * <input type="date" name="date_naissance" required></label>
+          <label>Code Sinus <input name="code_sinus" maxlength="30"></label>
+          <label>Adresse <input name="adresse" maxlength="100"></label>
+          <label>Téléphone <input type="tel" name="telephone" maxlength="15"></label>
+          <label>Personne à prévenir <input name="personne_a_prevenir" maxlength="50"></label>
+          <label>Téléphone de la personne à prévenir <input type="tel" name="tel_personne_a_prevenir" maxlength="15"></label>
+          <label>Recherche de personne <textarea name="recherche_personne" maxlength="200"></textarea></label>
+          <label>Numéro de recherche <input name="numero_recherche" maxlength="20"></label>
+          <label>Difficultés <textarea name="difficulte" maxlength="200"></textarea></label>
+          <label>Compétences (4 maximum)
+            <select name="competences" multiple size="6">
+              <option>Médecin</option><option>Infirmier</option><option>Sapeur-pompier</option><option>SST</option>
+              <option>Psychologue</option><option>Bénévole</option><option>Artisan</option><option>Interprète</option>
+              <option>Logisticien</option><option>Conducteur</option><option>Agent sécurité</option><option>Autre</option>
+            </select>
+          </label>
+          <label>Autre compétence (si sélectionnée) <input name="competence_autre" maxlength="20"></label>
+          <label>Autres informations <textarea name="autres_informations" maxlength="200"></textarea></label>
+        </fieldset>
+        <fieldset data-for="animal" class="cai-wide" hidden>
+          <legend>Animal</legend>
+          <label>Nom de l’animal * <input name="animal_nom" required maxlength="100"></label>
+          <label>Espèce <input name="animal_espece" maxlength="120"></label>
+          <label>Particularités <textarea name="animal_particularites" maxlength="200"></textarea></label>
+          <label>Notes complémentaires <textarea name="animal_notes" maxlength="200"></textarea></label>
+          <label>Référent humain (facultatif) <select name="animal_referent_id"><option value="">Aucun</option></select></label>
+        </fieldset>
+        <button type="submit" class="cai-wide">Enregistrer la fiche sur cet appareil</button>
+      </form>
+    </section>
+    <section class="cai-offline-panel">
+      <h2>Fiches de l’évènement</h2>
+      <p id="cai-snapshot-date"></p>
+      <div class="cai-table-wrap"><table>
+        <thead><tr><th>Numéro</th><th>Nom et prénom</th><th>Statut</th><th>Synchronisation</th></tr></thead>
+        <tbody id="cai-offline-fiches"></tbody>
+      </table></div>
+    </section>
+  </div>
+</main>
+</body>
+</html>
