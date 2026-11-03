@@ -4,12 +4,12 @@ from io import BytesIO
 import hashlib
 import json
 
-from sqlalchemy import Date, DateTime, func, select, text
+from sqlalchemy import Date, DateTime, Integer, func, select, text
 
 from .extensions import db
 from .models import (
     Animal, Bagage, Evenement, EventNews, FicheImplique, ShareLink,
-    ShareLinkAccessLog, Ticket, TimelineEntry, Utilisateur, utilisateur_evenement,
+    ShareLinkAccessLog, Ticket, TimelineEntry, Utilisateur, utilisateur_evenement, OfflineMutation,
 )
 
 BACKUP_MODELS = {
@@ -17,6 +17,7 @@ BACKUP_MODELS = {
     "animaux": Animal, "share_links": ShareLink,
     "share_link_access_logs": ShareLinkAccessLog, "tickets": Ticket,
     "news": EventNews, "timeline_entries": TimelineEntry,
+    "offline_mutations": OfflineMutation,
 }
 
 
@@ -45,7 +46,7 @@ def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
         ).all(),
         "timeline_entries": TimelineEntry.query.filter(TimelineEntry.fiche_id.in_(fiche_ids)).all(),
     }
-    for key, model in (("bagages", Bagage), ("tickets", Ticket), ("news", EventNews)):
+    for key, model in (("bagages", Bagage), ("tickets", Ticket), ("news", EventNews), ("offline_mutations", OfflineMutation)):
         objects[key] = model.query.filter(model.evenement_id.in_(event_ids)).all()
     payload = {key: [_row(obj) for obj in rows] for key, rows in objects.items()}
     payload["assoc_utilisateur_evenement"] = [dict(row) for row in db.session.execute(
@@ -67,7 +68,7 @@ def validate_backup(payload):
 
 def _delete_operational_data():
     # Children before parents, with foreign keys enabled on both database engines.
-    for model in (TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
+    for model in (OfflineMutation, TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
         db.session.execute(model.__table__.delete())
     db.session.execute(utilisateur_evenement.delete())
     db.session.execute(FicheImplique.__table__.update().values(referent_humain_id=None))
@@ -123,6 +124,8 @@ def bulk_restore(payload: dict):
             db.session.execute(utilisateur_evenement.insert(), assoc)
         if db.engine.dialect.name == "postgresql":
             for model in BACKUP_MODELS.values():
+                if not isinstance(model.__table__.c.id.type, Integer):
+                    continue
                 next_id = (db.session.scalar(select(func.max(model.id))) or 0) + 1
                 db.session.execute(text("SELECT setval(pg_get_serial_sequence(:table, 'id'), :next_id, false)"),
                                    {"table": model.__tablename__, "next_id": next_id})

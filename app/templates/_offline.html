@@ -5,6 +5,10 @@
   'eventId': evenement.id,
   'eventName': evenement.nom,
   'numeroPrevu': numero_prevu | default(''),
+  'permissions': {
+    'canDelete': user.is_admin or user.role | lower in ['codep', 'responsable'],
+    'canBagages': user.is_admin or user.role | lower in ['codep', 'responsable', 'technicien']
+  },
 } | tojson }}</script>
 {% endif %}
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>

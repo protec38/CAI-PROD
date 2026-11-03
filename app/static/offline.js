@@ -1,9 +1,9 @@
 (function () {
   'use strict';
   const store = globalThis.CAIOfflineStore;
-  const shell = document.body.classList.contains('cai-offline-shell');
+  const shell = document.body.classList.contains('cai-offline-dashboard');
   const offlineForm = document.body.classList.contains('cai-offline-form-page');
-  let context, busy = false, editing = null, panel, status, queue, indicator, connectionLabel;
+  let context, busy = false, syncAgain = false, editing = null, panel, status, queue, indicator, connectionLabel;
   const field = (record, name) => (record.fields.find(pair => pair[0] === name) || [])[1] || '';
   const snapshotKey = () => `snapshot:${context.userId}:${context.eventId}`;
   const label = record => record.label || 'Fiche';
@@ -15,14 +15,6 @@
       connectionLabel.textContent = text || (state === 'synced' ? 'Synchronisé au serveur' :
         state === 'offline' ? 'Mode hors ligne' : 'En attente du serveur');
     }
-  }
-  function badge(pending) {
-    const span = document.createElement('span');
-    span.className = 'cai-sync-badge' + (pending ? ' cai-sync-pending' : '');
-    const dot = document.createElement('span');
-    dot.className = 'cai-sync-dot'; dot.setAttribute('aria-hidden', 'true');
-    span.append(dot, document.createTextNode(pending ? 'En attente du serveur' : 'Sur le serveur'));
-    return span;
   }
   function createPanel() {
     const bar = document.createElement('div'); bar.className = 'cai-connection-bar';
@@ -55,18 +47,18 @@
   }
   async function renderQueue() {
     queue.replaceChildren();
-    const records = (await store.all()).filter(record => record.kind === 'fiche' &&
+    const records = (await store.all()).filter(record => ['fiche', 'mutation'].includes(record.kind) &&
       record.userId === context.userId && record.eventId === context.eventId);
     // Retain a short list of receipts, and every pending record.
     const recent = records.filter(record => record.server).slice(-5);
     for (const record of records.filter(record => !record.server).concat(recent)) {
       const li = document.createElement('li');
-      li.append(badge(!record.server), document.createTextNode(
-        ` ${record.server ? record.server.numero : record.provisional + ' (provisoire)'} — ${label(record)}`));
+      li.append(document.createTextNode(
+        ` ${record.server ? record.server.numero : record.provisional} — ${label(record)}${record.kind === 'mutation' ? ' · ' + (record.action === 'bagages' ? 'Bagages' : 'Sortie') : ''}${record.server ? ' · Synchronisé' : ' · En attente du serveur'}`));
       if (record.server && record.server.numero !== record.provisional) {
         li.append(document.createTextNode(` · ancien n° ${record.provisional}`));
       }
-      if (!record.server && !record.deliveryStarted) {
+      if (record.kind === 'fiche' && !record.server && !record.deliveryStarted) {
         const a = document.createElement('a');
         a.href = `/fiche/new?evenement_id=${record.eventId}&draft=${record.uuid}`;
         a.textContent = ' Ouvrir / corriger'; li.append(a);
@@ -80,35 +72,62 @@
       }
       queue.append(li);
     }
-    if (shell) await renderSnapshot();
+
   }
+  const numbers = raw => [...new Set(String(raw || '').split(/[\s,;]+/).filter(Boolean))];
+  const formatDate = value => new Date(value).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});
+  const sameTarget = (fiche, target) => target.uuid ? fiche.client_uuid === target.uuid : String(fiche.id) === String(target.id);
   async function listFiches(data) {
     if (!context) return data;
-    const pending = await store.pending(context.userId, context.eventId);
+    const records = (await store.all()).filter(record => record.userId === context.userId && record.eventId === context.eventId);
     const confirmed = new Set((data.fiches || []).map(fiche => fiche.client_uuid));
-    const locals = pending.filter(record => !confirmed.has(record.uuid)).map(record => ({
-      id: `local-${record.uuid}`, client_uuid: record.uuid, pending: true,
-      event_id: record.eventId,
-      deliveryStarted: !!record.deliveryStarted,
-      numero: `${record.provisional} (provisoire)`,
-      nom: field(record, 'type_fiche') === 'animal' ? field(record, 'animal_nom') : field(record, 'nom'),
-      prenom: field(record, 'prenom'), statut: 'présent',
-      est_animal: field(record, 'type_fiche') === 'animal',
-      type_fiche: field(record, 'type_fiche'), animal_espece: field(record, 'animal_espece'),
-      heure_arrivee: new Date(record.createdAt).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'}),
-      difficultes: field(record, 'difficulte') || field(record, 'animal_particularites'),
-      competences: record.fields.filter(pair => pair[0] === 'competences').map(pair => pair[1]).join(','),
-    }));
-    const result = {...data, fiches: [...(data.fiches || []), ...locals]};
-    for (const local of locals) {
-      const suffix = local.est_animal ? '_animaux' : '';
-      result[`nb_total${suffix}`] = (result[`nb_total${suffix}`] || 0) + 1;
-      result[`nb_present${suffix}`] = (result[`nb_present${suffix}`] || 0) + 1;
+    const fiches = (data.fiches || []).map(fiche => ({...fiche, bagages: [...(fiche.bagages || [])]}));
+    for (const record of records.filter(record => record.kind === 'fiche' && !record.observed && record.fields?.length && !confirmed.has(record.uuid))) {
+      fiches.push({id: record.server?.id || 'local-' + record.uuid, client_uuid: record.uuid,
+        creationPending: !record.server, pending: !record.server, event_id: record.eventId,
+        deliveryStarted: !!record.deliveryStarted, numero: record.server?.numero || record.provisional + ' (provisoire)',
+        nom: field(record, 'type_fiche') === 'animal' ? field(record, 'animal_nom') : field(record, 'nom'),
+        prenom: field(record, 'prenom'), statut: 'présent', bagages: [],
+        est_animal: field(record, 'type_fiche') === 'animal', type_fiche: field(record, 'type_fiche'),
+        animal_espece: field(record, 'animal_espece'), heure_arrivee: formatDate(record.createdAt),
+        difficultes: field(record, 'difficulte') || field(record, 'animal_particularites'),
+        competences: record.fields.filter(pair => pair[0] === 'competences').map(pair => pair[1]).join(',')});
+    }
+    const observed = new Set(data.applied_operations || []);
+    const actions = records.filter(record => record.kind === 'mutation' && (!record.server || (!record.observed && !observed.has(record.uuid))))
+      .sort((a,b) => a.sequence - b.sequence);
+    for (const record of actions) {
+      const fiche = fiches.find(fiche => sameTarget(fiche, record.target));
+      if (!fiche) continue;
+      fiche.pending = !!fiche.pending || !record.server;
+      if (record.error) fiche.sync_error = record.error;
+      if (record.action === 'bagages') {
+        const base = numbers(record.payload.base_numeros), desired = numbers(record.payload.numeros);
+        fiche.bagages = [...new Set([...fiche.bagages.filter(number => !base.includes(number) || desired.includes(number)),
+          ...desired.filter(number => !base.includes(number))])];
+      } else {
+        fiche.statut = 'sorti'; fiche.heure_sortie = formatDate(record.createdAt);
+        fiche.destination = record.payload.destination || fiche.destination;
+        fiche.moyen_transport = record.payload.moyen_transport || fiche.moyen_transport;
+      }
+    }
+    const result = {...data, fiches};
+    for (const animal of [false, true]) {
+      const rows = fiches.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
+      result['nb_total' + suffix] = rows.length;
+      result['nb_present' + suffix] = rows.filter(fiche => fiche.statut === 'présent').length;
     }
     return result;
   }
   async function snapshot(data) {
     await store.put({key: snapshotKey(), kind: 'snapshot', data, savedAt: new Date().toISOString()});
+    const creations = new Set((data.fiches || []).map(fiche => fiche.client_uuid));
+    const operations = new Set(data.applied_operations || []);
+    for (const record of (await store.all()).filter(record => record.userId === context.userId &&
+      record.eventId === context.eventId && record.server && !record.observed &&
+      (record.kind === 'fiche' ? creations.has(record.uuid) : operations.has(record.uuid)))) {
+      await store.change(record.key, current => ({...current, observed: true, fields: []}));
+    }
   }
   async function refreshSnapshot() {
     const response = await fetch(`/evenement/${context.eventId}/fiches_json`, {cache: 'no-store'});
@@ -116,7 +135,8 @@
     const data = await response.json(); await snapshot(data);
   }
   async function sync() {
-    if (busy || !context) return;
+    if (!context) return;
+    if (busy) { syncAgain = true; return; }
     if (navigator.onLine === false) {
       say('Hors ligne : les fiches restent sur cet appareil, en attente du serveur.', 'offline');
       await renderQueue(); return;
@@ -131,27 +151,47 @@
       if (session.user_id !== context.userId) {
         throw new Error('Reconnectez-vous avec le compte ayant créé ces fiches. La synchronisation est suspendue.');
       }
+      context.permissions = session.permissions;
+      await store.put({...context, kind: 'context', key: `context:${context.userId}:${context.eventId}`});
       const meta = document.querySelector('meta[name="csrf-token"]');
       if (meta) meta.content = session.csrf_token;
-      for (const pendingRecord of pending) {
+      document.querySelectorAll('input[name="csrf_token"]').forEach(input => { input.value = session.csrf_token; });
+      window.CAIDashboard?.setToken(session.csrf_token);
+      const creations = pending.filter(record => record.kind === 'fiche');
+      const actions = pending.filter(record => record.kind === 'mutation').sort((a,b) => a.sequence - b.sequence);
+      const blockedTargets = new Set();
+      for (const pendingRecord of [...creations, ...actions]) {
         // A correction currently open must never be sent from its older version.
         if (pendingRecord.uuid === editing) continue;
+        const targetKey = pendingRecord.kind === 'mutation' ? JSON.stringify(pendingRecord.target) : '';
+        if (targetKey && blockedTargets.has(targetKey)) continue;
+        if (pendingRecord.kind === 'mutation' && pendingRecord.target.uuid) {
+          const creation = await store.get(`fiche:${pendingRecord.target.uuid}`);
+          if (creation && !creation.server) continue;
+        }
         // Atomically freeze the latest version, including corrections from
         // another tab, before building the request.
         const record = await store.beginDelivery(pendingRecord.key);
         if (!record) continue;
-        const body = new URLSearchParams(record.fields);
-        body.set('client_uuid', record.uuid); body.set('user_id', String(record.userId));
-        body.set('heure_arrivee_utc', record.createdAt);
+        const body = new URLSearchParams(record.kind === 'mutation' ? record.payload : record.fields);
+        body.set('user_id', String(record.userId));
+        if (record.kind === 'mutation') {
+          body.set('operation_uuid', record.uuid); body.set('kind', record.action);
+          body.set('occurred_at', record.createdAt);
+          body.set(record.target.uuid ? 'fiche_uuid' : 'fiche_id', record.target.uuid || String(record.target.id));
+        } else {
+          body.set('client_uuid', record.uuid); body.set('heure_arrivee_utc', record.createdAt);
+        }
         body.delete('csrf_token');
         // If the response is lost, the record may already exist on the server.
         // Freeze corrections until its receipt is recovered; retries keep UUID.
-        const result = await fetch(`/api/evenement/${record.eventId}/fiches/sync`, {
+        const result = await fetch(`/api/evenement/${record.eventId}/fiches/${record.kind === 'mutation' ? 'actions/' : ''}sync`, {
           method: 'POST', body, headers: {'X-CSRFToken': session.csrf_token},
           signal: AbortSignal.timeout(15000),
         });
         const json = await result.json().catch(() => ({}));
         if (!result.ok) {
+          if (targetKey) blockedTargets.add(targetKey);
           record.error = json.error || 'Synchronisation refusée. Réessayez après reconnexion.';
           await store.change(record.key, current => current.server || current.revision !== record.revision ? current : {
             ...current, error: record.error,
@@ -161,10 +201,11 @@
           continue;
         }
         await store.acknowledge(record.key, json);
+        window.dispatchEvent(new Event('cai:local'));
       }
       await refreshSnapshot();
       const remaining = (await store.pending(context.userId)).length;
-      say(remaining ? `${remaining} fiche(s) en attente sur cet appareil. Ouvrez l’évènement concerné pour consulter les messages.` :
+      say(remaining ? `${remaining} envoi(s) en attente sur cet appareil. Ouvrez l’évènement concerné pour consulter les messages.` :
         'Toutes les fiches sont sur le serveur. Le mode hors ligne est prêt sur cet appareil.', remaining ? 'pending' : 'synced');
       await renderQueue();
       window.dispatchEvent(new Event('cai:sync'));
@@ -174,7 +215,10 @@
       say(unreachable ? `Serveur inaccessible · ${remaining} fiche(s) en attente. Nouvel essai automatique au retour de la connexion.` :
         error.message, unreachable ? 'offline' : 'pending');
       await renderQueue();
-    } finally { busy = false; }
+    } finally {
+      busy = false;
+      if (syncAgain) { syncAgain = false; queueMicrotask(() => sync().catch(report)); }
+    }
   }
   async function saveForm(form) {
     const fields = Array.from(new FormData(form).entries()).filter(pair =>
@@ -199,7 +243,6 @@
     editing = null;
     navigator.storage?.persist?.().catch(() => {});
     await renderQueue();
-    await sync();
     return await store.get(record.key);
   }
   function interceptForm(form) {
@@ -216,39 +259,6 @@
       } catch (error) { report(error); }
       finally { saving = false; if (submit) submit.disabled = false; }
     });
-  }
-  async function renderSnapshot() {
-    const container = document.getElementById('cai-offline-fiches'); if (!container) return;
-    const saved = await store.get(snapshotKey());
-    const data = await listFiches(saved ? saved.data : {fiches: []});
-    container.replaceChildren();
-    const stamp = document.getElementById('cai-snapshot-date');
-    stamp.textContent = saved ? `Dernière lecture du serveur : ${new Date(saved.savedAt).toLocaleString('fr-FR')}.` :
-      'Aucune copie des fiches du serveur sur cet appareil.';
-    for (const fiche of data.fiches) {
-      const row = document.createElement('tr');
-      for (const value of [fiche.numero, `${fiche.nom || ''} ${fiche.prenom || ''}`, fiche.statut]) {
-        const td = document.createElement('td'); td.textContent = value; row.append(td);
-      }
-      if (fiche.pending && !fiche.deliveryStarted) {
-        const link = document.createElement('a');
-        link.href = `/fiche/new?evenement_id=${context.eventId}&draft=${fiche.client_uuid}`;
-        link.textContent = fiche.numero; row.firstElementChild.replaceChildren(link);
-      }
-      const td = document.createElement('td'); td.append(badge(!!fiche.pending)); row.append(td);
-      container.append(row);
-    }
-  }
-  async function setupShell() {
-    document.getElementById('cai-event-name').textContent = context.eventName;
-    const picker = document.getElementById('cai-event');
-    for (const record of (await store.all()).filter(record => record.kind === 'context' && record.userId === context.userId)) {
-      const option = new Option(record.eventName, String(record.eventId));
-      option.selected = record.eventId === context.eventId; picker.add(option);
-    }
-    picker.addEventListener('change', () => location.assign(`/hors-ligne?event=${picker.value}`));
-    document.getElementById('cai-create-fiche').href = `/fiche/new?evenement_id=${context.eventId}`;
-    document.getElementById('cai-workspace').hidden = false;
   }
   async function setupForm() {
     const form = document.querySelector('form[data-initial-type]');
@@ -279,6 +289,58 @@
     interceptForm(form);
     form.dataset.caiReady = 'true';
   }
+  async function queueAction(action, fiche, values) {
+    if (!fiche || !context) throw new Error('La fiche n’est pas disponible sur cet appareil.');
+    if (action === 'bagages' && !context.permissions?.canBagages) {
+      throw new Error('Vous n’êtes pas autorisé à modifier les bagages.');
+    }
+    if (action === 'bagages' && (values.numeros.length > 300 || numbers(values.numeros).some(number => number.length > 50))) {
+      throw new Error('Liste trop longue : 300 caractères au total et 50 caractères par numéro de bagage.');
+    }
+    const target = fiche.client_uuid ? {uuid: fiche.client_uuid} : {id: fiche.id};
+    const pending = (await store.pending(context.userId, context.eventId)).filter(record =>
+      record.kind === 'mutation' && record.action === action && sameTarget(fiche, record.target));
+    const latest = pending.sort((a,b) => b.sequence - a.sequence)[0];
+    if (latest && !latest.deliveryStarted) {
+      await store.change(latest.key, current => {
+        if (current.server || current.deliveryStarted) throw new Error('Un envoi vient de démarrer. Réessayez après sa confirmation.');
+        return {...current, error: '', revision: (current.revision || 0) + 1,
+          payload: {...values, ...(action === 'bagages' ? {base_numeros: current.payload.base_numeros} : {})}};
+      });
+    } else {
+      const uuid = store.uuid();
+      await store.enqueueAction({key: `action:${uuid}`, uuid, kind: 'mutation', action, target,
+        userId: context.userId, eventId: context.eventId, createdAt: new Date().toISOString(),
+        label: `${fiche.nom || ''} ${fiche.prenom || ''}`.trim(), provisional: fiche.numero, payload: values, revision: 1});
+    }
+    say('Modification enregistrée sur cet appareil, en attente du serveur.', navigator.onLine === false ? 'offline' : 'pending');
+    window.dispatchEvent(new Event('cai:local'));
+    await renderQueue();
+    sync().catch(report);
+  }
+  function setupActions() {
+    for (const [id, action] of [['form-bagage', 'bagages'], ['form-sortie', 'sortie']]) {
+      const form = document.getElementById(id);
+      if (!form) continue;
+      let saving = false;
+      form.addEventListener('submit', async event => {
+        event.preventDefault(); if (saving) return; saving = true;
+        const button = form.querySelector('[type="submit"]'); button.disabled = true;
+        const error = form.querySelector('.cai-action-error'); if (error) error.remove();
+        try {
+          const fiche = window.CAIDashboard.getFiche(form.dataset.ficheId);
+          const values = action === 'bagages' ? {numeros: form.elements.numeros.value, base_numeros: form.dataset.baseNumeros || ''} :
+            {destination: form.elements.destination.value, moyen_transport: form.elements.moyen_transport.value};
+          await queueAction(action, fiche, values);
+          document.getElementById(action === 'bagages' ? 'modal-bagage' : 'modal-sortie').style.display = 'none';
+        } catch (problem) {
+          const message = document.createElement('p'); message.className = 'cai-action-error';
+          message.setAttribute('role', 'alert'); message.textContent = problem.message; form.append(message);
+          report(problem);
+        } finally { saving = false; button.disabled = false; }
+      });
+    }
+  }
   async function init() {
     if (!store || !('indexedDB' in globalThis) || !globalThis.isSecureContext) {
       report(new Error('Le mode hors ligne nécessite HTTPS et le stockage local du navigateur.'));
@@ -298,8 +360,8 @@
       if (!context) {
         if (offlineForm) {
           document.querySelector('form[data-initial-type]').hidden = true;
-          report(new Error('Ouvrez d’abord cet évènement avec une connexion pour préparer la saisie sur cet appareil.'));
         }
+        report(new Error('Ouvrez d’abord cet évènement avec une connexion pour préparer cet appareil.'));
         return;
       }
     } else {
@@ -316,7 +378,9 @@
       form.dataset.localCleared = 'true';
       form.requestSubmit();
     });
-    if (shell) { document.getElementById('cai-start-message').hidden = true; await setupShell(); }
+    if (shell || document.getElementById("fiches-table-body")) {
+      window.CAIDashboard?.configure(context); setupActions();
+    }
     else if (offlineForm || location.pathname === '/fiche/new') await setupForm();
     await renderQueue();
     window.addEventListener('online', () => sync().catch(report));
@@ -331,12 +395,13 @@
   }
   window.CAIOffline = {
     listFiches, snapshot,
+    context: () => context,
     async findReferents(term) {
       const saved = context && await store.get(snapshotKey());
       const data = await listFiches(saved ? saved.data : {fiches: []});
       return data.fiches.filter(fiche => !fiche.est_animal &&
         `${fiche.numero} ${fiche.nom} ${fiche.prenom}`.toLocaleLowerCase('fr').includes(term.toLocaleLowerCase('fr')))
-        .slice(0, 20).map(fiche => ({id: fiche.pending ? fiche.client_uuid : fiche.id,
+        .slice(0, 20).map(fiche => ({id: fiche.creationPending ? fiche.client_uuid : fiche.id,
           numero: fiche.numero, label: `${fiche.nom} ${fiche.prenom || ''}`.trim()}));
     },
     async cached() { const record = context && await store.get(snapshotKey()); return record?.data || {fiches: []}; },

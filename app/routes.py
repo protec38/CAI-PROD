@@ -27,6 +27,7 @@ from .models import (
     utilisateur_evenement,
     EventNews,
     BroadcastNotification,
+    OfflineMutation,
 )
 from .extensions import db, limiter
 from werkzeug.security import check_password_hash
@@ -54,6 +55,7 @@ import tempfile
 import redis
 from urllib.parse import urlparse, urljoin
 from sqlalchemy import text, func, or_
+from sqlalchemy.orm import selectinload
 import typing
 import unicodedata
 import threading
@@ -1710,34 +1712,15 @@ def fiche_sortie(id):
         flash("⛔ Vous n’avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
-    # Champs envoyés par la popup
-    destination = (request.form.get("destination") or "").strip()
-    moyen_transport = (request.form.get("moyen_transport") or "").strip()
-
-    # Mise à jour de la fiche
-    if destination:
-        fiche.destination = destination
-    if moyen_transport:
-        fiche.moyen_transport = moyen_transport
-
-    fiche.statut = "sorti"
-    fiche.heure_sortie = utcnow()
-
-    # 1er commit : on valide la mise à jour de la fiche
-    db.session.commit()
-
-    # ✅ Timeline : trace de la sortie
+    from .fiche_actions import apply_sortie
     try:
-        details = []
-        if destination:
-            details.append(f"destination={destination}")
-        if moyen_transport:
-            details.append(f"transport={moyen_transport}")
-        content = "Sortie" + (f" ({', '.join(details)})" if details else "")
-        add_timeline(fiche.id, user.id, content, "exit")
+        apply_sortie(fiche, user.id, (request.form.get("destination") or "").strip(),
+                     (request.form.get("moyen_transport") or "").strip())
         db.session.commit()
-    except Exception:
+    except ValueError as exc:
         db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
     flash(f"🚪 {fiche.nom} {fiche.prenom} est marqué comme 'sorti'.", "info")
     return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
@@ -1784,7 +1767,7 @@ def fiches_json(evenement_id):
 
     # Tri stable par id (asc) pour éviter les sauts d’ordre au refresh
     fiches = (
-        FicheImplique.query
+        FicheImplique.query.options(selectinload(FicheImplique.bagages))
         .filter_by(evenement_id=evenement_id)
         .order_by(FicheImplique.id.asc())
         .all()
@@ -1810,6 +1793,8 @@ def fiches_json(evenement_id):
             "heure_arrivee": fmt(h_arr),
             "heure_sortie": fmt(h_out),
             "destination": f.destination or "",
+            "moyen_transport": f.moyen_transport or "",
+            "bagages": [bagage.numero for bagage in f.bagages],
             "difficultes": f.difficultes or "",
             "competences": f.competences or "",
             "est_animal": bool(getattr(f, "est_animal", False)),
@@ -1856,6 +1841,8 @@ def fiches_json(evenement_id):
         "nb_present_animaux": nb_present_animaux,
         "nb_total_animaux": nb_total_animaux,
         "evenement": evt_payload,
+        "applied_operations": [operation.id for operation in OfflineMutation.query.filter_by(
+            evenement_id=evenement_id, utilisateur_id=user.id).all()],
     })
 
 
@@ -2375,64 +2362,14 @@ def fiche_bagages_ajouter(fiche_id):
         flash("⛔ Vous n’êtes pas autorisé à modifier les bagages.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
-    raw = (request.form.get("numeros") or "").strip()
-    # Découpe par virgules, espaces, points-virgules et retours à la ligne
-    nouveaux = [t.strip() for t in re.split(r"[\s,;]+", raw) if t.strip()]
-    # Dédoublonner en conservant l’ordre
-    uniques, vus = [], set()
-    for t in nouveaux:
-        if t not in vus:
-            uniques.append(t)
-            vus.add(t)
-    nouveaux_set = set(uniques)
-
-    # État actuel
-    existants = Bagage.query.filter_by(fiche_id=fiche.id).all()
-    existants_map = {b.numero: b for b in existants}
-    existants_set = set(existants_map.keys())
-
-    # Diff
-    a_supprimer = existants_set - nouveaux_set
-    a_ajouter = nouveaux_set - existants_set
-
-    deja_autre_fiche = []
-    ajoutes = []
-    supprimes = []
-
-    # Unicité au niveau évènement : un numéro ne peut pas être utilisé par une autre fiche du même centre
-    if a_ajouter:
-        doublons_centre = {
-            b.numero: b
-            for b in Bagage.query.filter(
-                Bagage.evenement_id == fiche.evenement_id,
-                Bagage.numero.in_(list(a_ajouter))
-            ).all()
-        }
-    else:
-        doublons_centre = {}
-
-    # Ajouter
-    for num in a_ajouter:
-        autre = doublons_centre.get(num)
-        if autre and autre.fiche_id != fiche.id:
-            deja_autre_fiche.append(num)
-            continue
-        db.session.add(Bagage(numero=num, fiche_id=fiche.id, evenement_id=fiche.evenement_id))
-        ajoutes.append(num)
-
-    # Supprimer
-    for num in a_supprimer:
-        db.session.delete(existants_map[num])
-        supprimes.append(num)
-
-    db.session.commit()
-
-    # Feedback
-    parts = []
-    if ajoutes: parts.append(f"Ajouté: {', '.join(sorted(ajoutes))}")
-    if supprimes: parts.append(f"Supprimé: {', '.join(sorted(supprimes))}")
-    if deja_autre_fiche: parts.append(f"En conflit (déjà utilisés par une autre fiche): {', '.join(sorted(deja_autre_fiche))}")
-    flash(" | ".join(parts) if parts else "Aucune modification.", "success" if (ajoutes or supprimes) else "info")
+    from .fiche_actions import apply_bagages
+    try:
+        apply_bagages(fiche, user.id, request.form.get("numeros") or "")
+        db.session.commit()
+        flash("Bagages enregistrés.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
 
     return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 

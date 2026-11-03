@@ -15,7 +15,7 @@ assert(html.includes('&lt;img'));
 
 const dashboard = fs.readFileSync('app/templates/dashboard.html', 'utf8');
 const dashboardHelpers = dashboard.slice(dashboard.indexOf('    function escapeHTML'), dashboard.indexOf('    const rowsCache')).replace(/\{\{ competence_colors \| tojson \| safe \}\}/g, '{}');
-const dashboardContext = vm.createContext({ CAN_DELETE_FICHE: true, CSRF_TOKEN: 'test-token' });
+const dashboardContext = vm.createContext({ CAN_DELETE_FICHE: true, CAN_BAGAGES: true, CSRF_TOKEN: 'test-token' });
 vm.runInContext(dashboardHelpers, dashboardContext);
 const row = dashboardContext.ligneFicheHTML({id: 1, numero: 'F1', nom: attack, prenom: attack, difficultes: attack, competences: attack, statut: attack, heure_arrivee: attack});
 assert(!row.includes('<img'), row);
@@ -23,9 +23,14 @@ assert(!dashboardContext.renderBagageBadges([attack]).includes('<img'));
 assert(!dashboardContext.formatNomCell({nom: attack, est_animal: true}).includes('<img'));
 assert(dashboardContext.syncBadgeHTML({pending: true}).includes('cai-sync-pending'));
 assert(dashboardContext.syncBadgeHTML({}).includes('Sur le serveur'));
-const pendingActions = dashboardContext.actionsHTML({pending: true, event_id: 1, client_uuid: 'test-uuid'});
+const pendingActions = dashboardContext.actionsHTML({id: 'local-test-uuid', pending: true, creationPending: true, event_id: 1, client_uuid: 'test-uuid'});
 assert(pendingActions.includes('/fiche/new?evenement_id=1&draft=test-uuid'));
 assert(!pendingActions.includes('/fiche/edit/'));
+assert(pendingActions.includes('ouvrirModalBagage(&quot;local-test-uuid&quot;'));
+assert(pendingActions.includes('ouvrirModalSortie(&quot;local-test-uuid&quot;'));
+const existingPendingActions = dashboardContext.actionsHTML({id: 4, pending: true, numero: '001-0004'});
+assert(existingPendingActions.includes('ouvrirModalBagage(4'));
+assert(existingPendingActions.includes('ouvrirModalSortie(4'));
 
 let calls = [];
 let currentToken = 'csrf-token';

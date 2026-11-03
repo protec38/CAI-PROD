@@ -217,6 +217,7 @@ class FicheImplique(db.Model):
 
     # Timeline relation
     timeline_entries = db.relationship('TimelineEntry', backref='fiche', lazy='dynamic', cascade='all, delete-orphan')
+    offline_mutations = db.relationship('OfflineMutation', cascade='all, delete-orphan')
 
     evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id'), nullable=False)
     utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id'), nullable=False)
@@ -235,8 +236,20 @@ class FicheImplique(db.Model):
 
 
 # ======================
-# Animal
+# Accusé de réception d’une action synchronisée
 # ======================
+class OfflineMutation(db.Model):
+    """Receipt committed with an offline action, so delivery retries are safe."""
+    id = db.Column(db.String(36), primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False)
+    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='CASCADE'), nullable=False)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='CASCADE'), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    payload_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
+# Animal
 class Animal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     espece = db.Column(db.String(50), nullable=True)

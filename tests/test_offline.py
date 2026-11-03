@@ -105,6 +105,14 @@ def test_public_shell_has_no_account_data(app, client):
     response = app.test_client().get("/hors-ligne")
     assert response.status_code == 200
     assert b"Example" not in response.data
+    assert b'fiches-table-body' in response.data
+    assert b'filter-statut' in response.data
+    assert b'modal-bagage' in response.data
+    assert b'modal-sortie' in response.data
+    assert b'cai-offline-fiches' not in response.data
+    assert b'"userId"' not in response.data
+    assert "Set-Cookie" not in response.headers
+    assert client.get("/hors-ligne").data == response.data
     form = app.test_client().get("/hors-ligne/fiche")
     assert form.status_code == 200
     assert b"cai-offline-form-page" in form.data

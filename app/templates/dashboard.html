@@ -5,7 +5,7 @@
   <title>Tableau de bord</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- CSRF pour AJAX -->
-  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="csrf-token" content="{{ '' if offline_mode | default(false) else csrf_token() }}">
 
   <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
@@ -484,8 +484,8 @@
   </style>
 </head>
 
-<body>
-  {% include "_broadcast_banner.html" %}
+<body{% if offline_mode | default(false) %} class="cai-offline-dashboard"{% endif %}>
+  {% if not offline_mode | default(false) %}{% include "_broadcast_banner.html" %}{% endif %}
   <header class="app-header">
     <div class="app-header__title">
       <h1><i class="fa-solid fa-chart-line"></i> Tableau de bord</h1>
@@ -506,10 +506,11 @@
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i class="fa-solid fa-ticket"></i> Tickets</a>
       {% endif %}
-      <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
+      <form method="POST" action="{{ url_for('main_bp.logout') }}" style="display:inline"><input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}"><button type="submit" class="btn btn-logout"><i class="fa-solid fa-right-from-bracket"></i> Déconnexion</button></form>
     </div>
   </header>
 
+  {% if not offline_mode | default(false) %}
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div class="flashes">
@@ -519,6 +520,7 @@
       </div>
     {% endif %}
   {% endwith %}
+  {% endif %}
 
   {% if evenement %}
   <div class="event-info">
@@ -528,13 +530,13 @@
         <i class="fa-solid fa-location-dot"></i>
         <span id="evt-adresse">{{ evenement.adresse }}</span>
       </span>
-      <span class="event-chip"><i class="fa-solid fa-clock"></i> Créé le {{ evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span>
+      <span class="event-chip"><i class="fa-solid fa-clock"></i> Créé le <span id="evt-date">{{ '' if offline_mode | default(false) else evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span></span>
       <span class="event-chip"><i class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
       <span class="event-chip"><i class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
             <i class="fa-solid fa-signal"></i>
             <select id="evt-statut-select" name="statut_evt" onchange="this.form.submit()">
               {% for option in ['En cours de gréement', 'Ouvert', 'Effectif dépassé', 'Complet', 'Fermé'] %}
@@ -628,7 +630,7 @@
         <button class="close" onclick="fermerModalBagage()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-bagage" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="bagage-fiche-numero" value="" readonly />
@@ -655,7 +657,7 @@
         <button class="close" onclick="fermerModalSortie()" aria-label="Fermer">&times;</button>
       </div>
       <form id="form-sortie" method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ '' if offline_mode | default(false) else csrf_token() }}">
         <div class="form-group">
           <label>Fiche</label>
           <input type="text" id="sortie-fiche-numero" value="" readonly />
@@ -679,10 +681,13 @@
 
   <script>
     /* Droit suppression (évalué serveur) */
-    const CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
+    let CAN_DELETE_FICHE = {{ 'true' if (user.is_admin or (user.role|lower in ['codep','responsable'])) else 'false' }};
+
+    let CAN_BAGAGES = {{ 'true' if (user.is_admin or user.role|lower in ['codep','responsable','technicien']) else 'false' }};
+    let DASHBOARD_EVENT_ID = {{ evenement.id }};
 
     /* CSRF header pour tous les fetch */
-    const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]')?.content || '');
+    let CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]')?.content || '');
     const FETCH_HEADERS = {
       'Accept': 'application/json',
       'X-Requested-With': 'XMLHttpRequest',
@@ -773,28 +778,17 @@
     }
 
     function actionsHTML(f){
-      if(f.pending && f.deliveryStarted) return 'En attente de confirmation du serveur';
-      if(f.pending) return `<a href="/fiche/new?evenement_id=${encodeURIComponent(f.event_id)}&draft=${encodeURIComponent(f.client_uuid)}">Ouvrir / corriger la fiche en attente</a>`;
-      const delBtn = CAN_DELETE_FICHE ? `
-        <form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');">
-          <input type="hidden" name="csrf_token" value="${CSRF_TOKEN}">
-          <button type="submit" class="btn-action btn-red" title="Supprimer la fiche">
-            <i class="fa-solid fa-trash-can"></i> <span>Supprimer</span>
-          </button>
-        </form>` : ``;
-
-      return `
-        <div class="actions">
-          <a class="btn-action btn-blue" href="/fiche/${f.id}" title="Voir la fiche"><i class="fa-solid fa-eye"></i> <span>Voir</span></a>
-          <a class="btn-action btn-yellow" href="/fiche/edit/${f.id}" title="Modifier la fiche"><i class="fa-solid fa-pen-to-square"></i> <span>Modifier</span></a>
-          <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${f.id}, ${escapeHTML(JSON.stringify(f.numero))})">
-            <i class="fa-solid fa-person-walking-arrow-right"></i> <span>Sortie</span>
-          </button>
-          <button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${f.id}, ${escapeHTML(JSON.stringify(f.numero))})">
-            <i class="fa-solid fa-suitcase-rolling"></i> <span>Bagage</span>
-          </button>
-          ${delBtn}
-        </div>`;
+      const idArg = escapeHTML(JSON.stringify(f.id));
+      const numberArg = escapeHTML(JSON.stringify(f.numero));
+      const creationPending = f.creationPending || String(f.id).startsWith('local-');
+      const primary = creationPending ? (f.deliveryStarted ? '' :
+        '<a href="/fiche/new?evenement_id=' + encodeURIComponent(f.event_id) + '&draft=' + encodeURIComponent(f.client_uuid) + '">Ouvrir / corriger</a>') :
+        '<a class="btn-action btn-blue" href="/fiche/' + f.id + '">Voir</a> <a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '">Modifier</a>';
+      const delBtn = CAN_DELETE_FICHE && !f.pending ? `<form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');"><input type="hidden" name="csrf_token" value="${CSRF_TOKEN}"><button type="submit" class="btn-action btn-red">Supprimer</button></form>` : '';
+      return `<div class="actions">${primary}
+        <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${idArg}, ${numberArg})"><i class="fa-solid fa-person-walking-arrow-right" aria-hidden="true"></i> <span>Sortie</span></button>
+        ${CAN_BAGAGES ? `<button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${idArg}, ${numberArg})"><i class="fa-solid fa-suitcase-rolling" aria-hidden="true"></i> <span>Bagages</span></button>` : ''}
+        ${delBtn}</div>`;
     }
 
     function syncBadgeHTML(f){
@@ -803,7 +797,7 @@
 
     function ligneFicheHTML(f){
       return `
-        <tr id="fiche-row-${f.id}">
+        <tr id="fiche-row-${f.id}" class="${f.pending ? 'cai-row-pending' : ''}">
           <td data-col="numero">${escapeHTML(f.numero)}<br>${syncBadgeHTML(f)}</td>
           <td data-col="nom">${formatNomCell(f)}</td>
           <td data-col="prenom">${escapeHTML(formatPrenomCell(f))}</td>
@@ -811,7 +805,7 @@
           <td data-col="heure_arrivee">${escapeHTML(f.heure_arrivee)}</td>
           <td data-col="difficultes">${escapeHTML(f.difficultes)}</td>
           <td data-col="competences">${renderCompetenceBadges(f.competences)}</td>
-          <td class="bagages-cell"><div id="bagages-${f.id}"><em>${f.pending ? 'Après synchronisation' : 'Chargement…'}</em></div></td>
+          <td class="bagages-cell"><div id="bagages-${f.id}">${renderBagageBadges(f.bagages || [])}</div></td>
           <td data-col="actions">${actionsHTML(f)}</td>
         </tr>`;
     }
@@ -839,21 +833,9 @@
         tr.dataset.typeFiche = (f.type_fiche || (f.est_animal ? 'animal' : 'humain'));
       }
       rowsCache.set(f.id, f);
-      if(!f.pending) majBagagesCell(f.id);
-    }
-
-    async function majBagagesCell(ficheId){
-      try{
-        const r = await fetch(`/fiche/${ficheId}/bagages_json`, { credentials:'include', headers: FETCH_HEADERS });
-        const d = await r.json();
-        const cible=document.getElementById(`bagages-${ficheId}`);
-        if(!cible) return;
-        const html=(d && Array.isArray(d.numeros))? renderBagageBadges(d.numeros) : '<em>Aucun</em>';
-        setHTMLIfChanged(cible, html);
-      }catch(_){
-        const cible=document.getElementById(`bagages-${ficheId}`);
-        if(cible) setHTMLIfChanged(cible, '<em>—</em>');
-      }
+      tr.classList.toggle('cai-row-pending', !!f.pending);
+      setHTMLIfChanged(tr.querySelector('[data-col="actions"]'), actionsHTML(f));
+      setHTMLIfChanged(document.getElementById('bagages-' + f.id), renderBagageBadges(f.bagages || []));
     }
 
     function getSelectValues(sel){ return Array.from(sel.selectedOptions||[]).map(o=>o.value); }
@@ -939,24 +921,43 @@
       setInterval(refreshFiches, 3000);
     });
 
-    window.addEventListener("cai:sync", () => refreshFiches());
+    window.addEventListener('cai:sync', () => refreshFiches());
+    window.addEventListener('cai:local', () => renderLocalRows());
+    window.CAIDashboard = {
+      setToken(token) { CSRF_TOKEN=token; },
+      getFiche(id) { return [...rowsCache.values()].find(fiche => String(fiche.id) === String(id) ||
+        (fiche.client_uuid && ('local-' + fiche.client_uuid === String(id) || fiche.client_uuid === String(id)))); },
+      configure(context) {
+        DASHBOARD_EVENT_ID = context.eventId;
+        CAN_DELETE_FICHE = !!context.permissions?.canDelete;
+        CAN_BAGAGES = !!context.permissions?.canBagages;
+        document.querySelectorAll('a[href]').forEach(link => {
+          link.href = link.href.replace(/\/evenement\/0(?=\/|$)/g, '/evenement/' + context.eventId)
+            .replace(/evenement_id=0(?=&|$)/g, 'evenement_id=' + context.eventId);
+        });
+        document.body.dataset.caiReady='true';
+        refreshFiches();
+      },
+    };
+    async function renderLocalRows() {
+      if(window.CAIOffline?.context()) renderDashboardData(await window.CAIOffline.listFiches(await window.CAIOffline.cached()));
+    }
     let refreshInProgress = false;
     async function refreshFiches(){
-      if(refreshInProgress) return;
-      refreshInProgress = true;
-      try{
-        let data;
-        try {
-          const res = await fetch(`/evenement/{{ evenement.id }}/fiches_json`, { credentials:'include', headers: FETCH_HEADERS, signal: AbortSignal.timeout(8000) });
-          if(!res.ok || res.redirected) return;
-          data = await res.json();
-          if(window.CAIOffline) await window.CAIOffline.snapshot(data);
-        } catch(error) {
-          if(!window.CAIOffline) throw error;
-          data = await window.CAIOffline.cached();
-        }
-        if(window.CAIOffline) data = await window.CAIOffline.listFiches(data);
-
+      if(window.CAIOffline && !window.CAIOffline.context()) return;
+      await renderLocalRows();
+      if(refreshInProgress || !DASHBOARD_EVENT_ID || navigator.onLine === false) return;
+      refreshInProgress=true;
+      try {
+        const res=await fetch('/evenement/'+DASHBOARD_EVENT_ID+'/fiches_json', {credentials:'include',headers:FETCH_HEADERS,signal:AbortSignal.timeout(8000)});
+        if(!res.ok || res.redirected) return;
+        const data=await res.json();
+        if(window.CAIOffline) await window.CAIOffline.snapshot(data);
+        renderDashboardData(window.CAIOffline ? await window.CAIOffline.listFiches(data) : data);
+      } catch(error) { /* Keep the classic table and its local changes. */ }
+      finally { refreshInProgress=false; }
+    }
+    function renderDashboardData(data){
         const idsActuels = new Set();
         (data.fiches || []).forEach(f => {
           idsActuels.add(f.id);
@@ -999,30 +1000,21 @@
         }
 
         applyAllFilters();
-      }catch(err){
-        console.error("Erreur refreshFiches:", err);
-      }finally{refreshInProgress = false;}
+        if(data.evenement?.date_ouverture) setTextIfChanged(document.getElementById('evt-date'), data.evenement.date_ouverture);
     }
 
     function ouvrirModalBagage(ficheId, ficheNumero){
       const form=document.getElementById('form-bagage');
-      form.action="/fiche/"+ficheId+"/bagages/ajouter";
+      const fiche=window.CAIDashboard.getFiche(ficheId);
+      if(!fiche) return;
+      form.dataset.ficheId=String(ficheId);
+      form.dataset.baseNumeros=(fiche.bagages || []).join(', ');
+      form.action='/fiche/'+ficheId+'/bagages/ajouter';
       document.getElementById('bagage-fiche-id').value=ficheId;
-      document.getElementById('bagage-fiche-numero').value=ficheNumero||("#"+ficheId);
-      document.getElementById('numeros').value="";
-      fetch("/fiche/"+ficheId+"/bagages_json", { credentials:'include', headers: FETCH_HEADERS })
-        .then(r=>r.json())
-        .then(data=>{
-          if(data && Array.isArray(data.numeros)){
-            document.getElementById('numeros').value=data.numeros.join(", ");
-          }
-          document.getElementById('modal-bagage').style.display='flex';
-          setTimeout(()=>document.getElementById('numeros').focus(),50);
-        })
-        .catch(()=>{
-          document.getElementById('modal-bagage').style.display='flex';
-          setTimeout(()=>document.getElementById('numeros').focus(),50);
-        });
+      document.getElementById('bagage-fiche-numero').value=ficheNumero;
+      document.getElementById('numeros').value=form.dataset.baseNumeros;
+      document.getElementById('modal-bagage').style.display='flex';
+      setTimeout(()=>document.getElementById('numeros').focus(),50);
     }
     function fermerModalBagage(){
       const m=document.getElementById('modal-bagage'); if(m) m.style.display='none';
@@ -1031,6 +1023,9 @@
     function ouvrirModalSortie(ficheId, ficheNumero, destination="", moyen=""){
       const form=document.getElementById('form-sortie');
       form.action="/fiche/"+ficheId+"/sortie";
+      form.dataset.ficheId=String(ficheId);
+      const fiche=window.CAIDashboard.getFiche(ficheId);
+      destination=fiche?.destination || destination; moyen=fiche?.moyen_transport || moyen;
       document.getElementById('sortie-fiche-id').value=ficheId;
       document.getElementById('sortie-fiche-numero').value=ficheNumero||("#"+ficheId);
       document.getElementById('sortie-destination').value=destination||"";

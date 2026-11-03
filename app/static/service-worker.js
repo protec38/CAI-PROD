@@ -1,7 +1,7 @@
 /* Only the public shell and local assets are cached. Never cache sessions,
    authenticated HTML, API responses, mutations, exports or shared links. */
 // Bump the cache version whenever a shell asset changes.
-const CACHE = 'cai-shell-v2';
+const CACHE = 'cai-shell-v3';
 const ASSETS = ['/hors-ligne', '/hors-ligne/fiche', '/static/offline.css', '/static/offline-store.js', '/static/offline.js'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
@@ -23,7 +23,7 @@ self.addEventListener('fetch', event => {
     (/^\/evenement\/\d+\/dashboard$/.test(url.pathname) ||
       ['/', '/evenement/new', '/fiche/new'].includes(url.pathname))) {
     const fallback = url.pathname === '/fiche/new' ? '/hors-ligne/fiche' : '/hors-ligne';
-    event.respondWith(fetch(event.request).then(async response => {
+    event.respondWith(fetch(event.request, {signal: AbortSignal.timeout(6000)}).then(async response => {
       if (response.status >= 500) return (await caches.match(fallback)) || response;
       return response;
     }).catch(() => caches.match(fallback)));

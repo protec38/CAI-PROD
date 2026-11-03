@@ -53,9 +53,23 @@ mettre aussi à jour le rôle PostgreSQL et `DATABASE_URL` de manière coordonn�
 Ouvrir le tableau de bord de chaque évènement avec une connexion sur chaque
 appareil, et attendre la pastille verte « Synchronisé au serveur ». Le bouton
 **Créer une fiche impliquée** utilise le même formulaire avec ou sans réseau.
-Le tableau de bord conserve la dernière copie de la liste et permet de corriger
-une fiche en attente. L'écran fonctionne sans ressources externes. L'accès au
-tableau de bord ou à la création bascule aussi sur cet écran si le réseau tombe.
+Après création, l’application revient toujours au **tableau de bord classique**,
+avec les mêmes filtres, colonnes et fenêtres Bagages et Sortie. Ce tableau utilise
+la dernière copie du serveur et les modifications locales quand le réseau tombe ;
+il n’y a pas de second tableau de bord. Le formulaire et le tableau fonctionnent
+sans ressources externes.
+
+Les bagages et les sorties peuvent être saisis sans connexion sur une fiche
+existante ou créée hors ligne. La ligne devient orange **En attente du serveur** ;
+les bagages, le statut de sortie et les compteurs se mettent à jour immédiatement
+et restent présents après rechargement. La synchronisation crée d’abord les
+fiches, puis applique les actions dans leur ordre de saisie. L’heure de sortie
+conservée est celle de sa déclaration sur l’appareil.
+
+Chaque action possède un accusé de réception pour éviter les doublons lors
+d’une nouvelle tentative. Un conflit de numéro de bagage conserve la ligne
+orange avec son message d’erreur ; il peut être corrigé depuis la même fenêtre.
+Les modifications de bagages préservent les ajouts simultanés d’autres opérateurs.
 
 La petite pastille en haut indique **Mode hors ligne** en orange, puis
 **Synchronisé au serveur** en vert après confirmation de tous les envois.
@@ -87,7 +101,8 @@ statique et ses ressources, sans pages authentifiées ni réponses API.
 
 Au déploiement, exécuter `python manage.py init-db` avant de démarrer les
 workers (déjà prévu par le démarrage Docker). Cette commande ajoute
-`fiche_implique.client_uuid` et son index unique aux bases existantes. Les tests
+`fiche_implique.client_uuid` et son index unique aux bases existantes, et crée
+la table `offline_mutation` des accusés de réception (incluse dans les sauvegardes). Les tests
 de concurrence PostgreSQL sont inclus dans la suite exécutée en CI.
 
 ## Sauvegardes et restauration

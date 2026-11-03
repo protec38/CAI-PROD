@@ -58,20 +58,34 @@
     beginDelivery(key) {
       return change(key, current => current && !current.server ? {...current, deliveryStarted: true} : null);
     },
+    async enqueueAction(record) {
+      const db = await database();
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction('records', 'readwrite');
+        const objects = transaction.objectStore('records');
+        const sequence = objects.get('action-sequence');
+        sequence.onsuccess = () => {
+          record.sequence = (sequence.result?.value || 0) + 1;
+          objects.put({key: 'action-sequence', value: record.sequence}); objects.put(record);
+        };
+        transaction.oncomplete = () => resolve(record);
+        transaction.onerror = () => reject(transaction.error);
+        transaction.onabort = () => reject(transaction.error || new Error('Stockage interrompu.'));
+      });
+    },
     async pending(userId, eventId) {
-      return (await this.all()).filter(record => record.kind === 'fiche' &&
+      return (await this.all()).filter(record => ['fiche', 'mutation'].includes(record.kind) &&
         record.userId === userId && (!eventId || record.eventId === eventId) && !record.server)
         .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     },
     async acknowledge(key, result) {
       return change(key, record => {
-        if (!record || result.client_uuid !== record.uuid || !result.synced || !result.id || !result.numero) {
+        if (!record || (record.kind === 'mutation' ? result.operation_uuid : result.client_uuid) !== record.uuid || !result.synced || !result.id || !result.numero) {
           throw new Error('Confirmation du serveur invalide. La fiche reste en attente.');
         }
         record.server = {id: result.id, numero: result.numero};
         record.error = '';
-        // Keep a small receipt after sync rather than a second complete form.
-        record.fields = [];
+        // Keep the local version until a fresh snapshot confirms this receipt.
         return record;
       });
     },
