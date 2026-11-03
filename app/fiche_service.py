@@ -6,10 +6,16 @@ import pytz
 from sqlalchemy.exc import IntegrityError
 
 from .extensions import db
-from .models import Evenement, FicheImplique, TimelineEntry
+from .models import Evenement, FicheImplique, TimelineEntry, OfflineDeletion
 from .time_utils import utcnow
 
 PARIS_TZ = pytz.timezone("Europe/Paris")
+
+
+class FicheDeletedError(ValueError):
+    def __init__(self, receipt):
+        super().__init__("Cette fiche a déjà été supprimée du serveur.")
+        self.receipt = receipt
 
 
 def next_fiche_number(event_id):
@@ -29,6 +35,9 @@ def save_fiche(form, evenement, user, client_uuid=None):
             db.session.execute(db.select(Evenement.id).where(
                 Evenement.id == event_id).with_for_update())
             if client_uuid:
+                deleted = OfflineDeletion.query.filter_by(evenement_id=event_id, fiche_uuid=client_uuid).first()
+                if deleted:
+                    raise FicheDeletedError(deleted)
                 existing = FicheImplique.query.filter_by(client_uuid=client_uuid).first()
                 if existing:
                     if existing.evenement_id != event_id or existing.utilisateur_id != user_id:

@@ -3,6 +3,7 @@
   const store = globalThis.CAIOfflineStore;
   const shell = document.body.classList.contains('cai-offline-dashboard');
   const offlineForm = document.body.classList.contains('cai-offline-form-page');
+  const offlineDetail = document.body.classList.contains('cai-offline-detail');
   let context, busy = false, syncAgain = false, editing = null, panel, status, queue, indicator, connectionLabel;
   const field = (record, name) => (record.fields.find(pair => pair[0] === name) || [])[1] || '';
   const snapshotKey = () => `snapshot:${context.userId}:${context.eventId}`;
@@ -47,14 +48,14 @@
   }
   async function renderQueue() {
     queue.replaceChildren();
-    const records = (await store.all()).filter(record => ['fiche', 'mutation'].includes(record.kind) &&
+    const records = (await store.all()).filter(record => !record.cancelled && ['fiche', 'mutation'].includes(record.kind) &&
       record.userId === context.userId && record.eventId === context.eventId);
     // Retain a short list of receipts, and every pending record.
     const recent = records.filter(record => record.server).slice(-5);
     for (const record of records.filter(record => !record.server).concat(recent)) {
       const li = document.createElement('li');
       li.append(document.createTextNode(
-        ` ${record.server ? record.server.numero : record.provisional} — ${label(record)}${record.kind === 'mutation' ? ' · ' + (record.action === 'bagages' ? 'Bagages' : 'Sortie') : ''}${record.server ? ' · Synchronisé' : ' · En attente du serveur'}`));
+        ` ${record.server ? record.server.numero : record.provisional} — ${label(record)}${record.kind === 'mutation' ? ' · ' + ({bagages: 'Bagages', sortie: 'Sortie', delete: 'Suppression'}[record.action]) : ''}${record.server ? ' · Synchronisé' : ' · En attente du serveur'}`));
       if (record.server && record.server.numero !== record.provisional) {
         li.append(document.createTextNode(` · ancien n° ${record.provisional}`));
       }
@@ -76,12 +77,13 @@
   }
   const numbers = raw => [...new Set(String(raw || '').split(/[\s,;]+/).filter(Boolean))];
   const formatDate = value => new Date(value).toLocaleString('fr-FR', {timeZone: 'Europe/Paris'});
-  const sameTarget = (fiche, target) => target.uuid ? fiche.client_uuid === target.uuid : String(fiche.id) === String(target.id);
+  const sameTarget = (fiche, target) => target.uuid ? fiche.client_uuid === target.uuid :
+    String(fiche.id) === String(target.id) && (!target.identity || target.identity === fiche.identity_token);
   async function listFiches(data) {
     if (!context) return data;
-    const records = (await store.all()).filter(record => record.userId === context.userId && record.eventId === context.eventId);
+    const records = (await store.all()).filter(record => !record.cancelled && record.userId === context.userId && record.eventId === context.eventId);
     const confirmed = new Set((data.fiches || []).map(fiche => fiche.client_uuid));
-    const fiches = (data.fiches || []).map(fiche => ({...fiche, bagages: [...(fiche.bagages || [])]}));
+    const fiches = (data.fiches || []).map(fiche => ({...fiche, bagages: [...(fiche.bagages || [])], timeline: [...(fiche.timeline || [])]}));
     for (const record of records.filter(record => record.kind === 'fiche' && !record.observed && record.fields?.length && !confirmed.has(record.uuid))) {
       fiches.push({id: record.server?.id || 'local-' + record.uuid, client_uuid: record.uuid,
         creationPending: !record.server, pending: !record.server, event_id: record.eventId,
@@ -89,6 +91,11 @@
         nom: field(record, 'type_fiche') === 'animal' ? field(record, 'animal_nom') : field(record, 'nom'),
         prenom: field(record, 'prenom'), statut: 'présent', bagages: [],
         est_animal: field(record, 'type_fiche') === 'animal', type_fiche: field(record, 'type_fiche'),
+        ...Object.fromEntries(['date_naissance', 'nationalite', 'adresse', 'telephone', 'numero_pec',
+          'personne_a_prevenir', 'tel_personne_a_prevenir', 'recherche_personne', 'code_sinus',
+          'autres_informations', 'effets_perso', 'numero_recherche'].map(name => [name, field(record, name)])),
+        animal_details: field(record, 'animal_notes'), referent_id: field(record, 'animal_referent_id'),
+        timeline: [{content: 'Création de la fiche', created_at: formatDate(record.createdAt), pending: !record.server}],
         animal_espece: field(record, 'animal_espece'), heure_arrivee: formatDate(record.createdAt),
         difficultes: field(record, 'difficulte') || field(record, 'animal_particularites'),
         competences: record.fields.filter(pair => pair[0] === 'competences').map(pair => pair[1]).join(',')});
@@ -101,25 +108,34 @@
       if (!fiche) continue;
       fiche.pending = !!fiche.pending || !record.server;
       if (record.error) fiche.sync_error = record.error;
+      fiche.timeline.push({content: {bagages: 'Modification des bagages', sortie: 'Sortie', delete: 'Suppression demandée'}[record.action],
+        created_at: formatDate(record.createdAt), pending: !record.server});
       if (record.action === 'bagages') {
         const base = numbers(record.payload.base_numeros), desired = numbers(record.payload.numeros);
         fiche.bagages = [...new Set([...fiche.bagages.filter(number => !base.includes(number) || desired.includes(number)),
           ...desired.filter(number => !base.includes(number))])];
-      } else {
+      } else if (record.action === 'sortie') {
         fiche.statut = 'sorti'; fiche.heure_sortie = formatDate(record.createdAt);
         fiche.destination = record.payload.destination || fiche.destination;
         fiche.moyen_transport = record.payload.moyen_transport || fiche.moyen_transport;
+      } else if (record.action === 'delete') {
+        fiche.deletionPending = !record.server; fiche.deletedConfirmed = !!record.server;
+        fiche.statut = 'supprimé';
       }
     }
-    const result = {...data, fiches};
+    const visible = fiches.filter(fiche => !fiche.deletedConfirmed);
+    const result = {...data, fiches: visible};
     for (const animal of [false, true]) {
-      const rows = fiches.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
+      const rows = visible.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
       result['nb_total' + suffix] = rows.length;
       result['nb_present' + suffix] = rows.filter(fiche => fiche.statut === 'présent').length;
     }
     return result;
   }
   async function snapshot(data) {
+    const previous = await store.get(snapshotKey());
+    data = {...data, fiches: (data.fiches || []).map(fiche => ({...fiche,
+      timeline: fiche.timeline ?? previous?.data.fiches.find(other => other.id === fiche.id)?.timeline}))};
     await store.put({key: snapshotKey(), kind: 'snapshot', data, savedAt: new Date().toISOString()});
     const creations = new Set((data.fiches || []).map(fiche => fiche.client_uuid));
     const operations = new Set(data.applied_operations || []);
@@ -130,7 +146,7 @@
     }
   }
   async function refreshSnapshot() {
-    const response = await fetch(`/evenement/${context.eventId}/fiches_json`, {cache: 'no-store'});
+    const response = await fetch(`/evenement/${context.eventId}/fiches_json?details=1`, {cache: 'no-store'});
     if (!response.ok || response.redirected) throw new Error('Impossible d’actualiser les fiches du serveur.');
     const data = await response.json(); await snapshot(data);
   }
@@ -179,6 +195,7 @@
           body.set('operation_uuid', record.uuid); body.set('kind', record.action);
           body.set('occurred_at', record.createdAt);
           body.set(record.target.uuid ? 'fiche_uuid' : 'fiche_id', record.target.uuid || String(record.target.id));
+          if (record.target.identity) body.set('identity_token', record.target.identity);
         } else {
           body.set('client_uuid', record.uuid); body.set('heure_arrivee_utc', record.createdAt);
         }
@@ -201,6 +218,11 @@
           continue;
         }
         await store.acknowledge(record.key, json);
+        if (record.kind === 'fiche' && json.deleted) {
+          for (const action of (await store.pending(record.userId, record.eventId)).filter(action => action.target?.uuid === record.uuid)) {
+            await store.change(action.key, current => ({...current, cancelled: true}));
+          }
+        }
         window.dispatchEvent(new Event('cai:local'));
       }
       await refreshSnapshot();
@@ -294,14 +316,17 @@
     if (action === 'bagages' && !context.permissions?.canBagages) {
       throw new Error('Vous n’êtes pas autorisé à modifier les bagages.');
     }
+    if (action === 'delete' && !context.permissions?.canDelete) throw new Error('Vous n’êtes pas autorisé à supprimer cette fiche.');
+    if (fiche.deletionPending) throw new Error('Cette fiche est déjà en attente de suppression.');
     if (action === 'bagages' && (values.numeros.length > 300 || numbers(values.numeros).some(number => number.length > 50))) {
       throw new Error('Liste trop longue : 300 caractères au total et 50 caractères par numéro de bagage.');
     }
-    const target = fiche.client_uuid ? {uuid: fiche.client_uuid} : {id: fiche.id};
+    const target = fiche.client_uuid ? {uuid: fiche.client_uuid} : {id: fiche.id, identity: fiche.identity_token};
     const pending = (await store.pending(context.userId, context.eventId)).filter(record =>
       record.kind === 'mutation' && record.action === action && sameTarget(fiche, record.target));
     const latest = pending.sort((a,b) => b.sequence - a.sequence)[0];
-    if (latest && !latest.deliveryStarted) {
+    let saved;
+    if (action !== 'delete' && latest && !latest.deliveryStarted) {
       await store.change(latest.key, current => {
         if (current.server || current.deliveryStarted) throw new Error('Un envoi vient de démarrer. Réessayez après sa confirmation.');
         return {...current, error: '', revision: (current.revision || 0) + 1,
@@ -309,16 +334,118 @@
       });
     } else {
       const uuid = store.uuid();
-      await store.enqueueAction({key: `action:${uuid}`, uuid, kind: 'mutation', action, target,
+      saved = await store.enqueueAction({key: `action:${uuid}`, uuid, kind: 'mutation', action, target,
         userId: context.userId, eventId: context.eventId, createdAt: new Date().toISOString(),
+        localOnlyCandidate: !!fiche.creationPending,
         label: `${fiche.nom || ''} ${fiche.prenom || ''}`.trim(), provisional: fiche.numero, payload: values, revision: 1});
     }
-    say('Modification enregistrée sur cet appareil, en attente du serveur.', navigator.onLine === false ? 'offline' : 'pending');
+    say(saved?.localCancelled ? 'Fiche locale supprimée. Elle ne sera pas envoyée au serveur.' :
+      'Modification enregistrée sur cet appareil, en attente du serveur.', navigator.onLine === false ? 'offline' : 'pending');
     window.dispatchEvent(new Event('cai:local'));
     await renderQueue();
     sync().catch(report);
   }
+  async function deleteFiche(fiche) {
+    if (!fiche || !window.confirm(`Confirmer la suppression de la fiche ${fiche.numero} ?`)) return false;
+    await queueAction('delete', fiche, {identity_token: fiche.identity_token || '', numero: fiche.numero});
+    return true;
+  }
+  function element(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function detailCard(title, pairs) {
+    const card = element('article', 'card'), body = element('div', 'bd'), fields = element('div', 'fields');
+    card.append(element('div', 'hd', title));
+    for (const [name, title, value] of pairs) {
+      const field = element('div', 'field'), content = element('div', 'value', value || '—');
+      content.dataset.field = name; field.append(element('div', 'label', title), content); fields.append(field);
+    }
+    body.append(fields); card.append(body); return card;
+  }
+  async function renderDetail() {
+    const root = document.getElementById('cai-detail-content'); if (!root || !context) return;
+    const id = new URLSearchParams(location.search).get('fiche') || decodeURIComponent(location.pathname.split('/').pop());
+    const data = await listFiches(await window.CAIOffline.cached());
+    const fiche = data.fiches.find(fiche => String(fiche.id) === id || 'local-' + fiche.client_uuid === id || fiche.client_uuid === id);
+    document.querySelector('[data-cai-dashboard-link]').href = `/evenement/${context.eventId}/dashboard`;
+    root.replaceChildren();
+    if (!fiche) {
+      root.append(element('p', 'card bd', 'Cette fiche a été supprimée ou n’est pas disponible dans la copie de cet appareil.'));
+      return;
+    }
+    document.title = `Fiche ${fiche.numero} — ${fiche.nom} ${fiche.prenom || ''}`;
+    const hero = element('section', 'hero'), state = element('span', 'cai-sync-badge' + (fiche.pending ? ' cai-sync-pending' : ''));
+    const dot = element('span', 'cai-sync-dot'); dot.setAttribute('aria-hidden', 'true');
+    state.append(dot, document.createTextNode(fiche.deletionPending ? 'Suppression en attente du serveur' : fiche.pending ? 'En attente du serveur' : 'Sur le serveur'));
+    hero.append(state, element('h1', '', `Fiche ${fiche.numero} — ${fiche.nom} ${fiche.prenom || ''}`),
+      element('p', 'meta', `Évènement : ${context.eventName} · ${fiche.est_animal ? 'Animal' : 'Humain'} · ${fiche.statut}`));
+    if (context.permissions?.canDelete && !fiche.deletionPending) {
+      const button = element('button', 'btn secondary', 'Supprimer la fiche'); button.type = 'button';
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        try { if (await deleteFiche(fiche)) location.assign(`/evenement/${context.eventId}/dashboard`); }
+        catch (error) { report(error); }
+        finally { button.disabled = false; }
+      });
+      hero.append(button);
+    }
+    root.append(hero);
+    const grid = element('section', 'grid');
+    grid.append(detailCard('Identité', fiche.est_animal ? [
+      ['nom', 'Nom', fiche.nom], ['animal_espece', 'Espèce', fiche.animal_espece],
+      ['animal_details', 'Notes', fiche.animal_details], ['difficultes', 'Particularités', fiche.difficultes],
+    ] : [
+      ['nom', 'Nom', fiche.nom], ['prenom', 'Prénom', fiche.prenom],
+      ['date_naissance', 'Date de naissance', fiche.date_naissance?.split('-').reverse().join('/')],
+      ['nationalite', 'Nationalité', fiche.nationalite], ['adresse', 'Adresse', fiche.adresse],
+      ['telephone', 'Téléphone', fiche.telephone], ['code_sinus', 'Code Sinus', fiche.code_sinus],
+      ['numero_pec', 'Fiche Argos/AEP', fiche.numero_pec],
+    ]));
+    grid.append(detailCard('Statut et informations', [
+      ['statut', 'Statut', fiche.statut], ['heure_arrivee', 'Heure d’arrivée', fiche.heure_arrivee],
+      ['heure_sortie', 'Heure de sortie', fiche.heure_sortie], ['destination', 'Destination', fiche.destination],
+      ['moyen_transport', 'Moyen de transport', fiche.moyen_transport],
+      ['personne_a_prevenir', 'Personne à prévenir', fiche.personne_a_prevenir],
+      ['tel_personne_a_prevenir', 'Téléphone à prévenir', fiche.tel_personne_a_prevenir],
+      ['recherche_personne', 'Recherche une personne', fiche.recherche_personne],
+      ['numero_recherche', 'Numéro de recherche', fiche.numero_recherche], ['difficultes', 'Difficultés', fiche.difficultes],
+      ['competences', 'Compétences', fiche.competences], ['autres_informations', 'Autres informations', fiche.autres_informations],
+      ['effets_perso', 'Effets personnels', fiche.effets_perso], ['bagages', 'Bagages', fiche.bagages.join(', ') || 'Aucun'],
+    ]));
+    const related = data.fiches.filter(other => fiche.est_animal ?
+      String(other.id) === String(fiche.referent?.id || fiche.referent_id) || other.client_uuid === fiche.referent_id :
+      other.est_animal && (String(other.referent?.id || other.referent_id) === String(fiche.id) || other.referent_id === fiche.client_uuid));
+    if (related.length) {
+      const card = detailCard(fiche.est_animal ? 'Personne référente' : 'Animaux rattachés', []), body = card.querySelector('.bd');
+      for (const other of related) {
+        const link = element('a', 'btn secondary', `${other.numero} — ${other.nom} ${other.prenom || ''}`);
+        link.href = `/fiche/${other.id}?evenement_id=${context.eventId}`; body.append(link);
+      }
+      grid.append(card);
+    }
+    root.append(grid);
+    const timeline = detailCard('Suivi / Timeline', []), body = timeline.querySelector('.bd');
+    for (const entry of fiche.timeline) {
+      body.append(element('p', 'tmeta', `${entry.created_at || ''}${entry.user ? ' · ' + entry.user : ''}${entry.pending ? ' · En attente du serveur' : ''}`),
+        element('p', 'tcontent', entry.content));
+    }
+    if (!fiche.timeline.length) body.append(element('p', 'tmeta', 'Aucun historique dans la copie de cet appareil.'));
+    root.append(timeline);
+  }
   function setupActions() {
+    document.addEventListener('submit', async event => {
+      const form = event.target;
+      if (!form.matches('[data-cai-delete]')) return;
+      event.preventDefault();
+      if (form.dataset.saving) return;
+      form.dataset.saving = 'true';
+      try { await deleteFiche(window.CAIDashboard.getFiche(form.dataset.ficheId)); }
+      catch (error) { report(error); }
+      finally { delete form.dataset.saving; }
+    });
     for (const [id, action] of [['form-bagage', 'bagages'], ['form-sortie', 'sortie']]) {
       const form = document.getElementById(id);
       if (!form) continue;
@@ -351,7 +478,7 @@
       context = JSON.parse(config.textContent);
       await store.put({...context, kind: 'context', key: `context:${context.userId}:${context.eventId}`});
       await store.put({key: 'active', userId: context.userId, eventId: context.eventId});
-    } else if (shell || offlineForm) {
+    } else if (shell || offlineForm || offlineDetail) {
       const active = await store.get('active');
       const match = location.pathname.match(/^\/evenement\/(\d+)\/dashboard$/);
       const parameters = new URLSearchParams(location.search);
@@ -382,6 +509,11 @@
       window.CAIDashboard?.configure(context); setupActions();
     }
     else if (offlineForm || location.pathname === '/fiche/new') await setupForm();
+    else if (offlineDetail) await renderDetail();
+    if (offlineDetail) {
+      window.addEventListener('cai:local', () => renderDetail().catch(report));
+      window.addEventListener('cai:sync', () => renderDetail().catch(report));
+    }
     await renderQueue();
     window.addEventListener('online', () => sync().catch(report));
     window.addEventListener('offline', () => say('Hors ligne : les nouvelles fiches seront conservées sur cet appareil.', 'offline'));

@@ -781,10 +781,12 @@
       const idArg = escapeHTML(JSON.stringify(f.id));
       const numberArg = escapeHTML(JSON.stringify(f.numero));
       const creationPending = f.creationPending || String(f.id).startsWith('local-');
-      const primary = creationPending ? (f.deliveryStarted ? '' :
+      const view = '<a class="btn-action btn-blue" href="/fiche/' + f.id + '?evenement_id=' + DASHBOARD_EVENT_ID + '">Voir</a> ';
+      if (f.deletionPending) return '<div class="actions">' + view + '<span>Suppression en attente du serveur</span></div>';
+      const primary = view + (creationPending ? (f.deliveryStarted ? '' :
         '<a href="/fiche/new?evenement_id=' + encodeURIComponent(f.event_id) + '&draft=' + encodeURIComponent(f.client_uuid) + '">Ouvrir / corriger</a>') :
-        '<a class="btn-action btn-blue" href="/fiche/' + f.id + '">Voir</a> <a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '">Modifier</a>';
-      const delBtn = CAN_DELETE_FICHE && !f.pending ? `<form method="POST" action="/fiche/delete/${f.id}" onsubmit="return confirm('Confirmer la suppression ?');"><input type="hidden" name="csrf_token" value="${CSRF_TOKEN}"><button type="submit" class="btn-action btn-red">Supprimer</button></form>` : '';
+        '<a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '">Modifier</a>');
+      const delBtn = CAN_DELETE_FICHE ? `<form method="POST" action="/fiche/delete/${f.id}" data-cai-delete data-fiche-id="${escapeHTML(f.id)}"><input type="hidden" name="csrf_token" value="${CSRF_TOKEN}"><button type="submit" class="btn-action btn-red">Supprimer</button></form>` : '';
       return `<div class="actions">${primary}
         <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" onclick="ouvrirModalSortie(${idArg}, ${numberArg})"><i class="fa-solid fa-person-walking-arrow-right" aria-hidden="true"></i> <span>Sortie</span></button>
         ${CAN_BAGAGES ? `<button class="btn-action btn-orange" type="button" title="Ajouter / modifier les bagages" onclick="ouvrirModalBagage(${idArg}, ${numberArg})"><i class="fa-solid fa-suitcase-rolling" aria-hidden="true"></i> <span>Bagages</span></button>` : ''}

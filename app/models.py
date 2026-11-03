@@ -249,6 +249,19 @@ class OfflineMutation(db.Model):
     created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
 
 
+class OfflineDeletion(db.Model):
+    """Deletion receipt retained after the fiche and its child rows are gone."""
+    id = db.Column(db.String(36), primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False)
+    utilisateur_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+    fiche_id = db.Column(db.Integer, nullable=True)
+    fiche_uuid = db.Column(db.String(36), nullable=True, index=True)
+    numero = db.Column(db.String(100), nullable=False)
+    target_key = db.Column(db.String(50), nullable=False)
+    payload_hash = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime, default=utcnow, nullable=False)
+
+
 # Animal
 class Animal(db.Model):
     id = db.Column(db.Integer, primary_key=True)

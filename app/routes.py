@@ -28,6 +28,7 @@ from .models import (
     EventNews,
     BroadcastNotification,
     OfflineMutation,
+    OfflineDeletion,
 )
 from .extensions import db, limiter
 from werkzeug.security import check_password_hash
@@ -55,7 +56,8 @@ import tempfile
 import redis
 from urllib.parse import urlparse, urljoin
 from sqlalchemy import text, func, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
+from .fiche_deletion import delete_fiche, identity_token
 import typing
 import unicodedata
 import threading
@@ -1689,16 +1691,11 @@ def fiche_delete(id):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    db.session.delete(fiche)
+    event_id = fiche.evenement_id
+    delete_fiche(fiche, user.id)
     db.session.commit()
     flash("🗑️ Fiche supprimée avec succès.", "info")
-    return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement.id))
-
-
-
-
-################################################################################
-
+    return redirect(url_for("main_bp.dashboard", evenement_id=event_id))
 
 
 @main_bp.route("/fiche/<int:id>/sortie", methods=["POST"])
@@ -1707,11 +1704,9 @@ def fiche_delete(id):
 def fiche_sortie(id):
     fiche = db.get_or_404(FicheImplique, id)
     user = get_current_user()
-
     if not user_can_access_event(user, fiche.evenement):
         flash("⛔ Vous n’avez pas accès à cette fiche.", "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
-
     from .fiche_actions import apply_sortie
     try:
         apply_sortie(fiche, user.id, (request.form.get("destination") or "").strip(),
@@ -1721,7 +1716,6 @@ def fiche_sortie(id):
         db.session.rollback()
         flash(str(exc), "danger")
         return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
-
     flash(f"🚪 {fiche.nom} {fiche.prenom} est marqué comme 'sorti'.", "info")
     return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement_id))
 
@@ -1779,6 +1773,14 @@ def fiches_json(evenement_id):
         except Exception:
             return "-"
 
+    histories = {}
+    if request.args.get("details") == "1":
+        for entry in TimelineEntry.query.filter(TimelineEntry.fiche_id.in_([fiche.id for fiche in fiches])).options(
+                joinedload(TimelineEntry.user)).order_by(TimelineEntry.created_at.desc()).all():
+            histories.setdefault(entry.fiche_id, []).append({"id": entry.id, "content": entry.content,
+                "created_at": fmt(entry.created_at.replace(tzinfo=timezone.utc).astimezone(PARIS_TZ)),
+                "user": entry.user.nom if entry.user and entry.user.nom else f"#{entry.user_id}", "kind": entry.kind})
+
     fiches_data = []
     for f in fiches:
         h_arr = getattr(f, "heure_arrivee_locale", None)
@@ -1786,6 +1788,13 @@ def fiches_json(evenement_id):
         fiches_data.append({
             "id": f.id,
             "client_uuid": f.client_uuid,
+            "identity_token": identity_token(f),
+            "date_naissance": f.date_naissance.isoformat() if f.date_naissance else "",
+            **{name: getattr(f, name) or "" for name in (
+                "nationalite", "adresse", "telephone", "numero_pec", "personne_a_prevenir",
+                "tel_personne_a_prevenir", "recherche_personne", "code_sinus", "autres_informations",
+                "effets_perso", "numero_recherche", "animal_details")},
+            **({"timeline": histories.get(f.id, [])} if request.args.get("details") == "1" else {}),
             "numero": f.numero or "",
             "nom": f.nom or "",
             "prenom": f.prenom or "",
@@ -1842,6 +1851,7 @@ def fiches_json(evenement_id):
         "nb_total_animaux": nb_total_animaux,
         "evenement": evt_payload,
         "applied_operations": [operation.id for operation in OfflineMutation.query.filter_by(
+            evenement_id=evenement_id, utilisateur_id=user.id).all()] + [operation.id for operation in OfflineDeletion.query.filter_by(
             evenement_id=evenement_id, utilisateur_id=user.id).all()],
     })
 

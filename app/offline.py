@@ -9,10 +9,11 @@ from flask import Blueprint, request, send_from_directory, current_app, render_t
 from flask_wtf.csrf import generate_csrf
 
 from .extensions import db
-from .fiche_service import save_fiche
-from .models import Evenement, FicheImplique, OfflineMutation
+from .fiche_service import save_fiche, FicheDeletedError
+from .models import Evenement, FicheImplique, OfflineMutation, OfflineDeletion
 from .routes import get_current_user, user_can_access_event, json_nocache, COMPETENCES_CAI, COMPETENCE_COLORS
 from .fiche_actions import apply_bagages, apply_sortie
+from .fiche_deletion import delete_fiche, identity_token
 
 offline_bp = Blueprint("offline", __name__)
 
@@ -44,6 +45,11 @@ def fiche_shell():
                            competences_list=COMPETENCES_CAI, referent_lookup_url="")
 
 
+@offline_bp.get("/hors-ligne/fiche/detail")
+def fiche_detail_shell():
+    return render_template("fiche_detail.html", offline_mode=True)
+
+
 @offline_bp.get("/api/offline/session")
 def offline_session():
     user = get_current_user()
@@ -69,6 +75,10 @@ def sync_fiche(event_id):
         if request.form.get("user_id") != str(user.id):
             return json_nocache({"error": "Reconnectez-vous avec le compte ayant créé cette fiche."}, 403)
         fiche = save_fiche(request.form, event, user, client_uuid)
+    except FicheDeletedError as exc:
+        receipt = exc.receipt
+        return json_nocache({"id": receipt.fiche_id, "numero": receipt.numero,
+                             "client_uuid": client_uuid, "synced": True, "deleted": True})
     except ValueError as exc:
         db.session.rollback()
         return json_nocache({"error": str(exc)}, 422)
@@ -87,11 +97,15 @@ def sync_action(event_id):
     kind = request.form.get("kind")
     if kind == "bagages" and not (user.is_admin or user.role.lower() in {"codep", "responsable", "technicien"}):
         return json_nocache({"error": "Vous n’êtes pas autorisé à modifier les bagages."}, 403)
-    if kind not in {"bagages", "sortie"}:
+    if kind == "delete" and not (user.is_admin or user.role.lower() in {"codep", "responsable"}):
+        return json_nocache({"error": "Vous n’êtes pas autorisé à supprimer les fiches."}, 403)
+    if kind not in {"bagages", "sortie", "delete"}:
         return json_nocache({"error": "Action invalide."}, 422)
     try:
         operation_id = str(UUID(request.form.get("operation_uuid", "")))
         db.session.execute(db.select(Evenement.id).where(Evenement.id == event_id).with_for_update())
+        if kind == "delete":
+            return sync_deletion(event_id, user, operation_id)
         query = FicheImplique.query.filter_by(evenement_id=event_id)
         if request.form.get("fiche_uuid"):
             fiche = query.filter_by(client_uuid=str(UUID(request.form["fiche_uuid"]))).first()
@@ -99,6 +113,8 @@ def sync_action(event_id):
             fiche = query.filter_by(id=int(request.form.get("fiche_id", ""))).first()
         if not fiche:
             return json_nocache({"error": "Fiche absente du serveur. Sa création doit être synchronisée avant cette action."}, 409)
+        if request.form.get("identity_token") and request.form["identity_token"] != identity_token(fiche):
+            return json_nocache({"error": "L’identité de cette fiche a changé. Actualisez-la avant de modifier."}, 409)
         content = {key: request.form.get(key, "") for key in
                    ("kind", "numeros", "base_numeros", "destination", "moyen_transport", "occurred_at")}
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
@@ -118,3 +134,38 @@ def sync_action(event_id):
         db.session.rollback()
         return json_nocache({"error": str(exc)}, 422)
     return json_nocache({"operation_uuid": operation_id, "id": fiche.id, "numero": fiche.numero, "synced": True})
+
+
+def sync_deletion(event_id, user, operation_id):
+    """The event lock is held. Receipts remain valid after the fiche is gone."""
+    fiche_uuid = str(UUID(request.form["fiche_uuid"])) if request.form.get("fiche_uuid") else None
+    fiche_id = int(request.form.get("fiche_id", "")) if not fiche_uuid else None
+    target = f"uuid:{fiche_uuid}" if fiche_uuid else f"id:{fiche_id}"
+    digest = hashlib.sha256(json.dumps({"target": target, "identity_token": request.form.get("identity_token", "")},
+                                      sort_keys=True).encode()).hexdigest()
+    receipt = db.session.get(OfflineDeletion, operation_id)
+    if receipt:
+        if (receipt.evenement_id != event_id or receipt.utilisateur_id != user.id or
+                receipt.target_key != target or receipt.payload_hash != digest):
+            return json_nocache({"error": "Cet identifiant correspond à une autre suppression."}, 409)
+    else:
+        if db.session.get(OfflineMutation, operation_id):
+            return json_nocache({"error": "Cet identifiant correspond à une autre action."}, 409)
+        query = FicheImplique.query.filter_by(evenement_id=event_id)
+        fiche = query.filter_by(client_uuid=fiche_uuid).first() if fiche_uuid else query.filter_by(id=fiche_id).first()
+        if fiche:
+            if not fiche_uuid and request.form.get("identity_token") != identity_token(fiche):
+                return json_nocache({"error": "L’identité de cette fiche a changé. Actualisez-la avant de supprimer."}, 409)
+            receipt = delete_fiche(fiche, user.id, operation_id, target, digest)
+        else:
+            # Never remove a fiche from another event or one reusing an old id.
+            anywhere = FicheImplique.query.filter_by(client_uuid=fiche_uuid).first() if fiche_uuid else db.session.get(FicheImplique, fiche_id)
+            if anywhere:
+                return json_nocache({"error": "Cette fiche appartient à un autre évènement."}, 403)
+            receipt = OfflineDeletion(id=operation_id, evenement_id=event_id, utilisateur_id=user.id,
+                fiche_id=fiche_id, fiche_uuid=fiche_uuid, numero=request.form.get("numero", "")[:100],
+                target_key=target, payload_hash=digest)
+            db.session.add(receipt)
+        db.session.commit()
+    return json_nocache({"operation_uuid": operation_id, "id": receipt.fiche_id or receipt.fiche_uuid,
+                         "numero": receipt.numero or "Fiche supprimée", "synced": True, "deleted": True})

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Fiche impliqué — {{ fiche.nom }} {{ fiche.prenom }}</title>
+<title>{% if offline_mode | default(false) %}Fiche impliqué{% else %}Fiche impliqué — {{ fiche.nom }} {{ fiche.prenom }}{% endif %}</title>
 
 <style>
 /* ===== Reset & thème ===== */
@@ -245,7 +245,15 @@ body{
 </style>
 <link rel="stylesheet" href="{{ url_for('static', filename='offline.css') }}">
 </head>
-<body>
+<body{% if offline_mode | default(false) %} class="cai-offline-detail"{% endif %}>
+
+{% if offline_mode | default(false) %}
+<header class="header"><div class="inner">
+  <div class="brand"><div class="badge">PC</div><h2 class="title">Protection Civile — CAI</h2></div>
+  <div class="top-actions"><a class="btn secondary" href="/hors-ligne" data-cai-dashboard-link>← Retour au tableau de bord</a></div>
+</div></header>
+<main class="wrapper" id="cai-detail-content" aria-live="polite"></main>
+{% else %}
 
 {% include "_flashes.html" %}
 
@@ -588,6 +596,11 @@ body{
 })();
 </script>
 
-{% with evenement=fiche.evenement %}{% include "_offline.html" %}{% endwith %}
+{% endif %}
+{% if offline_mode | default(false) %}
+  {% include "_offline.html" %}
+{% else %}
+  {% with evenement=fiche.evenement %}{% include "_offline.html" %}{% endwith %}
+{% endif %}
 </body>
 </html>

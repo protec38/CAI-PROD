@@ -59,6 +59,18 @@ la dernière copie du serveur et les modifications locales quand le réseau tomb
 il n’y a pas de second tableau de bord. Le formulaire et le tableau fonctionnent
 sans ressources externes.
 
+Le bouton **Voir** ouvre aussi les fiches sans connexion : identité, coordonnées,
+notes, bagages, liens humain/animal et historique sont conservés lors de la
+préparation de l’évènement. Une fiche créée sur l’appareil est consultable avant
+son premier envoi au serveur.
+
+Le bouton **Supprimer** reste utilisable hors ligne, selon les droits du compte.
+Une fiche déjà envoyée reste marquée **Suppression en attente du serveur** jusqu’à
+confirmation, puis disparaît du tableau. Une fiche locale jamais envoyée est
+retirée immédiatement et ses actions en attente sont annulées. Les reçus de
+suppression empêchent les nouvelles tentatives de recréer la fiche ou de supprimer
+une autre fiche qui aurait repris le même identifiant numérique.
+
 Les bagages et les sorties peuvent être saisis sans connexion sur une fiche
 existante ou créée hors ligne. La ligne devient orange **En attente du serveur** ;
 les bagages, le statut de sortie et les compteurs se mettent à jour immédiatement
@@ -102,7 +114,8 @@ statique et ses ressources, sans pages authentifiées ni réponses API.
 Au déploiement, exécuter `python manage.py init-db` avant de démarrer les
 workers (déjà prévu par le démarrage Docker). Cette commande ajoute
 `fiche_implique.client_uuid` et son index unique aux bases existantes, et crée
-la table `offline_mutation` des accusés de réception (incluse dans les sauvegardes). Les tests
+les tables `offline_mutation` et `offline_deletion` des accusés de réception
+(incluses dans les sauvegardes). Les tests
 de concurrence PostgreSQL sont inclus dans la suite exécutée en CI.
 
 ## Sauvegardes et restauration
