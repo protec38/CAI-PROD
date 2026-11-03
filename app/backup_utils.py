@@ -8,6 +8,7 @@ from sqlalchemy import Date, DateTime, Integer, func, select, text
 
 from .extensions import db
 from .models import (
+    EventSettings, FicheMetadata, FicheChange, FicheTrash,
     Animal, Bagage, Evenement, EventNews, FicheImplique, ShareLink,
     ShareLinkAccessLog, Ticket, TimelineEntry, Utilisateur, utilisateur_evenement, OfflineMutation, OfflineDeletion,
 )
@@ -19,6 +20,8 @@ BACKUP_MODELS = {
     "news": EventNews, "timeline_entries": TimelineEntry,
     "offline_mutations": OfflineMutation,
     "offline_deletions": OfflineDeletion,
+    "event_settings": EventSettings, "fiche_metadata": FicheMetadata,
+    "fiche_changes": FicheChange, "fiche_trash": FicheTrash,
 }
 
 
@@ -47,6 +50,10 @@ def backup_to_bytesio(evenement_ids: list[int] | None = None) -> BytesIO:
         ).all(),
         "timeline_entries": TimelineEntry.query.filter(TimelineEntry.fiche_id.in_(fiche_ids)).all(),
     }
+    objects['event_settings'] = EventSettings.query.filter(EventSettings.id.in_(event_ids)).all()
+    objects['fiche_metadata'] = FicheMetadata.query.filter(FicheMetadata.id.in_(fiche_ids)).all()
+    objects['fiche_changes'] = FicheChange.query.filter(FicheChange.fiche_id.in_(fiche_ids)).all()
+    objects['fiche_trash'] = FicheTrash.query.filter(FicheTrash.evenement_id.in_(event_ids)).all()
     for key, model in (("bagages", Bagage), ("tickets", Ticket), ("news", EventNews),
                        ("offline_mutations", OfflineMutation), ("offline_deletions", OfflineDeletion)):
         objects[key] = model.query.filter(model.evenement_id.in_(event_ids)).all()
@@ -70,7 +77,7 @@ def validate_backup(payload):
 
 def _delete_operational_data():
     # Children before parents, with foreign keys enabled on both database engines.
-    for model in (OfflineDeletion, OfflineMutation, TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
+    for model in (FicheTrash, FicheChange, FicheMetadata, EventSettings, OfflineDeletion, OfflineMutation, TimelineEntry, EventNews, Ticket, ShareLinkAccessLog, ShareLink, Animal, Bagage):
         db.session.execute(model.__table__.delete())
     db.session.execute(utilisateur_evenement.delete())
     db.session.execute(FicheImplique.__table__.update().values(referent_humain_id=None))
@@ -126,7 +133,7 @@ def bulk_restore(payload: dict):
             db.session.execute(utilisateur_evenement.insert(), assoc)
         if db.engine.dialect.name == "postgresql":
             for model in BACKUP_MODELS.values():
-                if not isinstance(model.__table__.c.id.type, Integer):
+                if not isinstance(model.__table__.c.id.type, Integer) or model.__table__.c.id.foreign_keys:
                     continue
                 next_id = (db.session.scalar(select(func.max(model.id))) or 0) + 1
                 db.session.execute(text("SELECT setval(pg_get_serial_sequence(:table, 'id'), :next_id, false)"),

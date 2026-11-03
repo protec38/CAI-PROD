@@ -81,7 +81,7 @@
               for (const other of records.filter(other => same(other) && !other.server)) objects.put({...other, cancelled: true});
               if (creation && creation.userId === record.userId) {
                 const local = record.localOnlyCandidate && !creation.server && !creation.deliveryStarted;
-                objects.put({...creation, deleting: true, ...(local ? {cancelled: true, fields: []} : {})});
+                objects.put({...creation, deleting: true, ...(local ? {cancelled: true, archivedFields: creation.fields, fields: []} : {})});
                 if (local) {
                   record.cancelled = true; record.localCancelled = true;
                   for (const animal of records.filter(other => other.kind === 'fiche' && !other.server && !other.deliveryStarted &&

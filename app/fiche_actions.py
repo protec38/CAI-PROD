@@ -18,6 +18,7 @@ def parse_bagages(raw):
 
 def apply_bagages(fiche, user_id, raw, base_raw=None):
     db.session.execute(db.select(Evenement.id).where(Evenement.id == fiche.evenement_id).with_for_update())
+    from .fiche_updates import record_change
     desired = set(parse_bagages(raw))
     existing = Bagage.query.filter_by(fiche_id=fiche.id).all()
     current = {bagage.numero for bagage in existing}
@@ -35,6 +36,8 @@ def apply_bagages(fiche, user_id, raw, base_raw=None):
     for bagage in existing:
         if bagage.numero in removals:
             db.session.delete(bagage)
+    record_change(fiche, user_id, 'bagages', {'bagages': sorted(current)},
+                  {'bagages': sorted((current - removals) | additions)})
     db.session.add(TimelineEntry(fiche_id=fiche.id, user_id=user_id, kind="update",
         content="Bagages — ajout : " + (", ".join(sorted(additions - current)) or "aucun") +
                 "; retrait : " + (", ".join(sorted(removals & current)) or "aucun")))
@@ -43,6 +46,9 @@ def apply_bagages(fiche, user_id, raw, base_raw=None):
 def apply_sortie(fiche, user_id, destination, transport, occurred_at=None):
     if len(destination) > 255 or len(transport) > 255:
         raise ValueError("La destination et le transport ne peuvent pas dépasser 255 caractères.")
+    from .fiche_updates import record_change
+    before = {k: getattr(fiche, k) or '' for k in ('statut', 'destination', 'moyen_transport')}
+    before['heure_sortie'] = fiche.heure_sortie.isoformat() if fiche.heure_sortie else ''
     departure = utcnow()
     if occurred_at:
         try:
@@ -57,5 +63,8 @@ def apply_sortie(fiche, user_id, destination, transport, occurred_at=None):
     if transport:
         fiche.moyen_transport = transport
     fiche.statut, fiche.heure_sortie = "sorti", departure
+    record_change(fiche, user_id, 'sortie', before,
+                  {**{k: getattr(fiche, k) or '' for k in ('statut', 'destination', 'moyen_transport')},
+                   'heure_sortie': fiche.heure_sortie.isoformat()})
     db.session.add(TimelineEntry(fiche_id=fiche.id, user_id=user_id, kind="exit",
         content=f"Sortie (destination={destination}, transport={transport})", created_at=departure))

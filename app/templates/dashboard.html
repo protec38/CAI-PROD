@@ -541,8 +541,8 @@
         <span id="evt-adresse">{{ evenement.adresse or 'Adresse non renseignée' }}</span>
       </span>
       <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-clock"></i> Créé le <span id="evt-date">{{ '' if offline_mode | default(false) else evenement.date_ouverture_locale.strftime('%d/%m/%Y %H:%M') }}</span></span>
-      <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
-      <span class="event-chip"><i aria-hidden="true" class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
+      <span class="event-chip cai-counter"><i aria-hidden="true" class="fa-solid fa-user-group"></i> <strong id="nb_present">{{ nb_present }}</strong> / <span id="nb_total">{{ nb_total }}</span> personnes présentes</span>
+      <span class="event-chip cai-counter"><i aria-hidden="true" class="fa-solid fa-paw"></i> <strong id="nb_present_animaux">{{ nb_present_animaux }}</strong> / <span id="nb_total_animaux">{{ nb_total_animaux }}</span> animaux présents</span>
       <span class="event-chip">
         {% if peut_modifier_statut %}
           <form method="POST" action="{{ url_for('main_bp.update_evenement_statut', evenement_id=evenement.id) }}" style="margin:0;display:flex;gap:8px;align-items:center">
@@ -617,15 +617,15 @@
     <table id="fiches-table" class="dashboard-table" role="table" aria-label="Fiches des impliqués" aria-describedby="fiche-results-count">
       <thead role="rowgroup">
         <tr role="row">
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-hashtag"></i> Numéro</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-user"></i> Nom</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-user"></i> Prénom</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-circle-check"></i> Statut</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-clock"></i> Heure d’arrivée</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i> Difficultés</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-award"></i> Compétences</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-suitcase-rolling"></i> Bagages</span></th>
-          <th scope="col" role="columnheader"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-ellipsis"></i> Actions</span></th>
+          <th scope="col" role="columnheader" data-col="numero"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-hashtag"></i> Numéro</span></th>
+          <th scope="col" role="columnheader" data-col="nom"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-user"></i> Nom</span></th>
+          <th scope="col" role="columnheader" data-col="prenom"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-user"></i> Prénom</span></th>
+          <th scope="col" role="columnheader" data-col="statut"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-circle-check"></i> Statut</span></th>
+          <th scope="col" role="columnheader" data-col="heure_arrivee"><span class="th-label"><i aria-hidden="true" class="fa-regular fa-clock"></i> Heure d’arrivée</span></th>
+          <th scope="col" role="columnheader" data-col="difficultes"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-triangle-exclamation"></i> Difficultés</span></th>
+          <th scope="col" role="columnheader" data-col="competences"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-award"></i> Compétences</span></th>
+          <th scope="col" role="columnheader" data-col="bagages"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-suitcase-rolling"></i> Bagages</span></th>
+          <th scope="col" role="columnheader" data-col="actions"><span class="th-label"><i aria-hidden="true" class="fa-solid fa-ellipsis"></i> Actions</span></th>
         </tr>
       </thead>
       <tbody id="fiches-table-body" role="rowgroup"></tbody>
@@ -806,7 +806,7 @@
       if (f.deletionPending) return '<div class="actions">' + view + '<span>Suppression en attente du serveur</span></div>';
       const primary = view + (creationPending ? (f.deliveryStarted ? '' :
         '<a class="btn-action btn-yellow" href="/fiche/new?evenement_id=' + encodeURIComponent(f.event_id) + '&draft=' + encodeURIComponent(f.client_uuid) + '">Corriger</a>') :
-        '<a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '">Modifier</a>');
+        '<a class="btn-action btn-yellow" href="/fiche/edit/' + f.id + '?evenement_id=' + DASHBOARD_EVENT_ID + '">Modifier</a>');
       const delBtn = CAN_DELETE_FICHE ? `<form method="POST" action="/fiche/delete/${f.id}" data-cai-delete data-fiche-id="${escapeHTML(f.id)}"><input type="hidden" name="csrf_token" value="${CSRF_TOKEN}"><button type="submit" class="btn-action btn-red">Supprimer</button></form>` : '';
       return `<div class="actions">${primary}
         <button class="btn-action btn-orange" type="button" title="Déclarer la sortie" data-cai-open-dialog="modal-sortie" onclick="ouvrirModalSortie(${idArg}, ${numberArg})"><i class="fa-solid fa-person-walking-arrow-right" aria-hidden="true"></i> <span>Sortie</span></button>
@@ -866,7 +866,9 @@
       const searchTerm=(document.getElementById("search-bar").value||"").toLowerCase();
       const nom=row.children[1]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
       const prenom=row.children[2]?.querySelector('[data-value]')?.textContent.toLowerCase()||"";
-      const searchOk=!searchTerm || nom.includes(searchTerm) || prenom.includes(searchTerm);
+      const searchable = [nom, prenom, f?.telephone, String(f?.telephone || '').replace(/\D/g,''), f?.tel_personne_a_prevenir, String(f?.tel_personne_a_prevenir || '').replace(/\D/g,''), f?.code_sinus, f?.numero, f?.numero_pec, f?.family_key, ...(f?.bagages || [])].join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const terms = searchTerm.normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/\s+/).filter(Boolean);
+      const searchOk=terms.every(term=>searchable.includes(term));
 
       const selectedStatus=getSelectValues(document.getElementById('filter-statut')).map(normalizeStatutValue);
       const statutTxt=normalizeStatutValue(f?.statut ?? row?.dataset?.statut ?? '');

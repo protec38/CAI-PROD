@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytz  # ✅ Conversion UTC → Europe/Paris
 from flask_login import UserMixin
 import secrets
+from uuid import uuid4
 
 # 🌍 Utilitaire : UTC -> heure locale Paris
 def convertir_heure_locale(dt_utc):
@@ -263,6 +264,57 @@ class OfflineDeletion(db.Model):
 
 
 # Animal
+class EventSettings(db.Model):
+    id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), primary_key=True)
+    capacity = db.Column(db.Integer, nullable=True)
+    warning_percent = db.Column(db.Integer, nullable=False, default=80)
+    custom_fields = db.Column(db.JSON, nullable=False, default=list)
+    choice_lists = db.Column(db.JSON, nullable=False, default=dict)
+    evenement = db.relationship('Evenement', backref=db.backref('settings_record', uselist=False, cascade='all, delete-orphan'))
+
+
+class FicheMetadata(db.Model):
+    id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='CASCADE'), primary_key=True)
+    qr_token = db.Column(db.String(36), unique=True, nullable=False, default=lambda: str(uuid4()))
+    family_key = db.Column(db.String(80), nullable=False, default='')
+    custom_values = db.Column(db.JSON, nullable=False, default=dict)
+    revision = db.Column(db.Integer, nullable=False, default=1)
+    generation = db.Column(db.Integer, nullable=False, default=1)
+    updated_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    fiche = db.relationship('FicheImplique', backref=db.backref('metadata_record', uselist=False, cascade='all, delete-orphan'))
+
+
+class FicheChange(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='CASCADE'), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    kind = db.Column(db.String(20), nullable=False)
+    changes = db.Column(db.JSON, nullable=False, default=dict)
+    user = db.relationship('Utilisateur')
+    fiche = db.relationship('FicheImplique', backref=db.backref('field_changes', cascade='all, delete-orphan'))
+
+
+class FicheTrash(db.Model):
+    id = db.Column(db.String(36), primary_key=True)
+    evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False, index=True)
+    original_id = db.Column(db.Integer, nullable=False)
+    numero = db.Column(db.String(100), nullable=False)
+    deleted_by = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
+    deleted_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+    restored_at = db.Column(db.DateTime, nullable=True)
+    restored_id = db.Column(db.Integer, nullable=True)
+    payload = db.Column(db.JSON, nullable=False)
+    evenement = db.relationship('Evenement', backref=db.backref('trash_items', cascade='all, delete-orphan'))
+
+
+class UserPreference(db.Model):
+    id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='CASCADE'), primary_key=True)
+    lock_minutes = db.Column(db.Integer, nullable=False, default=0)
+    dashboard = db.Column(db.JSON, nullable=False, default=dict)
+    user = db.relationship('Utilisateur', backref=db.backref('preference_record', uselist=False, cascade='all, delete-orphan'))
+
+
 class Animal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     espece = db.Column(db.String(50), nullable=True)

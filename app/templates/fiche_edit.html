@@ -176,8 +176,11 @@ button:hover { background-color: #e65c00; }
     <span class="cai-sync-badge"><span class="cai-sync-dot" aria-hidden="true"></span>Sur le serveur</span>
     <h1><i aria-hidden="true" class="fas fa-user-edit"></i> Modifier la fiche impliqué</h1>
 
-    <form method="POST" data-initial-type="{{ fiche_type }}">
+    <form method="POST" data-initial-type="{{ fiche_type }}" data-edit-id="{{ fiche.id }}">
+      <input type="hidden" name="base_state" value='{{ base_state | tojson }}'>
+      <script type="application/json" id="cai-edit-state">{{ base_state | tojson }}</script>
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="evenement_id" value="{{ fiche.evenement_id }}">
       <input type="hidden" name="type_fiche" id="type_fiche" value="{{ fiche_type }}">
 
       <div class="form-grid">
@@ -304,7 +307,7 @@ button:hover { background-color: #e65c00; }
             <select id="statut" name="statut" class="form-select" {% if not peut_modifier_statut %}disabled{% endif %}>
               <option value="présent" {% if fiche.statut == 'présent' %}selected{% endif %}>Présent</option>
               <option value="sorti" {% if fiche.statut == 'sorti' %}selected{% endif %}>Sorti</option>
-              <option value="supprimé" {% if fiche.statut == 'supprimé' %}selected{% endif %}>Supprimé</option>
+
             </select>
             {% if not peut_modifier_statut and fiche_type == 'humain' %}
               <input type="hidden" name="statut" value="{{ fiche.statut }}">
@@ -341,7 +344,7 @@ button:hover { background-color: #e65c00; }
             <select id="statut_animal" name="statut" {% if not peut_modifier_statut %}disabled{% endif %}>
               <option value="présent" {% if fiche.statut == 'présent' %}selected{% endif %}>Présent</option>
               <option value="sorti" {% if fiche.statut == 'sorti' %}selected{% endif %}>Sorti</option>
-              <option value="supprimé" {% if fiche.statut == 'supprimé' %}selected{% endif %}>Supprimé</option>
+
             </select>
             {% if not peut_modifier_statut and fiche_type == 'animal' %}
               <input type="hidden" name="statut" value="{{ fiche.statut }}">
@@ -388,7 +391,7 @@ function toggleRequiredFields(activeType) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const form = document.querySelector('form');
+    const form = document.querySelector('form[data-initial-type]');
     const typeInput = document.getElementById('type_fiche');
     const sections = document.querySelectorAll('.fiche-section');
     const toggleButtons = document.querySelectorAll('.fiche-type-switch__btn');

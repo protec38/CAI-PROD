@@ -279,6 +279,8 @@ def create_app(config_name: str | None = None, config_overrides: dict | None = N
     app.register_blueprint(main_bp)
     from .offline import offline_bp
     app.register_blueprint(offline_bp)
+    from .features import init_features
+    init_features(app)
     talisman(force_https=False)(app.view_functions["main_bp._healthz"])
 
     return app

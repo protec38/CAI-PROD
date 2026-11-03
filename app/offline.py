@@ -45,6 +45,12 @@ def fiche_shell():
                            competences_list=COMPETENCES_CAI, referent_lookup_url="")
 
 
+@offline_bp.get('/hors-ligne/fiche/edit')
+def fiche_edit_shell():
+    return render_template('fiche_new.html', offline_mode=True, edit_mode=True, fiche_type='humain',
+                           numero_prevu='', competences_list=COMPETENCES_CAI, referent_lookup_url='')
+
+
 @offline_bp.get("/hors-ligne/fiche/detail")
 def fiche_detail_shell():
     return render_template("fiche_detail.html", offline_mode=True)
@@ -55,7 +61,9 @@ def offline_session():
     user = get_current_user()
     if not user or not user.is_active:
         return json_nocache({"error": "Reconnectez-vous pour synchroniser les fiches."}, 401)
-    return json_nocache({"user_id": user.id, "csrf_token": generate_csrf(), "permissions": {
+    from .features import preferences
+    return json_nocache({"preferences": preferences(user.id), "user_id": user.id, "csrf_token": generate_csrf(), "permissions": {
+        "canEditPec": user.is_admin or user.role.lower() not in {"technicien", "logisticien"},
         "canDelete": user.is_admin or user.role.lower() in {"codep", "responsable"},
         "canBagages": user.is_admin or user.role.lower() in {"codep", "responsable", "technicien"},
     }})
@@ -79,7 +87,7 @@ def sync_fiche(event_id):
         receipt = exc.receipt
         return json_nocache({"id": receipt.fiche_id, "numero": receipt.numero,
                              "client_uuid": client_uuid, "synced": True, "deleted": True})
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         db.session.rollback()
         return json_nocache({"error": str(exc)}, 422)
     return json_nocache({"id": fiche.id, "numero": fiche.numero,
@@ -99,7 +107,7 @@ def sync_action(event_id):
         return json_nocache({"error": "Vous n’êtes pas autorisé à modifier les bagages."}, 403)
     if kind == "delete" and not (user.is_admin or user.role.lower() in {"codep", "responsable"}):
         return json_nocache({"error": "Vous n’êtes pas autorisé à supprimer les fiches."}, 403)
-    if kind not in {"bagages", "sortie", "delete"}:
+    if kind not in {"bagages", "sortie", "delete", "edit"}:
         return json_nocache({"error": "Action invalide."}, 422)
     try:
         operation_id = str(UUID(request.form.get("operation_uuid", "")))
@@ -113,10 +121,13 @@ def sync_action(event_id):
             fiche = query.filter_by(id=int(request.form.get("fiche_id", ""))).first()
         if not fiche:
             return json_nocache({"error": "Fiche absente du serveur. Sa création doit être synchronisée avant cette action."}, 409)
-        if request.form.get("identity_token") and request.form["identity_token"] != identity_token(fiche):
-            return json_nocache({"error": "L’identité de cette fiche a changé. Actualisez-la avant de modifier."}, 409)
+        from .fiche_updates import metadata
+        if (request.form.get('identity_token') or metadata(fiche).generation > 1) and request.form.get('identity_token') != identity_token(fiche):
+            return json_nocache({"error": "L’identité de cette fiche a changé. Ouvrez la fiche restaurée avant de modifier.", "stale_identity": True}, 409)
         content = {key: request.form.get(key, "") for key in
                    ("kind", "numeros", "base_numeros", "destination", "moyen_transport", "occurred_at")}
+        if kind == 'edit':
+            content.update(changes=request.form.get('changes', ''), base=request.form.get('base', ''))
         digest = hashlib.sha256(json.dumps(content, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         receipt = db.session.get(OfflineMutation, operation_id)
         if receipt:
@@ -125,12 +136,19 @@ def sync_action(event_id):
         else:
             if kind == "bagages":
                 apply_bagages(fiche, user.id, content["numeros"], content["base_numeros"])
+            elif kind == 'edit':
+                from .fiche_updates import apply_edit, FieldConflict
+                try:
+                    apply_edit(fiche, user, json.loads(content['changes']), json.loads(content['base']))
+                except FieldConflict as exc:
+                    db.session.rollback()
+                    return json_nocache({'error': str(exc), 'conflicts': exc.conflicts, 'current': exc.current}, 409)
             else:
                 apply_sortie(fiche, user.id, content["destination"].strip(), content["moyen_transport"].strip(), content["occurred_at"])
             db.session.add(OfflineMutation(id=operation_id, evenement_id=event_id,
                 fiche_id=fiche.id, utilisateur_id=user.id, kind=kind, payload_hash=digest))
             db.session.commit()
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         db.session.rollback()
         return json_nocache({"error": str(exc)}, 422)
     return json_nocache({"operation_uuid": operation_id, "id": fiche.id, "numero": fiche.numero, "synced": True})
@@ -154,8 +172,9 @@ def sync_deletion(event_id, user, operation_id):
         query = FicheImplique.query.filter_by(evenement_id=event_id)
         fiche = query.filter_by(client_uuid=fiche_uuid).first() if fiche_uuid else query.filter_by(id=fiche_id).first()
         if fiche:
-            if not fiche_uuid and request.form.get("identity_token") != identity_token(fiche):
-                return json_nocache({"error": "L’identité de cette fiche a changé. Actualisez-la avant de supprimer."}, 409)
+            from .fiche_updates import metadata
+            if (not fiche_uuid or request.form.get('identity_token') or metadata(fiche).generation > 1) and request.form.get('identity_token') != identity_token(fiche):
+                return json_nocache({"error": "L’identité de cette fiche a changé. Ouvrez la fiche restaurée avant de supprimer.", "stale_identity": True}, 409)
             receipt = delete_fiche(fiche, user.id, operation_id, target, digest)
         else:
             # Never remove a fiche from another event or one reusing an old id.

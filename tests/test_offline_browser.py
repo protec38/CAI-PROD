@@ -34,12 +34,12 @@ def test_offline_reload_and_automatic_recovery(app):
             page.locator('[name="password"]').fill("test-password-123")
             page.locator('button[type="submit"]').click()
             page.goto(base + "/evenement/1/dashboard")
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur", timeout=20000)
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur", timeout=20000)
             expect(page.locator(".cai-connection-indicator")).to_have_attribute("data-state", "synced")
             expect(page.locator(".cai-connection-indicator .cai-sync-dot")).to_have_css("background-color", "rgb(23, 128, 61)")
             expect(page.get_by_text("Saisie et fiches hors ligne", exact=True)).to_have_count(0)
             context.set_offline(True)
-            expect(page.get_by_role("status")).to_have_text("Mode hors ligne")
+            expect(page.locator("#cai-connection-label")).to_have_text("Mode hors ligne")
             expect(page.locator(".cai-connection-indicator .cai-sync-dot")).to_have_css("background-color", "rgb(237, 136, 0)")
             page.get_by_role("link", name="Créer une fiche impliquée", exact=True).click()
             expect(page.locator("body")).to_have_class(re.compile(r"\bcai-offline-form-page\b"))
@@ -81,7 +81,7 @@ def test_offline_reload_and_automatic_recovery(app):
             context.set_offline(False)
             expect(page.locator("#fiches-table-body")).to_contain_text("001-0002", timeout=20000)
             expect(page.locator("#fiches-table-body .cai-sync-pending")).to_have_count(0)
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
             with app.app_context():
                 fiche = FicheImplique.query.filter_by(client_uuid=uuid).one()
                 assert fiche.numero == "001-0002"
@@ -131,7 +131,7 @@ def test_offline_reload_and_automatic_recovery(app):
             assert page.evaluate("CAIOfflineStore.pending(2, 1)") == []
             with app.app_context():
                 assert FicheImplique.query.filter_by(nom="Réponse perdue").count() == 1
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
             page.locator(".cai-connection-indicator").click()
 
             # Existing server fiche: both modals work offline in the same table.
@@ -159,7 +159,7 @@ def test_offline_reload_and_automatic_recovery(app):
             page.locator(".cai-connection-indicator").click()
             page.get_by_role("button", name="Synchroniser", exact=True).click()
             expect(existing).not_to_have_class("cai-row-pending", timeout=20000)
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
             with app.app_context():
                 fiche = db.session.get(FicheImplique, 1)
                 assert fiche.statut == "sorti" and fiche.destination == "Hôpital"
@@ -228,7 +228,7 @@ def test_offline_full_details_and_deletions(app):
             page.locator('[name="password"]').fill("test-password-123")
             page.locator('button[type="submit"]').click()
             page.goto(base + "/evenement/1/dashboard")
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur", timeout=20000)
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur", timeout=20000)
             context.set_offline(True)
             page.locator("#fiche-row-1").get_by_role("link", name="Voir", exact=True).click()
             expect(page.locator("body")).to_have_class(re.compile(r"\bcai-offline-detail\b"))
@@ -237,7 +237,7 @@ def test_offline_full_details_and_deletions(app):
             expect(page.locator('[data-field="date_naissance"]')).to_have_text("31/01/1990")
             expect(page.locator("#cai-detail-content")).to_contain_text("Historique conservé")
             expect(page.locator("#cai-detail-content")).to_contain_text("DETAIL-BAG")
-            expect(page.locator("#cai-detail-content img")).to_have_count(0)
+            expect(page.locator("#cai-detail-content img:not([alt^=\"QR\"])")).to_have_count(0)
             page.reload()
             expect(page.locator('[data-field="telephone"]')).to_have_text("0612345678")
             page.locator('[data-cai-dashboard-link]').click()
@@ -315,7 +315,7 @@ def test_offline_full_details_and_deletions(app):
             page.locator(".cai-connection-indicator").click()
             page.get_by_role("button", name="Synchroniser", exact=True).click()
             expect(existing).to_have_count(0, timeout=20000)
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
             assert page.evaluate("CAIOfflineStore.pending(2, 1)") == []
             page.reload()
             expect(existing).to_have_count(0)
@@ -326,7 +326,7 @@ def test_offline_full_details_and_deletions(app):
                 db.session.commit()
             page.reload()
             expect(page.locator("#fiche-row-1")).to_contain_text("Nouvelle personne")
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
             context.set_offline(True)
             page.once("dialog", lambda dialog: dialog.accept())
             page.locator("#fiche-row-1").get_by_role("button", name="Supprimer", exact=True).click()

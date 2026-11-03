@@ -35,18 +35,20 @@ def save_fiche(form, evenement, user, client_uuid=None):
             db.session.execute(db.select(Evenement.id).where(
                 Evenement.id == event_id).with_for_update())
             if client_uuid:
-                deleted = OfflineDeletion.query.filter_by(evenement_id=event_id, fiche_uuid=client_uuid).first()
-                if deleted:
-                    raise FicheDeletedError(deleted)
                 existing = FicheImplique.query.filter_by(client_uuid=client_uuid).first()
                 if existing:
                     if existing.evenement_id != event_id or existing.utilisateur_id != user_id:
                         raise ValueError("Cet identifiant de saisie appartient à une autre fiche.")
                     return existing
+                deleted = OfflineDeletion.query.filter_by(evenement_id=event_id, fiche_uuid=client_uuid).first()
+                if deleted:
+                    raise FicheDeletedError(deleted)
             fiche = build_fiche(form, evenement, user, next_fiche_number(event_id))
             fiche.client_uuid = client_uuid
             db.session.add(fiche)
             db.session.flush()
+            from .fiche_updates import creation_metadata
+            creation_metadata(fiche, form, user_id)
             db.session.add(TimelineEntry(
                 fiche_id=fiche.id, user_id=user_id, kind="create",
                 content="Création de la fiche" + (" (synchronisation)" if client_uuid else ""),

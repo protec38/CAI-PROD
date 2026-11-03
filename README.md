@@ -155,6 +155,8 @@ pas reconstituer des données absentes du fichier source.
 
 ## Vérifications
 
+Les nouveaux parcours sont également couverts par `tests/test_features_browser.py`.
+
 ```sh
 python -m pytest -q
 node tests/test_frontend.cjs
@@ -195,3 +197,43 @@ PostgreSQL ne sont pas disponibles localement ; leur validation est configurée
 dans la CI et doit être confirmée avant déploiement. Les appels SQLAlchemy
 dépréciés et `datetime.utcnow` ont été modernisés en conservant le format UTC
 des colonnes existantes.
+
+## Outils supplémentaires et réglages
+
+Depuis le tableau de bord classique, **Outils de l’évènement** rassemble les réglages,
+les groupes, les étiquettes, la corbeille et le bilan. **Personnaliser mon affichage**
+ouvre les préférences du compte. **Disponibilité hors ligne** indique les évènements
+conservés sur cet appareil, la dernière actualisation et les envois en attente.
+
+| Idée | Fonction disponible |
+| --- | --- |
+| 1 | Modification des champs dans le formulaire habituel, avec ou sans réseau. |
+| 2 | Avertissement de doublon sur nom, prénom et date de naissance, avec confirmation avant enregistrement. |
+| 3 | Familles / groupes communs aux fiches, liste des membres et recherche dans le tableau de bord. |
+| 4 | QR individuel protégé par connexion et autorisation d’évènement, consultable dans le détail. |
+| 5 | Étiquettes de fiche ou de bagage : sélection et exemplaires, PDF A4 de 24 étiquettes de 63 × 34 mm, impression à 100 %. |
+| 6 | Recherche sur identité, téléphones, Sinus, numéros de fiche et PEC, bagages et groupe. |
+| 7 | Corbeille et restauration. Numéro réattribué si nécessaire ; restauration refusée sans perte si un bagage est déjà attribué ailleurs. |
+| 8 | Historique avec auteur, date, anciennes et nouvelles valeurs pour les nouvelles opérations. Le suivi antérieur reste conservé. |
+| 9 | Brouillon automatique sur cet appareil, reprise ou abandon après rechargement, effacement après enregistrement durable. |
+| 10 | Fusion des champs distincts ; choix des valeurs locales ou serveur pour chaque champ en conflit, y compris les champs personnalisés. |
+| 11 | État de préparation hors ligne par évènement, dernière actualisation, envois en attente et actualisation à la demande. |
+| 14 | Capacité d’accueil des personnes et seuil d’alerte configurable, avec prise en compte des envois locaux en attente. |
+| 17 | Jusqu’à 20 champs personnalisés par évènement : texte, nombre, date, liste ou case à cocher ; obligatoires ou facultatifs, pour personnes et/ou animaux. |
+| 18 | Listes de destinations, transports, zones et compétences. Destinations et transports acceptent aussi la saisie libre. |
+| 21 | Verrouillage manuel ou après inactivité (1, 5, 10, 15 ou 30 minutes), déverrouillage par mot de passe avec connexion. |
+| 23 | Bilan PDF des accueils, sorties, bagages, arrivées et orientations reçus par le serveur. Synchroniser les appareils avant le bilan définitif. |
+| 24 | Préférences personnelles : colonnes facultatives, compteurs et affichage compact. |
+
+Avant le redémarrage des workers, lancer la commande de mise à jour existante
+`python manage.py init-db` pour créer les nouvelles tables. Les réglages d’évènement,
+métadonnées, historiques et éléments de corbeille sont inclus dans les sauvegardes
+opérationnelles ; les préférences restent liées aux comptes préservés.
+
+Ouvrir une fois le tableau de bord avec une connexion sur chaque appareil pour
+préparer les nouveaux formulaires et scripts. Les réessais conservent leurs
+identifiants stables. Une fiche restaurée conserve son QR et reçoit une nouvelle
+identité : une ancienne suppression hors ligne ne peut pas la supprimer à nouveau.
+Les fiches locales supprimées avant leur premier envoi sont récupérables depuis
+**Disponibilité hors ligne**, dans la corbeille de cet appareil. Après envoi, utiliser
+la corbeille de l’évènement.

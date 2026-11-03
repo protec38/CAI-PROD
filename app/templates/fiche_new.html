@@ -214,7 +214,7 @@ button:hover { background-color: #e65c00; }
             <div class="birth-row">
               <input
                 type="text"
-                id="date_naissance_display"
+                id="date_naissance_display" name="date_naissance_display"
                 placeholder="ex : 31/12/1990 ou 1990-12-31"
                 inputmode="numeric"
                 autocomplete="bday"
@@ -431,7 +431,7 @@ function toggleRequiredFields(activeType) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.querySelector("form");
+    const form = document.querySelector("form[data-initial-type]");
     const visibleBirthInput = document.getElementById("date_naissance_display");
     const hiddenBirthInput = document.getElementById("date_naissance");
     const agePreview = document.getElementById("age-preview");

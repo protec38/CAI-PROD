@@ -59,7 +59,7 @@ def test_responsive_layout_and_keyboard(app, width, height, tmp_path):
             page.wait_for_url("**/evenement/new")
             assert_fits(page)
             page.goto(base + "/evenement/1/dashboard")
-            expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur", timeout=20000)
+            expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur", timeout=20000)
             expect(page.locator("#fiche-results-count")).to_have_text("2 fiches affichées sur 2")
             assert_fits(page)
             expect(page.get_by_role("table", name="Fiches des impliqués")).to_be_visible()
@@ -74,7 +74,7 @@ def test_responsive_layout_and_keyboard(app, width, height, tmp_path):
                 expect(page.locator(".cell-label").first).not_to_be_visible()
 
             # Visible search and checkbox filters work without a modifier key.
-            search = page.get_by_label("Rechercher une fiche par nom ou prénom")
+            search = page.get_by_role("searchbox", name="Rechercher par nom, téléphone, code Sinus, bagage, numéro de fiche ou groupe")
             expect(search).to_be_visible()
             search.fill("DUPONT")
             expect(page.locator("#fiches-table-body tr:visible")).to_have_count(1)
@@ -133,12 +133,12 @@ def test_responsive_layout_and_keyboard(app, width, height, tmp_path):
                     assert all(size >= 16 for size in sizes), (path, sizes)
             if width in (390, 768):
                 page.goto(base + "/fiche/new?evenement_id=1")
-                expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+                expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
                 page.evaluate("scrollTo(0,0)")
                 page.screenshot(path=str(preview / f"form-{width}.png"), full_page=True)
             if width in (320, 768):
                 page.goto(base + "/fiche/new?evenement_id=1")
-                expect(page.get_by_role("status")).to_have_text("Synchronisé au serveur")
+                expect(page.locator("#cai-connection-label")).to_have_text("Synchronisé au serveur")
                 context.set_offline(True)
                 page.locator('[name="nom"]').fill("Fiche locale sur petit écran")
                 page.locator('[name="prenom"]').fill("Test")

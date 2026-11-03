@@ -1023,6 +1023,7 @@ def fiche_new():
         try:
             fiche = save_fiche(request.form, evenement, user)
         except ValueError as exc:
+            db.session.rollback()
             flash(str(exc), "danger")
             return redirect(url_for("main_bp.fiche_new", type=fiche_type))
         flash(f"✅ Fiche n°{fiche.numero} créée pour l’évènement en cours.", "success")
@@ -1385,280 +1386,48 @@ def fiche_edit(id):
         flash("⛔ Vous n’avez pas accès à cet évènement.", "danger")
         return redirect(url_for("main_bp.evenement_new"))
 
-    if request.method == "POST":
-        edit_redirect = url_for("main_bp.fiche_edit", id=fiche.id)
-        if fiche.est_animal:
-            before = {
-                "nom": fiche.nom or "",
-                "animal_espece": fiche.animal_espece or "",
-                "animal_details": fiche.animal_details or "",
-                "difficultes": fiche.difficultes or "",
-                "referent_id": fiche.referent_humain_id or "",
-                "statut": fiche.statut or "",
-            }
-
-            fiche_nom = (request.form.get("animal_nom") or "").strip()
-            if not fiche_nom:
-                flash("Le nom de l’animal est obligatoire.", "danger")
-                return redirect(edit_redirect)
-
-            fiche_espece = (request.form.get("animal_espece") or "").strip()
-            if len(fiche_espece) > 120:
-                flash("L’espèce de l’animal ne peut pas dépasser 120 caractères.", "danger")
-                return redirect(edit_redirect)
-
-            fiche_particularites = (request.form.get("animal_particularites") or "").strip()
-            if len(fiche_particularites) > 200:
-                flash("Le champ ‘Particularités’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(edit_redirect)
-
-            fiche_notes = (request.form.get("animal_notes") or "").strip()
-            if len(fiche_notes) > 200:
-                flash("Le champ ‘Notes complémentaires’ ne peut pas dépasser 200 caractères.", "danger")
-                return redirect(edit_redirect)
-
-            referent_raw = (request.form.get("animal_referent_id") or "").strip()
-            referent = None
-            if referent_raw:
-                try:
-                    referent_id = int(referent_raw)
-                except ValueError:
-                    flash("La personne sélectionnée n’est pas valide.", "danger")
-                    return redirect(edit_redirect)
-
-                referent = (
-                    FicheImplique.query
-                    .filter(
-                        FicheImplique.id == referent_id,
-                        FicheImplique.evenement_id == fiche.evenement_id,
-                        FicheImplique.est_animal.is_(False),
-                    )
-                    .first()
-                )
-                if not referent:
-                    flash("La personne sélectionnée n’existe plus.", "danger")
-                    return redirect(edit_redirect)
-
-            statut = (request.form.get("statut") or fiche.statut or "présent").strip()
-            fiche.nom = fiche_nom
-            fiche.prenom = ""
-            fiche.animal_espece = fiche_espece or None
-            fiche.animal_details = fiche_notes or None
-            fiche.difficultes = fiche_particularites or None
-            fiche.autres_informations = fiche_notes or None
-            fiche.referent_humain = referent
-            fiche.statut = statut or "présent"
-            fiche.est_animal = True
-            fiche.humain = False
-            fiche.type_fiche = "animal"
-
-            db.session.commit()
-
-            after = {
-                "nom": fiche.nom or "",
-                "animal_espece": fiche.animal_espece or "",
-                "animal_details": fiche.animal_details or "",
-                "difficultes": fiche.difficultes or "",
-                "referent_id": fiche.referent_humain_id or "",
-                "statut": fiche.statut or "",
-            }
-
-            labels = {
-                "nom": "nom",
-                "animal_espece": "espèce",
-                "animal_details": "notes",
-                "difficultes": "particularités",
-                "referent_id": "référent humain",
-                "statut": "statut",
-            }
-
-            changes = []
-            for key, lib in labels.items():
-                if before.get(key) != after.get(key):
-                    old = before.get(key, "") or "—"
-                    new = after.get(key, "") or "—"
-                    if key == "referent_id":
-                        old = str(old) if old else "aucun"
-                        new = str(new) if new else "aucun"
-                    changes.append(f"{lib}: «{old}» → «{new}»")
-
-            if changes:
-                try:
-                    add_timeline(
-                        fiche.id,
-                        user.id,
-                        "Modification fiche animal — " + "; ".join(changes[:6]),
-                        "update",
-                    )
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-
-            flash("✅ Fiche animal mise à jour avec succès.", "success")
-            return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement.id))
-
-        # ====== Snapshot avant modifications (pour diff) ======
-        def _val(v):  # normalise None -> ""
-            return "" if v is None else str(v)
-        before = {
-            "nom": _val(fiche.nom),
-            "prenom": _val(fiche.prenom),
-            "statut": _val(fiche.statut),
-            "difficulte": _val(fiche.difficultes),
-            "telephone": _val(fiche.telephone),
-            "adresse": _val(fiche.adresse),
-            "recherche_personne": _val(fiche.recherche_personne),
-            "destination": _val(fiche.destination),
-            "moyen_transport": _val(fiche.moyen_transport),
-            "personne_a_prevenir": _val(fiche.personne_a_prevenir),
-            "numero_pec": _val(getattr(fiche, "numero_pec", "")),
-            "tel_personne_a_prevenir": _val(fiche.tel_personne_a_prevenir),
-            "code_sinus": _val(getattr(fiche, "code_sinus", "")),
-            "competences": _val(fiche.competences),
-            "autres_informations": _val(fiche.autres_informations),
-            "date_naissance": fiche.date_naissance.strftime("%Y-%m-%d") if fiche.date_naissance else "",
-        }
-
-        # ====== Application des modifications ======
-        fiche.nom = request.form.get("nom")
-        fiche.prenom = request.form.get("prenom")
-        fiche.statut = request.form.get("statut")
-        fiche.difficultes = request.form.get("difficulte")
-        fiche.telephone = request.form.get("telephone")
-        fiche.adresse = request.form.get("adresse")
-        fiche.recherche_personne = request.form.get("recherche_personne")
-        fiche.destination = request.form.get("destination")
-        fiche.moyen_transport = request.form.get("moyen_transport")
-        fiche.personne_a_prevenir = request.form.get("personne_a_prevenir")
-        if user.is_admin or role_lower not in {"technicien", "logisticien"}:
-            fiche.numero_pec = request.form.get("numero_pec")
-        fiche.tel_personne_a_prevenir = request.form.get("tel_personne_a_prevenir")
-
-        # 🆕 Code Sinus (30 max)
-        code_sinus = (request.form.get("code_sinus") or "").strip()
-        if len(code_sinus) > 30:
-            flash("Le Code Sinus ne doit pas dépasser 30 caractères.", "danger")
-            return redirect(edit_redirect)
-        if hasattr(fiche, "code_sinus"):
-            fiche.code_sinus = code_sinus
-
-        # ✅ Compétences + 'Autre' (20 max) + limite 4
-        selected_comps = request.form.getlist("competences")
-        if "Autre" in selected_comps:
-            autre_txt = (request.form.get("competence_autre") or "").strip()
-            if not autre_txt:
-                flash("Merci de préciser l’autre compétence (20 caractères max).", "danger")
-                return redirect(edit_redirect)
-            if len(autre_txt) > 20:
-                flash("La compétence 'Autre' ne doit pas dépasser 20 caractères.", "danger")
-                return redirect(edit_redirect)
-            selected_comps = [c for c in selected_comps if c != "Autre"]
-            if autre_txt not in selected_comps:
-                selected_comps.append(autre_txt)
-        if len(selected_comps) > 4:
-            flash("⛔ Vous ne pouvez sélectionner que 4 compétences maximum.", "danger")
-            return redirect(edit_redirect)
-        fiche.competences = ",".join(selected_comps)
-
-        # ✅ Autres informations (trim + limite 200)
-        autres_infos = (request.form.get("autres_informations") or "").strip()
-        if len(autres_infos) > 200:
-            flash("Le champ « Autres informations » ne peut pas dépasser 200 caractères.", "danger")
-            return redirect(edit_redirect)
-        fiche.autres_informations = autres_infos
-
-        fiche.est_animal = False
-        fiche.humain = True
-        fiche.type_fiche = "humain"
-        fiche.animal_espece = None
-        fiche.animal_details = None
-        fiche.referent_humain = None
-
-        # ✅ Conversion de la date au bon format (obligatoire)
-        date_str = (request.form.get("date_naissance") or "").strip()
-        if not date_str:
-            flash("La date de naissance est obligatoire.", "danger")
-            return redirect(edit_redirect)
+    from .fiche_updates import state, apply_edit, FieldConflict
+    if request.method == 'POST':
+        before = state(fiche)
         try:
-            parsed_birth = datetime.strptime(date_str, "%Y-%m-%d").date()
-        except ValueError:
-            flash("⚠️ Format de date invalide.", "danger")
-            return redirect(edit_redirect)
-        if parsed_birth > date.today():
-            flash("La date de naissance ne peut pas être dans le futur.", "danger")
-            return redirect(edit_redirect)
-        fiche.date_naissance = parsed_birth
-
-        # ====== 1er commit : on valide la mise à jour ======
-        db.session.commit()
-
-        # ====== Diff après modifications ======
-        after = {
-            "nom": _val(fiche.nom),
-            "prenom": _val(fiche.prenom),
-            "statut": _val(fiche.statut),
-            "difficulte": _val(fiche.difficultes),
-            "telephone": _val(fiche.telephone),
-            "adresse": _val(fiche.adresse),
-            "recherche_personne": _val(fiche.recherche_personne),
-            "destination": _val(fiche.destination),
-            "moyen_transport": _val(fiche.moyen_transport),
-            "personne_a_prevenir": _val(fiche.personne_a_prevenir),
-            "numero_pec": _val(getattr(fiche, "numero_pec", "")),
-            "tel_personne_a_prevenir": _val(fiche.tel_personne_a_prevenir),
-            "code_sinus": _val(getattr(fiche, "code_sinus", "")),
-            "competences": _val(fiche.competences),
-            "autres_informations": _val(fiche.autres_informations),
-            "date_naissance": fiche.date_naissance.strftime("%Y-%m-%d") if fiche.date_naissance else "",
-        }
-
-        # Champs lisibles pour la timeline (clé → libellé)
-        labels = {
-            "nom": "nom",
-            "prenom": "prénom",
-            "statut": "statut",
-            "difficulte": "difficultés",
-            "telephone": "téléphone",
-            "adresse": "adresse",
-            "recherche_personne": "recherche personne",
-            "destination": "destination",
-            "moyen_transport": "moyen transport",
-            "personne_a_prevenir": "personne à prévenir",
-            "numero_pec": "n° PEC",
-            "tel_personne_a_prevenir": "tél. à prévenir",
-            "code_sinus": "code sinus",
-            "competences": "compétences",
-            "autres_informations": "autres informations",
-            "date_naissance": "date de naissance",
-        }
-
-        changes = []
-        for k, lib in labels.items():
-            if before.get(k, "") != after.get(k, ""):
-                old = before.get(k, "")
-                new = after.get(k, "")
-                # On compacte un peu les très longues valeurs
-                def short(s):
-                    s = s or ""
-                    return (s[:60] + "…") if len(s) > 60 else s
-                changes.append(f"{lib}: «{short(old)}» → «{short(new)}»")
-
-        # Ajout timeline si au moins 1 champ a changé
-        if changes:
-            try:
-                content = "Modification fiche — " + "; ".join(changes[:6])  # on limite à 6 changements pour rester lisible
-                if len(changes) > 6:
-                    content += f" (+{len(changes)-6} autres)"
-                add_timeline(fiche.id, user.id, content, "update")
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
-
-        flash("✅ Fiche mise à jour avec succès.", "success")
-        return redirect(url_for("main_bp.dashboard", evenement_id=fiche.evenement.id))
+            base = json.loads(request.form.get('base_state') or json.dumps(before))
+            aliases = {'difficulte': 'difficultes', 'animal_nom': 'nom', 'animal_particularites': 'difficultes',
+                       'animal_notes': 'animal_details', 'animal_referent_id': 'referent_humain_id'}
+            changes = {}
+            for name, value in request.form.items():
+                key = aliases.get(name, name)
+                if key in before and key not in ('custom_values', 'competences'):
+                    if (fiche.est_animal and name in ('nom', 'difficulte')) or (not fiche.est_animal and name.startswith('animal_')):
+                        continue
+                    if value != base.get(key):
+                        changes[key] = value
+            if 'competences' in request.form:
+                selected = request.form.getlist('competences')
+                if 'Autre' in selected:
+                    other = (request.form.get('competence_autre') or '').strip()
+                    if not other or len(other) > 20:
+                        raise ValueError('Précisez la compétence autre (20 caractères maximum).')
+                    selected = [value for value in selected if value != 'Autre'] + [other]
+                value = ','.join(dict.fromkeys(selected))
+                if value != base.get('competences'):
+                    changes['competences'] = value
+            if 'custom_values' in request.form:
+                values = json.loads(request.form['custom_values'])
+                if values != base.get('custom_values'):
+                    changes['custom_values'] = values
+            db.session.execute(db.select(Evenement.id).where(Evenement.id == fiche.evenement_id).with_for_update())
+            apply_edit(fiche, user, changes, base)
+            db.session.commit()
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            flash(str(exc), 'danger')
+            return redirect(url_for('main_bp.fiche_edit', id=fiche.id))
+        flash('Fiche mise à jour.', 'success')
+        return redirect(url_for('main_bp.dashboard', evenement_id=fiche.evenement_id))
 
     return render_template(
         "fiche_edit.html",
+        base_state=state(fiche),
         fiche=fiche,
         user=user,
         competences_list=COMPETENCES_CAI,
@@ -1761,7 +1530,7 @@ def fiches_json(evenement_id):
 
     # Tri stable par id (asc) pour éviter les sauts d’ordre au refresh
     fiches = (
-        FicheImplique.query.options(selectinload(FicheImplique.bagages))
+        FicheImplique.query.options(selectinload(FicheImplique.bagages), selectinload(FicheImplique.metadata_record))
         .filter_by(evenement_id=evenement_id)
         .order_by(FicheImplique.id.asc())
         .all()
@@ -1781,6 +1550,8 @@ def fiches_json(evenement_id):
                 "created_at": fmt(entry.created_at.replace(tzinfo=timezone.utc).astimezone(PARIS_TZ)),
                 "user": entry.user.nom if entry.user and entry.user.nom else f"#{entry.user_id}", "kind": entry.kind})
 
+    from .features import extra
+    from .fiche_updates import settings
     fiches_data = []
     for f in fiches:
         h_arr = getattr(f, "heure_arrivee_locale", None)
@@ -1789,6 +1560,7 @@ def fiches_json(evenement_id):
             "id": f.id,
             "client_uuid": f.client_uuid,
             "identity_token": identity_token(f),
+            **extra(f, full=request.args.get("details") == "1"),
             "date_naissance": f.date_naissance.isoformat() if f.date_naissance else "",
             **{name: getattr(f, name) or "" for name in (
                 "nationalite", "adresse", "telephone", "numero_pec", "personne_a_prevenir",
@@ -1825,11 +1597,14 @@ def fiches_json(evenement_id):
     date_ouv_loc = getattr(evt, "date_ouverture_locale", None)
     evt_payload = {
         "id": evt.id,
+        "settings": settings(evt.id),
         "nom": evt.nom or "",
         "adresse": evt.adresse or "",
         "statut": evt.statut or "",
         "date_ouverture": fmt(date_ouv_loc),
     }
+
+    db.session.commit()
 
     # Compteurs live
     humains = [f for f in fiches if not getattr(f, "est_animal", False)]
