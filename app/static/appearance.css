@@ -35,3 +35,7 @@
 .cai-personal[data-theme=dark] .badge.present{background:#153d34!important;color:#b0f1ce!important}
 .cai-personal[data-theme=dark] .badge.sorti{background:#203f65!important;color:#c1e0ff!important}
 .cai-personal[data-theme=dark] .badge.supprime{background:#54232a!important;color:#ffd0d5!important}
+.cai-personal[data-theme=dark] :is(.search-entry.search-found,.search-toast){background:#153d34!important;color:#b0f1ce!important;border-color:#64b58a!important}
+.cai-personal[data-theme=dark] .search-entry.search-missing{background:#54232a!important;color:#ffd0d5!important;border-color:#e47683!important}
+.cai-personal[data-theme=dark] .search-entry.search-found a{color:#b0f1ce!important}.cai-personal[data-theme=dark] .search-entry.search-missing a{color:#ffd0d5!important}
+.cai-personal .feature-page a.primary:not(.btn):not(.feature-button){color:#fff}

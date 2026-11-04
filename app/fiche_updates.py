@@ -50,6 +50,11 @@ def normalized(value):
                            if not unicodedata.combining(c)).split())
 
 
+def present_family_count(fiches):
+    return len({normalized(f.nom) for f in fiches
+                if not f.est_animal and normalized(f.statut) == 'present' and normalized(f.nom)})
+
+
 def duplicates(event_id, nom, prenom, birth, exclude=None):
     if not nom or not birth:
         return []

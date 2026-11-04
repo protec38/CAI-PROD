@@ -352,5 +352,7 @@ def init_features(app):
     def feature_context():
         user = get_current_user()
         from .routes import can_send_broadcast
+        from .time_utils import utcnow
         return {'can_send_broadcast': can_send_broadcast(user), 'feature_settings': settings, 'personal_preferences': preferences(user.id) if user and user.is_active else {},
+                'search_watch_since': utcnow().isoformat() + 'Z',
                 'device_user_id': user.id if user and user.is_active and request.endpoint not in {'main_bp.login', 'features.unlock'} else None}

@@ -735,6 +735,9 @@ def dashboard(evenement_id):
     nb_present_animaux = sum(1 for f in animaux if _is_present(f))
     nb_total_animaux = len(animaux)
 
+    from .fiche_updates import present_family_count
+    nb_familles = present_family_count(fiches)
+
     peut_modifier_statut = (
         user.is_admin or
         user.role == "codep" or
@@ -751,6 +754,7 @@ def dashboard(evenement_id):
         nb_total=nb_total,
         nb_present_animaux=nb_present_animaux,
         nb_total_animaux=nb_total_animaux,
+        nb_familles=nb_familles,
         peut_modifier_statut=peut_modifier_statut,
         competence_colors=COMPETENCE_COLORS
     )
@@ -1619,14 +1623,16 @@ def fiches_json(evenement_id):
     nb_present_animaux = sum(1 for f in animaux if _is_present(f))
     nb_total_animaux = len(animaux)
 
-    from .person_search import active_searches
+    from .person_search import all_searches
+    from .fiche_updates import present_family_count
     return json_nocache({
-        'person_searches': active_searches(evenement_id),
+        'person_searches': all_searches(evenement_id),
         "fiches": fiches_data,
         "nb_present": nb_present,
         "nb_total": nb_total,
         "nb_present_animaux": nb_present_animaux,
         "nb_total_animaux": nb_total_animaux,
+        "nb_familles": present_family_count(fiches),
         "evenement": evt_payload,
         "applied_operations": [operation.id for operation in OfflineMutation.query.filter_by(
             evenement_id=evenement_id, utilisateur_id=user.id).all()] + [operation.id for operation in OfflineDeletion.query.filter_by(

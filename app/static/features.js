@@ -5,6 +5,10 @@
   const csrf = () => document.querySelector('meta[name="csrf-token"]')?.content || '';
   const post = (url, options={}) => fetch(url,{...options,method:'POST',headers:{'X-CSRFToken':csrf(),...options.headers}});
   let context, locked = false, lockDialog, lastActivity = Date.now(), activitySent = 0, draftTimer;
+  let searchWatchTimer, searchWatchBusy = false, latestSearches;
+  const searchWatchStates = new Map();
+  const foundQueue = [];
+  let showingFound = false;
   const norm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr').trim().replace(/\s+/g, ' ');
   const labels = {nom:'Nom',prenom:'Prénom',date_naissance:'Date de naissance',telephone:'Téléphone',nationalite:'Nationalité',adresse:'Adresse',numero_pec:'N° PEC',code_sinus:'Code Sinus',difficultes:'Difficultés',competences:'Compétences',destination:'Destination',moyen_transport:'Transport',statut:'Statut',family_key:'Famille / groupe',autres_informations:'Autres informations',effets_perso:'Effets personnels',personne_a_prevenir:'Personne à prévenir',tel_personne_a_prevenir:'Téléphone à prévenir',recherche_personne:'Recherche personne',numero_recherche:'Numéro de recherche',animal_espece:'Espèce',animal_details:'Notes de l’animal',referent_humain_id:'Personne référente',bagages:'Bagages',restauration:'Restauration'};
   const readable = value => typeof value === 'object' ? JSON.stringify(value) : value === true ? 'Oui' : value === false ? 'Non' : String(value || 'Vide');
@@ -86,6 +90,7 @@
   async function lock() {
     if (locked) return;
     locked = true;
+    document.querySelectorAll('.search-toast').forEach(node=>node.remove());foundQueue.length=0;
     await store().put({key:`lock:${context.userId}`,locked:true});
     // The dialog prevents keyboard, pointer and screen-reader access to the workspace.
     lockDialog = modal('Appareil verrouillé'); lockDialog.addEventListener('cancel', event => event.preventDefault());
@@ -132,7 +137,80 @@
     setInterval(()=>check().catch(()=>{}),1000);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden) check();});
   }
-  async function ready(ctx) { context=ctx; applyPreferences(); if(ctx.eventId) toolbar(); await initLock(); }
+  function setupSeekerSuggestions() {
+    const form=document.getElementById('person-search-create');
+    if(!form || form.dataset.suggestionsReady)return;
+    form.dataset.suggestionsReady='true';
+    const choices=JSON.parse(document.getElementById('seeker-choices').textContent);
+    const name=form.elements.seeker_nom, first=form.elements.seeker_prenom, id=form.elements.seeker_fiche_id;
+    const host=document.getElementById('seeker-suggestions'), status=document.getElementById('seeker-selection'), unlink=document.getElementById('seeker-unlink');
+    const clear=()=>{id.value='';status.textContent='Saisie libre, sans fiche rattachée.';unlink.hidden=true;};
+    const suggest=()=>{
+      clear();host.replaceChildren();
+      const term=norm(name.value), given=norm(first.value);
+      const matches=term ? choices.filter(f=>norm(f.nom).includes(term) && (!given || norm(f.prenom).includes(given))).slice(0,10) : [];
+      host.hidden=!matches.length;
+      for(const fiche of matches)button(`${fiche.nom} ${fiche.prenom} — ${fiche.numero}`,()=>{
+        name.value=fiche.nom;first.value=fiche.prenom;id.value=fiche.id;
+        status.textContent=`Fiche rattachée : ${fiche.numero} — ${fiche.nom} ${fiche.prenom}`;
+        unlink.hidden=false;host.hidden=true;host.replaceChildren();
+      },host);
+    };
+    name.addEventListener('input',suggest);first.addEventListener('input',suggest);
+    unlink.addEventListener('click',()=>{clear();host.hidden=true;host.replaceChildren();name.focus();});
+  }
+  function searchAppearance(article, row) {
+    const found=!!row.resolved_at;
+    article.classList.toggle('search-found',found);article.classList.toggle('search-missing',!found);
+    const status=article.querySelector('[data-search-status]');
+    if(status)status.textContent=found?'Personne retrouvée · Recherche terminée':'Personne non retrouvée · Recherche en cours';
+    const action=article.querySelector('input[name=action]'), submit=article.querySelector('button[type=submit]');
+    if(action)action.value=found?'reopen':'resolve';
+    if(submit)submit.textContent=found?'Relancer la recherche':'Marquer comme retrouvée';
+  }
+  function showNextFound() {
+    if(showingFound || locked || !foundQueue.length)return;
+    showingFound=true;
+    const row=foundQueue.shift(), toast=el('div',`Personne retrouvée : ${row.target_nom} ${row.target_prenom} · Recherchée par ${row.seeker_nom} ${row.seeker_prenom}`,'search-toast');
+    toast.setAttribute('role','status');toast.setAttribute('aria-live','polite');document.body.append(toast);
+    setTimeout(()=>{toast.remove();showingFound=false;showNextFound();},5000);
+  }
+  async function pollSearchStatus() {
+    if(!context?.eventId || locked || navigator.onLine===false || searchWatchBusy)return;
+    searchWatchBusy=true;
+    const key=scoped('search-watch');
+    try {
+      let saved=searchWatchStates.get(key);try{saved ||= JSON.parse(sessionStorage.getItem(key) || 'null');}catch{}
+      saved ||= {since:context.searchWatchSince || new Date().toISOString(),seen:[]};
+      const started=saved.started || saved.since;
+      const response=await fetch(`/api/evenement/${context.eventId}/recherches/etat?since=${encodeURIComponent(saved.since)}`,{cache:'no-store',signal:AbortSignal.timeout(8000)});
+      if(!response.ok || response.redirected)return;
+      const payload=await response.json();
+      // The event may have changed while the request was in flight.
+      if(key!==scoped('search-watch') || locked)return;
+      const seen=new Set(saved.seen);
+      for(const row of payload.notifications){const token=row.id+':'+row.resolved_at;if(!seen.has(token)){seen.add(token);foundQueue.push(row);}}
+      // A short overlap also covers resolutions committed while the prior poll ran.
+      saved={since:new Date(Math.max(Date.parse(started),Date.parse(payload.server_time)-10000)).toISOString(),started,seen:[...seen].slice(-500)};
+      searchWatchStates.set(key,saved);
+      try{sessionStorage.setItem(key,JSON.stringify(saved));}catch{}
+      latestSearches=payload.searches;
+      const snapshot=await store().get(`snapshot:${context.userId}:${context.eventId}`);
+      if(snapshot)await store().change(snapshot.key,current=>({...current,data:{...current.data,person_searches:payload.searches}}));
+      showNextFound();if(window.CAIOffline)await refresh();
+    } catch { /* Keep the current event available when disconnected. */ }
+    finally {searchWatchBusy=false;}
+  }
+  async function ready(ctx) {
+    const changed=context?.eventId!==ctx.eventId || context?.userId!==ctx.userId;
+    context=ctx;applyPreferences();if(ctx.eventId)toolbar();await initLock();setupSeekerSuggestions();
+    if(changed){latestSearches=undefined;clearInterval(searchWatchTimer);if(ctx.eventId){
+      const key=scoped('search-watch');
+      const initial={since:ctx.searchWatchSince || new Date().toISOString(),seen:[]};
+      try{if(!sessionStorage.getItem(key))sessionStorage.setItem(key,JSON.stringify(initial));}catch{searchWatchStates.set(key,initial);}
+      pollSearchStatus();searchWatchTimer=setInterval(pollSearchStatus,3000);
+    }}
+  }
   async function refresh() {
     if (!context || locked) return;
     applyPreferences();if(context.eventId)toolbar();
@@ -175,8 +253,10 @@
     const searchList=document.getElementById(offlineSearch?'offline-search-list':'local-search-list');
     if(searchList) {
       document.querySelector('[data-cai-dashboard-link]').href='/evenement/'+context.eventId+'/dashboard';
+      const current=[...(latestSearches || payload.person_searches || []),...(latestSearches ? (payload.person_searches || []).filter(row=>String(row.id).startsWith('local-')) : [])];
       const rendered=new Set([...document.querySelectorAll('[data-search-id]')].map(node=>node.dataset.searchId));
-      const searches=(payload.person_searches || []).filter(row=>offlineSearch || !rendered.has(String(row.id)));
+      for(const article of document.querySelectorAll('[data-search-id]')){const row=current.find(row=>String(row.id)===article.dataset.searchId);if(row)searchAppearance(article,row);}
+      const searches=current.filter(row=>offlineSearch || !rendered.has(String(row.id)));
       searchList.hidden=!offlineSearch && !searches.length;
       searchList.replaceChildren(el('h2',offlineSearch?'Recherches disponibles sur cet appareil':'Nouvelles recherches disponibles'));
       if(offlineSearch) {
@@ -186,6 +266,7 @@
       for(const row of searches) {
         const article=el('article',undefined,'search-entry');
         article.append(el('h3',row.target_nom+' '+row.target_prenom),el('p','Recherchée par : '+row.seeker_nom+' '+row.seeker_prenom));
+        const status=el('p');status.dataset.searchStatus='';article.append(status);searchAppearance(article,row);
         if(row.pending)article.append(el('p','En attente du serveur'));
         for(const fiche of payload.fiches.filter(f=>!f.est_animal && f.statut!=='supprimé' && norm(f.nom)===norm(row.target_nom) && norm(f.prenom)===norm(row.target_prenom))) {
           const p=el('p');link('Fiche correspondante : '+fiche.numero+' — '+fiche.nom+' '+fiche.prenom,'/fiche/'+fiche.id+'?evenement_id='+context.eventId,p);article.append(p);

@@ -3,6 +3,7 @@
   'userId': user.id,
   'eventId': evenement.id,
   'eventName': evenement.nom,
+  'searchWatchSince': search_watch_since,
   'eventSettings': feature_settings(evenement.id),
   'preferences': personal_preferences | default({}),
   'numeroPrevu': numero_prevu | default(''),

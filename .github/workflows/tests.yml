@@ -44,7 +44,7 @@ jobs:
       - run: node tests/test_dashboard_sort.cjs
       - run: node tests/test_offline_exports.cjs
       - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest tests/test_offline_browser.py tests/test_responsive_browser.py tests/test_features_browser.py tests/test_person_workflows_browser.py tests/test_dashboard_sort_browser.py tests/test_offline_exports_search_browser.py -q
+      - run: python -m pytest tests/test_offline_browser.py tests/test_responsive_browser.py tests/test_features_browser.py tests/test_person_workflows_browser.py tests/test_dashboard_sort_browser.py tests/test_offline_exports_search_browser.py tests/test_search_status_browser.py -q
         env:
           CAI_BROWSER_TEST: "1"
       - run: python -m pip_audit -r requirements.txt --no-deps --disable-pip

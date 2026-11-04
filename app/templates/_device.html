@@ -1,5 +1,5 @@
 {% if device_user_id and not offline_mode | default(false) %}
-<script type="application/json" id="cai-device-context">{{ {'userId': device_user_id, 'eventId': 0, 'preferences': personal_preferences} | tojson }}</script>
+<script type="application/json" id="cai-device-context">{{ {'userId': device_user_id, 'eventId': evenement.id if evenement is defined else 0, 'preferences': personal_preferences, 'searchWatchSince': search_watch_since} | tojson }}</script>
 <link rel="stylesheet" href="{{ url_for('static', filename='features.css') }}">
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='appearance.css') }}">

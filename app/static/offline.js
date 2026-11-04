@@ -168,6 +168,8 @@
     const families=new Map();for(const f of visible)if(!f.est_animal && !f.deletionPending && normalizeName(f.nom))families.set(normalizeName(f.nom),(families.get(normalizeName(f.nom)) || 0)+1);
     for(const f of visible){f.family_name=f.est_animal?'':f.nom;f.family_count=f.est_animal?0:families.get(normalizeName(f.nom)) || 0;}
     const result = {...data, fiches: visible, person_searches: searches};
+    result.nb_familles = new Set(visible.filter(f => !f.est_animal && !f.deletionPending &&
+      normalizeName(f.statut) === 'present' && normalizeName(f.nom)).map(f => normalizeName(f.nom))).size;
     for (const animal of [false, true]) {
       const rows = visible.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
       result['nb_total' + suffix] = rows.length;

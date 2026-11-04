@@ -64,6 +64,13 @@ def _ensure_database_schema(app: Flask) -> None:
                         )
                     )
 
+        if "person_search" in table_names:
+            columns = {col["name"] for col in inspector.get_columns("person_search")}
+            if "seeker_fiche_id" not in columns:
+                with db.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE person_search ADD COLUMN seeker_fiche_id INTEGER "
+                                      "REFERENCES fiche_implique(id) ON DELETE SET NULL"))
+
         if "fiche_implique" in table_names:
             columns = {col["name"] for col in inspector.get_columns("fiche_implique")}
 

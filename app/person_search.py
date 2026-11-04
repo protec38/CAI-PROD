@@ -1,4 +1,6 @@
 """Event-scoped searches and identity matches for new fiches."""
+from datetime import UTC, datetime
+
 from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from .extensions import db
@@ -23,6 +25,7 @@ def event_selector():
 
 def serialize(row):
     return {'id': row.id, 'seeker_nom': row.seeker_nom, 'seeker_prenom': row.seeker_prenom,
+            'seeker_fiche_id': row.seeker_fiche_id,
             'target_nom': row.target_nom, 'target_prenom': row.target_prenom,
             'created_at': row.created_at.isoformat() + 'Z',
             'resolved_at': row.resolved_at.isoformat() + 'Z' if row.resolved_at else None}
@@ -31,6 +34,28 @@ def serialize(row):
 def active_searches(event_id):
     return [serialize(row) for row in PersonSearch.query.filter_by(evenement_id=event_id, resolved_at=None)
             .order_by(PersonSearch.created_at.desc(), PersonSearch.id.desc())]
+
+
+def all_searches(event_id):
+    return [serialize(row) for row in PersonSearch.query.filter_by(evenement_id=event_id)
+            .order_by(PersonSearch.created_at.desc(), PersonSearch.id.desc())]
+
+
+@search_bp.get('/api/evenement/<int:event_id>/recherches/etat')
+def search_status(event_id):
+    access(event_id)
+    until = utcnow()
+    try:
+        since = datetime.fromisoformat(request.args.get('since', ''))
+        if since.tzinfo:
+            since = since.astimezone(UTC).replace(tzinfo=None)
+    except ValueError:
+        return json_nocache({'error': 'Date de suivi invalide.'}, 400)
+    rows = all_searches(event_id)
+    notifications = [row for row in rows if row['resolved_at']
+                     and since < datetime.fromisoformat(row['resolved_at'][:-1]) <= until]
+    return json_nocache({'searches': rows, 'notifications': notifications,
+                         'server_time': until.isoformat() + 'Z'})
 
 
 def wanted_matches(event_id, nom, prenom):
@@ -59,6 +84,7 @@ def create_from_fiche(fiche, form, user_id):
     # Keep the existing text column readable by old clients, exports and backups.
     fiche.recherche_personne = f'{target_nom} {target_prenom}'
     db.session.add(PersonSearch(evenement_id=fiche.evenement_id, created_by_id=user_id,
+                               seeker_fiche_id=fiche.id,
                                seeker_nom=seeker_nom, seeker_prenom=seeker_prenom,
                                target_nom=target_nom, target_prenom=target_prenom))
 
@@ -74,7 +100,20 @@ def page(event_id):
                           ('seeker_nom', 'seeker_prenom', 'target_nom', 'target_prenom')}
                 if any(not value or len(value) > 100 for value in values.values()):
                     raise ValueError('Renseignez les noms et prénoms (100 caractères maximum par champ).')
-                db.session.add(PersonSearch(evenement_id=event_id, created_by_id=user.id, **values))
+                seeker_id = request.form.get('seeker_fiche_id', '').strip()
+                if seeker_id:
+                    if not seeker_id.isdecimal():
+                        raise ValueError('Choisissez une fiche valide pour le demandeur.')
+                    seeker = db.get_or_404(FicheImplique, int(seeker_id))
+                    if seeker.evenement_id != event_id:
+                        abort(403)
+                    if seeker.est_animal or seeker.statut == 'supprimé':
+                        raise ValueError('Choisissez une fiche de personne disponible.')
+                    if (normalized(seeker.nom) != normalized(values['seeker_nom'])
+                            or normalized(seeker.prenom) != normalized(values['seeker_prenom'])):
+                        raise ValueError('Le nom et le prénom doivent correspondre à la fiche choisie.')
+                db.session.add(PersonSearch(evenement_id=event_id, created_by_id=user.id,
+                                            seeker_fiche_id=int(seeker_id) if seeker_id else None, **values))
                 flash('La recherche de personne a été enregistrée.', 'success')
             elif action in {'resolve', 'reopen'}:
                 search_id = request.form.get('search_id', type=int)
@@ -85,7 +124,10 @@ def page(event_id):
                     abort(403)
                 if row.created_by_id != user.id and not (user.is_admin or user.role.lower() == 'responsable'):
                     abort(403)
-                row.resolved_at = utcnow() if action == 'resolve' else None
+                if action == 'resolve' and row.resolved_at is None:
+                    row.resolved_at = utcnow()
+                elif action == 'reopen':
+                    row.resolved_at = None
                 flash('La recherche a été mise à jour.', 'success')
             else:
                 raise ValueError('Action de recherche inconnue.')
@@ -100,10 +142,13 @@ def page(event_id):
         FicheImplique.statut != 'supprimé').all()
     matches = {row.id: [fiche for fiche in fiches if normalized(fiche.nom) == normalized(row.target_nom)
                        and normalized(fiche.prenom) == normalized(row.target_prenom)] for row in searches}
-    seekers = {row.id: [fiche for fiche in fiches if normalized(fiche.nom) == normalized(row.seeker_nom)
-                       and normalized(fiche.prenom) == normalized(row.seeker_prenom)] for row in searches}
+    seekers = {row.id: [fiche for fiche in fiches if (fiche.id == row.seeker_fiche_id if row.seeker_fiche_id
+                       else normalized(fiche.nom) == normalized(row.seeker_nom)
+                       and normalized(fiche.prenom) == normalized(row.seeker_prenom))] for row in searches}
     return render_template('person_search.html', user=user, evenement=event, searches=searches,
-                           matches=matches, seekers=seekers)
+                           matches=matches, seekers=seekers,
+                           seeker_choices=[{'id': f.id, 'nom': f.nom or '', 'prenom': f.prenom or '',
+                                            'numero': f.numero} for f in fiches if f.nom and f.prenom])
 
 
 @search_bp.get('/api/evenement/<int:event_id>/recherches/correspondances')

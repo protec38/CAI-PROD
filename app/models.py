@@ -320,6 +320,7 @@ class PersonSearch(db.Model):
     evenement_id = db.Column(db.Integer, db.ForeignKey('evenement.id', ondelete='CASCADE'), nullable=False, index=True)
     seeker_nom = db.Column(db.String(100), nullable=False)
     seeker_prenom = db.Column(db.String(100), nullable=False)
+    seeker_fiche_id = db.Column(db.Integer, db.ForeignKey('fiche_implique.id', ondelete='SET NULL'), nullable=True)
     target_nom = db.Column(db.String(100), nullable=False)
     target_prenom = db.Column(db.String(100), nullable=False)
     created_by_id = db.Column(db.Integer, db.ForeignKey('utilisateur.id', ondelete='SET NULL'), nullable=True)
