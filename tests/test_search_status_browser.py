@@ -60,9 +60,12 @@ def test_found_person_popup_and_seeker_suggestions(app, tmp_path):
             expect(watcher.locator('#cai-connection-label')).to_have_text('Synchronisé au serveur')
             # Both screens have an initialized event watch before resolution.
             page.wait_for_function("sessionStorage.getItem('search-watch:1:1') !== null")
-            row.get_by_role('button', name='Marquer comme retrouvée', exact=True).click()
+            # A corresponding fiche resolves the search without pressing "retrouvée".
+            response = page.request.post(base + '/fiche/new', form={
+                'evenement_id': '1', 'nom': 'DURAND', 'prenom': 'émma', 'date_naissance': '2000-01-01'})
+            assert response.ok
             row = page.locator('[data-search-id]').filter(has_text='Durand Emma')
-            expect(row).to_have_class('search-entry search-found')
+            expect(row).to_have_class('search-entry search-found', timeout=12000)
             expect(watcher.locator('.search-toast')).to_contain_text('Durand Emma', timeout=12000)
             expect(page.locator('.search-toast')).to_contain_text('Durand Emma', timeout=12000)
             expect(tools.locator('.search-toast')).to_contain_text('Durand Emma', timeout=12000)
@@ -74,8 +77,6 @@ def test_found_person_popup_and_seeker_suggestions(app, tmp_path):
             # A subsequent poll must not replay the same notification.
             watcher.wait_for_timeout(3200)
             expect(watcher.locator('.search-toast')).to_have_count(0)
-            row.get_by_role('button', name='Relancer la recherche', exact=True).click()
-            expect(page.locator('[data-search-id]')).to_have_class('search-entry search-missing')
             # Editing the selected identity returns to free entry.
             name.fill('Martin')
             page.get_by_role('button', name='Martin Luc — F1', exact=True).click()

@@ -3,7 +3,7 @@
 <body class="cai-tools{% if offline_mode | default(false) %} cai-offline-search{% endif %}"><main class="feature-page">
 <a data-cai-dashboard-link href="{{ '/hors-ligne' if offline_mode | default(false) else url_for('main_bp.dashboard', evenement_id=evenement.id) }}">← Tableau de bord</a>
 <h1>Recherche de personnes</h1>
-<section class="feature-card"><h2>Déclarer une recherche depuis une fiche</h2><p>À la création d’une fiche, renseignez le nom et le prénom de la personne recherchée. La recherche apparaît automatiquement ici, avec l’identité du demandeur. Si une nouvelle fiche porte le même nom et le même prénom recherchés, un message d’information le signale.</p><p><a class="primary" href="{{ '/hors-ligne/fiche' if offline_mode | default(false) else url_for('main_bp.fiche_new', evenement_id=evenement.id) }}">Créer la fiche du demandeur</a></p></section>
+<section class="feature-card"><h2>Déclarer une recherche depuis une fiche</h2><p>À la création d’une fiche, renseignez le nom et le prénom de la personne recherchée. La recherche apparaît automatiquement ici, avec l’identité du demandeur. Dès qu’une fiche de cet événement correspond au nom et au prénom recherchés, la personne est automatiquement marquée comme retrouvée et une notification s’affiche pendant 5 secondes sur les écrans connectés à l’événement.</p><p><a class="primary" href="{{ '/hors-ligne/fiche' if offline_mode | default(false) else url_for('main_bp.fiche_new', evenement_id=evenement.id) }}">Créer la fiche du demandeur</a></p></section>
 {% if not offline_mode | default(false) %}
 <p>{{ evenement.nom }}</p>
 {% for message in get_flashed_messages() %}<p class="feature-message" role="status">{{ message }}</p>{% endfor %}

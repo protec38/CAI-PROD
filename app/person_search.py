@@ -37,14 +37,34 @@ def active_searches(event_id):
 
 
 def all_searches(event_id):
+    if resolve_matching_searches(event_id):
+        db.session.commit()
     return [serialize(row) for row in PersonSearch.query.filter_by(evenement_id=event_id)
             .order_by(PersonSearch.created_at.desc(), PersonSearch.id.desc())]
+
+
+def resolve_matching_searches(event_id):
+    """Resolve each matching identity once, including older and corrected fiches."""
+    pending = PersonSearch.query.filter_by(evenement_id=event_id, resolved_at=None).all()
+    if not pending:
+        return 0
+    identities = {(normalized(nom), normalized(prenom)) for nom, prenom in
+                  db.session.query(FicheImplique.nom, FicheImplique.prenom).filter_by(
+                      evenement_id=event_id, est_animal=False).filter(
+                          FicheImplique.statut != 'supprimé') if normalized(nom) and normalized(prenom)}
+    matching = [row.id for row in pending
+                if (normalized(row.target_nom), normalized(row.target_prenom)) in identities]
+    if not matching:
+        return 0
+    # Concurrent screen refreshes must share the same resolution timestamp.
+    result = db.session.execute(db.update(PersonSearch).where(
+        PersonSearch.id.in_(matching), PersonSearch.resolved_at.is_(None)).values(resolved_at=utcnow()))
+    return result.rowcount
 
 
 @search_bp.get('/api/evenement/<int:event_id>/recherches/etat')
 def search_status(event_id):
     access(event_id)
-    until = utcnow()
     try:
         since = datetime.fromisoformat(request.args.get('since', ''))
         if since.tzinfo:
@@ -52,6 +72,7 @@ def search_status(event_id):
     except ValueError:
         return json_nocache({'error': 'Date de suivi invalide.'}, 400)
     rows = all_searches(event_id)
+    until = utcnow()
     notifications = [row for row in rows if row['resolved_at']
                      and since < datetime.fromisoformat(row['resolved_at'][:-1]) <= until]
     return json_nocache({'searches': rows, 'notifications': notifications,
@@ -92,6 +113,7 @@ def create_from_fiche(fiche, form, user_id):
 @search_bp.route('/evenement/<int:event_id>/recherches', methods=['GET', 'POST'])
 def page(event_id):
     user, event = access(event_id)
+    watch_since = utcnow().isoformat() + 'Z'
     if request.method == 'POST':
         try:
             action = request.form.get('action', 'create')
@@ -131,11 +153,14 @@ def page(event_id):
                 flash('La recherche a été mise à jour.', 'success')
             else:
                 raise ValueError('Action de recherche inconnue.')
+            resolve_matching_searches(event_id)
             db.session.commit()
         except ValueError as exc:
             db.session.rollback()
             flash(str(exc), 'danger')
         return redirect(url_for('person_search.page', event_id=event_id))
+    if resolve_matching_searches(event_id):
+        db.session.commit()
     searches = PersonSearch.query.filter_by(evenement_id=event_id).order_by(
         PersonSearch.created_at.desc(), PersonSearch.id.desc()).all()
     fiches = FicheImplique.query.filter_by(evenement_id=event_id, est_animal=False).filter(
@@ -146,6 +171,7 @@ def page(event_id):
                        else normalized(fiche.nom) == normalized(row.seeker_nom)
                        and normalized(fiche.prenom) == normalized(row.seeker_prenom))] for row in searches}
     return render_template('person_search.html', user=user, evenement=event, searches=searches,
+                           search_watch_since=watch_since,
                            matches=matches, seekers=seekers,
                            seeker_choices=[{'id': f.id, 'nom': f.nom or '', 'prenom': f.prenom or '',
                                             'numero': f.numero} for f in fiches if f.nom and f.prenom])

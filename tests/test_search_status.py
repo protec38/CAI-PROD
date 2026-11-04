@@ -107,3 +107,55 @@ def test_legacy_search_schema_adds_optional_seeker_link():
         _ensure_database_schema(legacy)
         _ensure_database_schema(legacy)
         assert 'seeker_fiche_id' in {column['name'] for column in db.inspect(db.engine).get_columns('person_search')}
+
+
+def test_existing_fiche_resolves_new_search_immediately(app, client):
+    with app.app_context():
+        fiche = db.session.get(FicheImplique, 1)
+        fiche.nom, fiche.prenom = ' DUPONT ', 'Émma'
+        db.session.commit()
+    since = utcnow().isoformat() + 'Z'
+    client.post('/evenement/1/recherches', data=fields())
+    with app.app_context():
+        assert PersonSearch.query.one().resolved_at is not None
+    response = client.get('/api/evenement/1/recherches/etat', query_string={'since': since}).json
+    assert len(response['notifications']) == 1
+    assert 'search-found' in client.get('/evenement/1/recherches').text
+    again = client.get('/api/evenement/1/recherches/etat', query_string={'since': response['server_time']}).json
+    assert again['notifications'] == []
+    assert again['searches'][0]['resolved_at'] == response['searches'][0]['resolved_at']
+
+
+def test_existing_search_resolves_when_fiche_is_corrected(app, client):
+    client.post('/evenement/1/recherches', data=fields())
+    since = utcnow().isoformat() + 'Z'
+    with app.app_context():
+        fiche = db.session.get(FicheImplique, 1)
+        fiche.nom, fiche.prenom = 'Dupont', 'Emma'
+        db.session.commit()
+    result = client.get('/api/evenement/1/recherches/etat', query_string={'since': since}).json
+    assert len(result['notifications']) == 1
+    assert result['searches'][0]['resolved_at']
+    assert 'search-found' in client.get('/evenement/1/recherches').text
+
+
+@pytest.mark.parametrize('kind', ['foreign', 'animal', 'deleted', 'different_first_name', 'different_name'])
+def test_automatic_resolution_requires_a_matching_person_in_same_event(app, client, kind):
+    with app.app_context():
+        fiche = db.session.get(FicheImplique, 2 if kind == 'foreign' else 1)
+        fiche.nom, fiche.prenom = 'Dupont', 'Emma'
+        if kind == 'animal':
+            fiche.est_animal = True
+        elif kind == 'deleted':
+            fiche.statut = 'supprimé'
+        elif kind == 'different_first_name':
+            fiche.prenom = 'Anne'
+        elif kind == 'different_name':
+            fiche.nom = 'Martin'
+        db.session.commit()
+    since = utcnow().isoformat() + 'Z'
+    client.post('/evenement/1/recherches', data=fields())
+    result = client.get('/api/evenement/1/recherches/etat', query_string={'since': since}).json
+    assert result['notifications'] == []
+    assert result['searches'][0]['resolved_at'] is None
+    assert 'search-missing' in client.get('/evenement/1/recherches').text

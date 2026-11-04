@@ -31,8 +31,9 @@ def test_search_matches_creation_and_stays_in_its_event(app, client):
     assert response.json['wanted_matches'][0]['seeker_prenom'] == 'Luc'
     snapshot = client.get('/evenement/1/fiches_json?details=1').json
     assert len(snapshot['person_searches']) == 1
+    assert snapshot['person_searches'][0]['resolved_at']
     response = client.post('/fiche/new', data={'evenement_id':'1','nom':'Dupont','prenom':'Elise','date_naissance':'1990-01-01'}, follow_redirects=True)
-    assert 'recherchée par : Martin Luc' in response.text
+    assert 'recherchée par : Martin Luc' not in response.text
 
 
 def test_search_resolution_requires_author_or_manager_and_backup_preserves_it(app, client):
