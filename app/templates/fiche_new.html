@@ -34,6 +34,7 @@ form { display: flex; flex-direction: column; gap: 24px; }
 .form-grid { display: flex; flex-wrap: wrap; gap: 20px; }
 .form-group { flex: 1 1 45%; display: flex; flex-direction: column; }
 .form-group-full { flex: 1 1 100%; }
+.person-search-fields { min-width: 0; margin: 0; border: 1px solid #d1d5db; border-radius: 8px; padding: 16px; }
 label { font-weight: bold; margin-bottom: 5px; color: #002f6c; }
 input, select, textarea {
     padding: 10px; font-size: 15px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box;
@@ -246,10 +247,29 @@ button:hover { background-color: #e65c00; }
             <input id="tel_personne_a_prevenir" type="tel" name="tel_personne_a_prevenir" maxlength="15" inputmode="tel">
           </div>
 
-          <div class="form-group">
-            <label for="recherche_personne"><i aria-hidden="true" class="fas fa-search"></i> Recherche de personne</label>
-            <textarea id="recherche_personne" name="recherche_personne" rows="2" maxlength="200"></textarea>
+          {% if edit_mode | default(false) %}
+          <div class="form-group-full">
+            <label for="recherche_personne">Recherche de personne (texte de la fiche)</label>
+            <textarea id="recherche_personne" name="recherche_personne" rows="2" maxlength="201"></textarea>
+            <small>Une recherche se déclare lors de la création d’une fiche et se termine dans la page « Recherche de personnes ».</small>
           </div>
+          {% else %}
+          <fieldset class="form-group-full person-search-fields">
+            <legend><i aria-hidden="true" class="fas fa-search"></i> Personne recherchée (facultatif)</legend>
+            <p>Cette personne sera ajoutée automatiquement à la page « Recherche de personnes ». Le demandeur sera la personne de cette fiche.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="recherche_nom">Nom de la personne recherchée</label>
+                <input type="text" id="recherche_nom" name="recherche_nom" maxlength="100" autocomplete="off">
+              </div>
+              <div class="form-group">
+                <label for="recherche_prenom">Prénom de la personne recherchée</label>
+                <input type="text" id="recherche_prenom" name="recherche_prenom" maxlength="100" autocomplete="off">
+              </div>
+            </div>
+            <small>Renseignez les deux champs pour déclarer une recherche. Si une fiche possède le même nom et le même prénom, un message d’information le signalera.</small>
+          </fieldset>
+          {% endif %}
 
           <div class="form-group">
             <label for="difficulte"><i aria-hidden="true" class="fas fa-exclamation-circle"></i> Difficultés</label>
@@ -441,6 +461,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggleButtons = document.querySelectorAll('.fiche-type-switch__btn');
     const sections = document.querySelectorAll('.fiche-section');
     const initialType = (form?.dataset?.initialType || 'humain').toLowerCase();
+    const rechercheNom = document.getElementById('recherche_nom');
+    const recherchePrenom = document.getElementById('recherche_prenom');
+    const validateSearch = () => {
+        if (!rechercheNom || !recherchePrenom) return;
+        const human = typeInput.value !== 'animal';
+        const nom = rechercheNom.value.trim(), prenom = recherchePrenom.value.trim();
+        rechercheNom.setCustomValidity(human && prenom && !nom ? 'Renseignez le nom de la personne recherchée.' : '');
+        recherchePrenom.setCustomValidity(human && nom && !prenom ? 'Renseignez le prénom de la personne recherchée.' : '');
+    };
+    rechercheNom?.addEventListener('input', validateSearch);
+    recherchePrenom?.addEventListener('input', validateSearch);
+    form.addEventListener('cai:restore', validateSearch);
+    form.addEventListener('change', validateSearch);
 
     const ensureBirthDate = (showAlert = false) => {
         const raw = (visibleBirthInput?.value || "").trim();
@@ -484,6 +517,7 @@ document.addEventListener("DOMContentLoaded", () => {
             section.classList.toggle('is-active', isActive);
         });
         toggleRequiredFields(type);
+        validateSearch();
     };
 
     toggleButtons.forEach(btn => {
@@ -505,6 +539,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     form?.addEventListener("submit", (e) => {
         const activeType = (typeInput.value || 'humain').toLowerCase();
+        validateSearch();
+        if (activeType === 'humain' && (rechercheNom?.validity.valid === false || recherchePrenom?.validity.valid === false)) {
+            e.preventDefault();
+            form.reportValidity();
+            return;
+        }
         if (activeType === 'humain' && !ensureBirthDate(true)) {
             e.preventDefault();
             return;

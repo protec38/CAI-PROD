@@ -146,6 +146,7 @@ def test_offline_reload_and_automatic_recovery(app):
             page.locator("#sortie-moyen").fill("Ambulance")
             page.locator('#form-sortie button[type="submit"]').click()
             expect(existing).to_have_class("cai-row-pending")
+            expect(existing.locator('[data-col="statut"]')).to_contain_text("Sorti")
             page.reload()
             expect(existing).to_contain_text("SRV-OFF-1")
             expect(existing.locator('[data-col="statut"]')).to_contain_text("Sorti")

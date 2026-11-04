@@ -1596,6 +1596,8 @@ def fiches_json(evenement_id):
     date_ouv_loc = getattr(evt, "date_ouverture_locale", None)
     evt_payload = {
         "id": evt.id,
+        "numero": evt.numero or "",
+        "type_evt": evt.type_evt or "",
         "settings": settings(evt.id),
         "nom": evt.nom or "",
         "adresse": evt.adresse or "",

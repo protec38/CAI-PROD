@@ -69,6 +69,7 @@ def offline_session():
     from .features import preferences
     return json_nocache({"preferences": preferences(user.id), "user_id": user.id, "csrf_token": generate_csrf(), "permissions": {
         "canBroadcast": user.is_admin or user.role.lower() in {"admin", "responsable"},
+        "canExport": user.is_admin or user.role.lower() in {"codep", "responsable"},
         "canEditPec": user.is_admin or user.role.lower() not in {"technicien", "logisticien"},
         "canDelete": user.is_admin or user.role.lower() in {"codep", "responsable"},
         "canBagages": user.is_admin or user.role.lower() in {"codep", "responsable", "technicien"},

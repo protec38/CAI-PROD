@@ -171,10 +171,28 @@
     }
     if(document.body.classList.contains('cai-fiche-detail')) await detailExtras(payload);
     if(document.body.classList.contains('cai-dashboard')) await showWantedNotices();
-    if(document.body.classList.contains('cai-offline-search')) {
-      const root=document.getElementById('offline-search-list');document.querySelector('[data-cai-dashboard-link]').href='/evenement/'+context.eventId+'/dashboard';root.replaceChildren(el('h2','Recherches disponibles sur cet appareil'),el('p','Connectez cet appareil pour déclarer ou terminer une recherche.'));
-      for(const row of payload.person_searches || []){const article=el('article',undefined,'search-entry');article.append(el('h3',row.target_nom+' '+row.target_prenom),el('p','Recherchée par : '+row.seeker_nom+' '+row.seeker_prenom));root.append(article);}
-      if(!payload.person_searches?.length)root.append(el('p','Aucune recherche active dans la copie de cet appareil.'));
+    const offlineSearch=document.body.classList.contains('cai-offline-search');
+    const searchList=document.getElementById(offlineSearch?'offline-search-list':'local-search-list');
+    if(searchList) {
+      document.querySelector('[data-cai-dashboard-link]').href='/evenement/'+context.eventId+'/dashboard';
+      const rendered=new Set([...document.querySelectorAll('[data-search-id]')].map(node=>node.dataset.searchId));
+      const searches=(payload.person_searches || []).filter(row=>offlineSearch || !rendered.has(String(row.id)));
+      searchList.hidden=!offlineSearch && !searches.length;
+      searchList.replaceChildren(el('h2',offlineSearch?'Recherches disponibles sur cet appareil':'Nouvelles recherches disponibles'));
+      if(offlineSearch) {
+        searchList.append(el('p','Les recherches saisies dans une nouvelle fiche apparaissent ici, même hors ligne. Connectez cet appareil pour terminer une recherche.'));
+        link('Créer une fiche et déclarer une recherche','/fiche/new?evenement_id='+context.eventId,searchList);
+      }
+      for(const row of searches) {
+        const article=el('article',undefined,'search-entry');
+        article.append(el('h3',row.target_nom+' '+row.target_prenom),el('p','Recherchée par : '+row.seeker_nom+' '+row.seeker_prenom));
+        if(row.pending)article.append(el('p','En attente du serveur'));
+        for(const fiche of payload.fiches.filter(f=>!f.est_animal && f.statut!=='supprimé' && norm(f.nom)===norm(row.target_nom) && norm(f.prenom)===norm(row.target_prenom))) {
+          const p=el('p');link('Fiche correspondante : '+fiche.numero+' — '+fiche.nom+' '+fiche.prenom,'/fiche/'+fiche.id+'?evenement_id='+context.eventId,p);article.append(p);
+        }
+        searchList.append(article);
+      }
+      if(!searches.length)searchList.append(el('p','Aucune recherche active dans la copie de cet appareil.'));
     }
   }
   function canonical(form, base) {
@@ -301,7 +319,7 @@
     const fields=new FormData(form);if(fields.get('type_fiche')==='animal')return [];
     const nom=fields.get('nom') || '',prenom=fields.get('prenom') || '';if(!norm(nom)||!norm(prenom))return [];
     let rows=((await data()).person_searches || []).filter(r=>!r.resolved_at && norm(r.target_nom)===norm(nom) && norm(r.target_prenom)===norm(prenom));
-    if(online && navigator.onLine)try{const response=await fetch('/api/evenement/'+context.eventId+'/recherches/correspondances?'+new URLSearchParams({nom,prenom}),{cache:'no-store',signal:AbortSignal.timeout(5000)});if(response.ok)rows=(await response.json()).matches;}catch{}
+    if(online && navigator.onLine)try{const response=await fetch('/api/evenement/'+context.eventId+'/recherches/correspondances?'+new URLSearchParams({nom,prenom}),{cache:'no-store',signal:AbortSignal.timeout(5000)});if(response.ok)rows=[...(await response.json()).matches,...rows.filter(row=>String(row.id).startsWith('local-'))];}catch{}
     return rows;
   }
   async function notifyWanted(matches,eventId,name,key) {

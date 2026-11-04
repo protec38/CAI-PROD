@@ -84,6 +84,19 @@ notes, bagages, liens humain/animal et historique sont conservés lors de la
 préparation de l’évènement. Une fiche créée sur l’appareil est consultable avant
 son premier envoi au serveur.
 
+Les boutons **Export PDF** et **Export Excel** du menu **Autres actions** génèrent
+les fichiers sur l’appareil, avec ou sans connexion. Le fichier Excel est un vrai
+classeur `.xlsx`. Les exports utilisent la dernière copie préparée et intègrent les
+fiches, bagages et sorties encore en attente de synchronisation, signalés dans les
+fichiers. Le détail d’une fiche propose aussi son **Export PDF** hors ligne.
+Actualiser le tableau de bord avec une connexion après la mise à jour pour préparer
+ces fonctions sur chaque appareil. Les droits habituels d’export sont conservés.
+
+Sur ordinateur, cliquer sur un en-tête de colonne trie les fiches ; cliquer à nouveau
+inverse l’ordre. Sur téléphone et tablette, utiliser **Trier par** et le bouton
+**Croissant / Décroissant**. Le tri reste actif pendant les actualisations et hors
+ligne, avec les filtres sélectionnés.
+
 Le bouton **Supprimer** reste utilisable hors ligne, selon les droits du compte.
 Une fiche déjà envoyée reste marquée **Suppression en attente du serveur** jusqu’à
 confirmation, puis disparaît du tableau. Une fiche locale jamais envoyée est
@@ -160,8 +173,10 @@ Les nouveaux parcours sont également couverts par `tests/test_features_browser.
 ```sh
 python -m pytest -q
 node tests/test_frontend.cjs
+node tests/test_dashboard_sort.cjs
+node tests/test_offline_exports.cjs
 python -m playwright install chromium
-# Puis CAI_BROWSER_TEST=1 python -m pytest tests/test_offline_browser.py tests/test_responsive_browser.py -q
+# Puis CAI_BROWSER_TEST=1 python -m pytest tests/test_offline_browser.py tests/test_responsive_browser.py tests/test_features_browser.py tests/test_person_workflows_browser.py tests/test_dashboard_sort_browser.py tests/test_offline_exports_search_browser.py -q
 python -m ruff check app manage.py config.py run.py tests --select E9,F63,F7,F82
 python -m pip check
 python -m pip_audit -r requirements.txt --no-deps --disable-pip
@@ -247,7 +262,11 @@ correspondances de nom/prénom sont comparées sans tenir compte des accents, de
 casse ni des espaces superflus. Une demande terminée ne déclenche plus de message.
 La saisie d’une fiche affiche le nom des personnes qui la recherchent, puis conserve
 un message au retour sur le tableau de bord. Les recherches actives de la dernière
-copie préparée servent aussi hors ligne ; leur création et leur clôture nécessitent
+copie préparée servent aussi hors ligne. À la création d’une fiche, les champs
+**Nom de la personne recherchée** et **Prénom de la personne recherchée** ajoutent
+automatiquement une recherche avec l’identité du demandeur. Cette recherche est
+immédiatement disponible sur l’appareil hors ligne, puis envoyée avec la fiche sans
+doublon. Une déclaration séparée sans fiche et la clôture d’une recherche nécessitent
 une connexion. Les recherches sont comprises dans les sauvegardes de l’évènement.
 
 Les familles automatiques sont recalculées à partir des noms : elles suivent donc

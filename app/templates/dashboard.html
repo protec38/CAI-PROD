@@ -303,6 +303,42 @@
       align-items:center;
       gap:8px;
     }
+    .cai-dashboard .dashboard-table th[data-sort-key]{padding:0;}
+    .table-sort-button{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      width:100%;
+      padding:14px 12px;
+      border:0;
+      background:transparent;
+      color:inherit;
+      font:inherit;
+      text-align:left;
+      cursor:pointer;
+    }
+    .table-sort-button:hover{background:rgba(255,255,255,.12);}
+    .table-sort-button:focus-visible{outline:3px solid #ffb454;outline-offset:-3px;}
+    .table-sort-indicator{font-size:1rem;opacity:.65;}
+    th[aria-sort="ascending"] .table-sort-indicator,
+    th[aria-sort="descending"] .table-sort-indicator{opacity:1;}
+    .table-sort-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px;}
+    .table-sort-controls label{font-weight:700;color:var(--brand);}
+    .table-sort-controls select,
+    .table-sort-controls button{
+      min-height:44px;
+      max-width:100%;
+      padding:8px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:var(--surface);
+      color:var(--brand);
+      font:inherit;
+    }
+    .table-sort-controls button{font-weight:700;cursor:pointer;}
+    .table-sort-controls button:disabled{opacity:.55;cursor:default;}
+    .table-sort-controls :is(select,button):focus-visible{outline:3px solid #f58220;outline-offset:2px;}
     tbody td{
       padding:13px 12px;
       border-bottom:1px solid var(--border);
@@ -504,8 +540,8 @@
         <a href="{{ url_for('main_bp.autorite_dashboard_manage', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-eye"></i> Vue Autorité & Partage</a>
       {% endif %}
       {% if user.is_admin or user.role == "codep" or (user.role == "responsable" and user in evenement.utilisateurs) %}
-        <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-file-pdf"></i> Export PDF</a>
-        <a href="{{ url_for('main_bp.export_evenement_fiches_csv', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-file-csv"></i> Export CSV</a>
+        <a href="{{ url_for('main_bp.export_evenement_fiches_pdf', evenement_id=evenement.id) }}" class="btn" data-cai-export="pdf"><i aria-hidden="true" class="fa-solid fa-file-pdf"></i> Export PDF</a>
+        <a href="{{ url_for('main_bp.export_evenement_fiches_csv', evenement_id=evenement.id) }}" class="btn" data-cai-export="xlsx"><i aria-hidden="true" class="fa-solid fa-file-excel"></i> Export Excel</a>
       {% endif %}
       {% if user.is_admin or user.role|lower in ['codep','responsable','logisticien'] %}
         <a href="{{ url_for('main_bp.tickets_board', evenement_id=evenement.id) }}" class="btn"><i aria-hidden="true" class="fa-solid fa-ticket"></i> Tickets</a>
@@ -609,6 +645,14 @@
       </div>
     </div>
     <p id="fiche-results-count" class="results-count" aria-live="polite" aria-atomic="true">Chargement des fiches…</p>
+    <div class="table-sort-controls">
+      <label for="fiche-sort-column">Trier par</label>
+      <select id="fiche-sort-column" aria-controls="fiches-table-body">
+        <option value="">Ordre initial</option>
+      </select>
+      <button type="button" id="fiche-sort-direction" aria-label="Passer au tri décroissant" aria-controls="fiches-table-body" disabled>Croissant ↑</button>
+      <span id="fiche-sort-status" class="cai-sr-only" role="status" aria-atomic="true"></span>
+    </div>
   </section>
 
   <!-- Tableau -->
@@ -826,12 +870,106 @@
         <td role="cell" data-col="heure_arrivee"><span class="cell-label" aria-hidden="true">Arrivée</span><span data-value>${escapeHTML(f.heure_arrivee)}</span></td>
         <td role="cell" data-col="difficultes"><span class="cell-label" aria-hidden="true">Difficultés</span><span data-value>${escapeHTML(f.difficultes) || '—'}</span></td>
         <td role="cell" data-col="competences"><span class="cell-label" aria-hidden="true">Compétences</span><span data-value>${renderCompetenceBadges(f.competences)}</span></td>
-        <td role="cell" class="bagages-cell"><span class="cell-label" aria-hidden="true">Bagages</span><div id="bagages-${f.id}">${renderBagageBadges(f.bagages || [])}</div></td>
+        <td role="cell" data-col="bagages" class="bagages-cell"><span class="cell-label" aria-hidden="true">Bagages</span><div id="bagages-${f.id}">${renderBagageBadges(f.bagages || [])}</div></td>
         <td role="cell" data-col="actions"><span class="cell-label" aria-hidden="true">Actions</span><div data-value>${actionsHTML(f)}</div></td>
       </tr>`;
     }
 
     const rowsCache=new Map();
+
+    const ficheSortCollator=new Intl.Collator('fr', {sensitivity:'base',numeric:true});
+    const ficheSortableColumns=['numero','nom','prenom','statut','heure_arrivee','difficultes','competences','bagages'];
+    let ficheSort={key:'',direction:'asc'};
+
+    function ficheSortValue(fiche, key){
+      let value=key==='prenom' ? formatPrenomCell(fiche) : fiche[key];
+      if(Array.isArray(value)) value=[...value].sort(ficheSortCollator.compare).join(', ');
+      value=String(value ?? '').trim();
+      if(!value || value==='-' || value==='—') return null;
+      if(key==='heure_arrivee'){
+        // The server and the offline copy both display dates in French order.
+        const parts=value.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/);
+        const timestamp=parts
+          ? Date.UTC(+parts[3], +parts[2]-1, +parts[1], +(parts[4] || 0), +(parts[5] || 0), +(parts[6] || 0))
+          : Date.parse(value);
+        return Number.isNaN(timestamp) ? null : timestamp;
+      }
+      return value;
+    }
+
+    function compareFichesForSort(first, second){
+      const left=ficheSortValue(first,ficheSort.key), right=ficheSortValue(second,ficheSort.key);
+      // Missing values stay at the end in both directions.
+      if(left===null || right===null) return left===right ? 0 : left===null ? 1 : -1;
+      const difference=typeof left==='number' && typeof right==='number'
+        ? left-right : ficheSortCollator.compare(left,right);
+      return difference*(ficheSort.direction==='desc' ? -1 : 1);
+    }
+
+    function sortFicheRows(){
+      const tbody=document.getElementById('fiches-table-body');
+      const rows=[...tbody.children];
+      const ficheForRow=row=>{
+        const id=row.id.replace('fiche-row-','');
+        return rowsCache.get(Number(id)) || rowsCache.get(id) || {};
+      };
+      const initialOrder=new Map([...rowsCache.keys()].map((id,index)=>[String(id),index]));
+      rows.sort((a,b)=>{
+        const first=ficheForRow(a),second=ficheForRow(b);
+        return (ficheSort.key ? compareFichesForSort(first,second) : 0) ||
+          initialOrder.get(String(first.id))-initialOrder.get(String(second.id));
+      });
+      const focused=document.activeElement;
+      rows.forEach((row,index)=>{if(tbody.children[index]!==row) tbody.insertBefore(row,tbody.children[index] || null);});
+      if(tbody.contains(focused) && document.activeElement!==focused) focused.focus({preventScroll:true});
+    }
+
+    function setFicheSort(key,direction){
+      if(key && !ficheSortableColumns.includes(key)) return;
+      ficheSort={key,direction:direction==='desc' ? 'desc' : 'asc'};
+      const descending=ficheSort.direction==='desc';
+      document.querySelectorAll('#fiches-table thead th[data-sort-key]').forEach(th=>{
+        const active=th.dataset.sortKey===key;
+        th.setAttribute('aria-sort',active ? (descending ? 'descending' : 'ascending') : 'none');
+        th.querySelector('.table-sort-indicator').textContent=active ? (descending ? '↓' : '↑') : '↕';
+        th.querySelector('button').setAttribute('aria-label','Trier par '+th.dataset.sortLabel+', ordre '+(active && !descending ? 'décroissant' : 'croissant'));
+      });
+      document.getElementById('fiche-sort-column').value=key;
+      const button=document.getElementById('fiche-sort-direction');
+      button.disabled=!key;
+      button.textContent=descending ? 'Décroissant ↓' : 'Croissant ↑';
+      button.setAttribute('aria-label','Passer au tri '+(descending ? 'croissant' : 'décroissant'));
+      const label=document.querySelector('#fiche-sort-column option:checked')?.textContent;
+      document.getElementById('fiche-sort-status').textContent=key ? 'Tri par '+label+', ordre '+(descending ? 'décroissant' : 'croissant')+'.' : 'Ordre initial des fiches.';
+      sortFicheRows();
+    }
+
+    function setupFicheSorting(){
+      const select=document.getElementById('fiche-sort-column');
+      const mobile=window.matchMedia('(max-width:1100px), (pointer:coarse) and (max-width:1440px)');
+      document.querySelectorAll('#fiches-table thead th[data-col]').forEach(th=>{
+        const key=th.dataset.col;
+        if(!ficheSortableColumns.includes(key)) return;
+        const label=th.querySelector('.th-label');
+        th.dataset.sortKey=key;
+        th.dataset.sortLabel=label.textContent.trim();
+        th.setAttribute('aria-sort','none');
+        const button=document.createElement('button');
+        button.type='button';button.className='table-sort-button';
+        button.setAttribute('aria-controls','fiches-table-body');
+        button.setAttribute('aria-label','Trier par '+th.dataset.sortLabel+', ordre croissant');
+        const indicator=document.createElement('span');
+        indicator.className='table-sort-indicator';indicator.textContent='↕';indicator.setAttribute('aria-hidden','true');
+        button.append(label,indicator);th.append(button);
+        button.addEventListener('click',()=>setFicheSort(key,ficheSort.key===key && ficheSort.direction==='asc' ? 'desc' : 'asc'));
+        select.add(new Option(th.dataset.sortLabel,key));
+      });
+      // Card layouts hide the headers; their sorting controls remain available above the cards.
+      const updateHeaderFocus=()=>document.querySelectorAll('.table-sort-button').forEach(button=>button.tabIndex=mobile.matches ? -1 : 0);
+      updateHeaderFocus();mobile.addEventListener('change',updateHeaderFocus);
+      select.addEventListener('change',()=>setFicheSort(select.value,'asc'));
+      document.getElementById('fiche-sort-direction').addEventListener('click',()=>setFicheSort(ficheSort.key,ficheSort.direction==='asc' ? 'desc' : 'asc'));
+    }
 
     function upsertRow(f){
       const tbody=document.getElementById("fiches-table-body");
@@ -900,6 +1038,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', ()=>{
+      setupFicheSorting();
       ['modal-bagage','modal-sortie'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.style.display='none';
@@ -1031,6 +1170,7 @@
           if (statutEl && statutEl.innerHTML.trim() !== newHTML.trim()) statutEl.innerHTML = newHTML;
         }
 
+        sortFicheRows();
         applyAllFilters();
         if(data.evenement?.date_ouverture) setTextIfChanged(document.getElementById('evt-date'), data.evenement.date_ouverture);
     }

@@ -8,6 +8,7 @@
   'numeroPrevu': numero_prevu | default(''),
   'permissions': {
     'canBroadcast': can_send_broadcast | default(false),
+    'canExport': user.is_admin or user.role | lower in ['codep', 'responsable'],
     'canEditPec': user.is_admin or user.role | lower not in ['technicien', 'logisticien'],
     'canDelete': user.is_admin or user.role | lower in ['codep', 'responsable'],
     'canBagages': user.is_admin or user.role | lower in ['codep', 'responsable', 'technicien']
@@ -19,4 +20,5 @@
 <script src="{{ url_for('static', filename='appearance.js') }}"></script>
 <script src="{{ url_for('static', filename='features.js') }}"></script>
 <script src="{{ url_for('static', filename='offline-store.js') }}"></script>
+<script src="{{ url_for('static', filename='offline-exports.js') }}"></script>
 <script src="{{ url_for('static', filename='offline.js') }}"></script>

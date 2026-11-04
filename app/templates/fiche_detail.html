@@ -292,7 +292,7 @@ body{
       <a class="btn secondary" href="{{ url_for('main_bp.fiche_edit', id=fiche.id) }}">
         ✏️ Modifier la fiche
       </a>
-      <a class="btn primary" href="{{ url_for('main_bp.export_pdf_fiche', id=fiche.id) }}">
+      <a class="btn primary" data-cai-export="fiche-pdf" data-fiche-id="{{ fiche.id }}" href="{{ url_for('main_bp.export_pdf_fiche', id=fiche.id) }}">
         📄 Exporter PDF
       </a>
     </div>
@@ -456,7 +456,7 @@ body{
           <a class="btn secondary" href="{{ url_for('main_bp.dashboard', evenement_id=fiche.evenement.id) }}">← Retour au dashboard</a>
           <!-- 👉 Nouveau bouton Modifier (section infos) -->
           <a class="btn secondary" href="{{ url_for('main_bp.fiche_edit', id=fiche.id) }}">✏️ Modifier la fiche</a>
-          <a class="btn primary" href="{{ url_for('main_bp.export_pdf_fiche', id=fiche.id) }}">📄 Exporter PDF</a>
+          <a class="btn primary" data-cai-export="fiche-pdf" data-fiche-id="{{ fiche.id }}" href="{{ url_for('main_bp.export_pdf_fiche', id=fiche.id) }}">📄 Exporter PDF</a>
         </div>
       </div>
     </article>

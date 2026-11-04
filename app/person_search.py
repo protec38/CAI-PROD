@@ -40,6 +40,29 @@ def wanted_matches(event_id, nom, prenom):
             and normalized(row['target_prenom']) == normalized(prenom)]
 
 
+def create_from_fiche(fiche, form, user_id):
+    """Create a search in the fiche transaction; UUID retries return before here."""
+    if fiche.est_animal:
+        return
+    target_nom = ' '.join((form.get('recherche_nom') or '').split())
+    target_prenom = ' '.join((form.get('recherche_prenom') or '').split())
+    if not target_nom and not target_prenom:
+        return
+    if not target_nom or not target_prenom:
+        raise ValueError('Renseignez le nom et le prénom de la personne recherchée.')
+    if len(target_nom) > 100 or len(target_prenom) > 100:
+        raise ValueError('Le nom et le prénom recherchés sont limités à 100 caractères chacun.')
+    seeker_nom = ' '.join((fiche.nom or '').split())
+    seeker_prenom = ' '.join((fiche.prenom or '').split())
+    if not seeker_nom or not seeker_prenom:
+        raise ValueError('Renseignez le nom et le prénom du demandeur de la recherche sur sa fiche.')
+    # Keep the existing text column readable by old clients, exports and backups.
+    fiche.recherche_personne = f'{target_nom} {target_prenom}'
+    db.session.add(PersonSearch(evenement_id=fiche.evenement_id, created_by_id=user_id,
+                               seeker_nom=seeker_nom, seeker_prenom=seeker_prenom,
+                               target_nom=target_nom, target_prenom=target_prenom))
+
+
 @search_bp.route('/evenement/<int:event_id>/recherches', methods=['GET', 'POST'])
 def page(event_id):
     user, event = access(event_id)
@@ -73,10 +96,14 @@ def page(event_id):
         return redirect(url_for('person_search.page', event_id=event_id))
     searches = PersonSearch.query.filter_by(evenement_id=event_id).order_by(
         PersonSearch.created_at.desc(), PersonSearch.id.desc()).all()
-    fiches = FicheImplique.query.filter_by(evenement_id=event_id, est_animal=False).all()
+    fiches = FicheImplique.query.filter_by(evenement_id=event_id, est_animal=False).filter(
+        FicheImplique.statut != 'supprimé').all()
     matches = {row.id: [fiche for fiche in fiches if normalized(fiche.nom) == normalized(row.target_nom)
                        and normalized(fiche.prenom) == normalized(row.target_prenom)] for row in searches}
-    return render_template('person_search.html', user=user, evenement=event, searches=searches, matches=matches)
+    seekers = {row.id: [fiche for fiche in fiches if normalized(fiche.nom) == normalized(row.seeker_nom)
+                       and normalized(fiche.prenom) == normalized(row.seeker_prenom)] for row in searches}
+    return render_template('person_search.html', user=user, evenement=event, searches=searches,
+                           matches=matches, seekers=seekers)
 
 
 @search_bp.get('/api/evenement/<int:event_id>/recherches/correspondances')

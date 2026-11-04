@@ -153,9 +153,21 @@
     }
     const visible = fiches.filter(fiche => !fiche.deletedConfirmed);
     const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('fr').trim().replace(/\s+/g,' ');
+    const searches = [...(data.person_searches || [])];
+    for (const record of records.filter(record => record.kind === 'fiche' && !record.observed && record.fields?.length && field(record, 'type_fiche') !== 'animal')) {
+      const targetNom = field(record, 'recherche_nom').trim(), targetPrenom = field(record, 'recherche_prenom').trim();
+      if (!targetNom || !targetPrenom) continue;
+      const seekerNom = field(record, 'nom').trim(), seekerPrenom = field(record, 'prenom').trim();
+      const values = {target_nom: targetNom, target_prenom: targetPrenom, seeker_nom: seekerNom, seeker_prenom: seekerPrenom};
+      if (!searches.some(row => !row.resolved_at && Object.keys(values).every(key => normalizeName(row[key]) === normalizeName(values[key])))) {
+        searches.push({id: 'local-' + record.uuid, ...values, created_at: record.createdAt, resolved_at: null, pending: !record.server});
+      }
+      const seeker = visible.find(fiche => fiche.client_uuid === record.uuid);
+      if (seeker) seeker.recherche_personne = `${targetNom} ${targetPrenom}`;
+    }
     const families=new Map();for(const f of visible)if(!f.est_animal && !f.deletionPending && normalizeName(f.nom))families.set(normalizeName(f.nom),(families.get(normalizeName(f.nom)) || 0)+1);
     for(const f of visible){f.family_name=f.est_animal?'':f.nom;f.family_count=f.est_animal?0:families.get(normalizeName(f.nom)) || 0;}
-    const result = {...data, fiches: visible};
+    const result = {...data, fiches: visible, person_searches: searches};
     for (const animal of [false, true]) {
       const rows = visible.filter(fiche => !!fiche.est_animal === animal), suffix = animal ? '_animaux' : '';
       result['nb_total' + suffix] = rows.length;
@@ -179,7 +191,7 @@
     }
   }
   async function refreshSnapshot() {
-    const response = await fetch(`/evenement/${context.eventId}/fiches_json?details=1`, {cache: 'no-store'});
+    const response = await fetch(`/evenement/${context.eventId}/fiches_json?details=1`, {cache: 'no-store', signal: AbortSignal.timeout(10000)});
     if (!response.ok || response.redirected) throw new Error('Impossible d’actualiser les fiches du serveur.');
     const data = await response.json(); await snapshot(data);
   }
@@ -201,6 +213,7 @@
         throw new Error('Reconnectez-vous avec le compte ayant créé ces fiches. La synchronisation est suspendue.');
       }
       context.permissions = session.permissions;
+      updateExportActions();
       context.preferences = session.preferences || context.preferences;
       await store.put({...context, kind: 'context', key: `context:${context.userId}:${context.eventId}`});
       const meta = document.querySelector('meta[name="csrf-token"]');
@@ -412,6 +425,55 @@
     }
     body.append(fields); card.append(body); return card;
   }
+  function updateExportActions() {
+    const menu = document.querySelector('.dashboard-menu__items');
+    if (!menu) return;
+    for (const [format, title, endpoint] of [['pdf', 'Export PDF', 'pdf'], ['xlsx', 'Export Excel', 'csv']]) {
+      let action = menu.querySelector(`[data-cai-export="${format}"]`);
+      if (!context.permissions?.canExport) { action?.remove(); continue; }
+      if (!action) {
+        action = element('a', 'btn', title); action.dataset.caiExport = format;
+        (menu.querySelector('.btn-main-menu') || menu.lastElementChild).before(action);
+      }
+      action.href = `/evenement/${context.eventId}/export/${endpoint}`;
+    }
+  }
+  function setupExports() {
+    updateExportActions();
+    let exporting = false;
+    document.addEventListener('click', async event => {
+      const action = event.target.closest('[data-cai-export]');
+      if (!action) return;
+      event.preventDefault();
+      if (exporting) return;
+      exporting = true; action.setAttribute('aria-disabled', 'true');
+      try {
+        if (window.CAIFeatures?.isLocked()) throw new Error('Déverrouillez l’appareil avant de générer un export.');
+        if (!window.CAIExports) throw new Error('Actualisez cette page avec une connexion pour préparer les exports hors ligne.');
+        const format = action.dataset.caiExport;
+        if (format !== 'fiche-pdf' && !context.permissions?.canExport) throw new Error('Vous n’êtes pas autorisé à exporter cet évènement.');
+        if (navigator.onLine) {
+          try { await refreshSnapshot(); } catch { /* The prepared copy and local actions remain available. */ }
+        }
+        const saved = await store.get(snapshotKey());
+        const data = await listFiches(saved?.data || {fiches: []});
+        if (!saved && !data.fiches.length) throw new Error('Ouvrez cet évènement avec une connexion pour préparer les données à exporter.');
+        let bytes, filename;
+        if (format === 'fiche-pdf') {
+          const id = action.dataset.ficheId;
+          const fiche = data.fiches.find(row => String(row.id) === id || row.client_uuid === id || 'local-' + row.client_uuid === id);
+          if (!fiche) throw new Error('Cette fiche n’est pas disponible sur cet appareil.');
+          bytes = window.CAIExports.fichePdf(fiche, data, context);
+          filename = 'fiche-' + String(fiche.numero || fiche.id).replace(/[^a-z0-9_-]/gi, '_') + '.pdf';
+        } else {
+          bytes = format === 'xlsx' ? window.CAIExports.eventXlsx(data, context) : window.CAIExports.eventPdf(data, context);
+          filename = `fiches-evenement-${context.eventId}.${format === 'xlsx' ? 'xlsx' : 'pdf'}`;
+        }
+        window.CAIExports.download(bytes, filename, format === 'xlsx' ? window.CAIExports.MIME_EXCEL : window.CAIExports.MIME_PDF);
+      } catch (error) { report(error); }
+      finally { exporting = false; action.removeAttribute('aria-disabled'); }
+    });
+  }
   async function renderDetail() {
     const root = document.getElementById('cai-detail-content'); if (!root || !context) return;
     const id = new URLSearchParams(location.search).get('fiche') || decodeURIComponent(location.pathname.split('/').pop());
@@ -429,6 +491,8 @@
     state.append(dot, document.createTextNode(fiche.deletionPending ? 'Suppression en attente du serveur' : fiche.pending ? 'En attente du serveur' : 'Sur le serveur'));
     hero.append(state, element('h1', '', `Fiche ${fiche.numero} — ${fiche.nom} ${fiche.prenom || ''}`),
       element('p', 'meta', `Évènement : ${context.eventName} · ${fiche.est_animal ? 'Animal' : 'Humain'} · ${fiche.statut}`));
+    const pdf = element('button', 'btn primary', 'Exporter PDF'); pdf.type = 'button';
+    pdf.dataset.caiExport = 'fiche-pdf'; pdf.dataset.ficheId = String(fiche.id); hero.append(pdf);
     if (context.permissions?.canDelete && !fiche.deletionPending) {
       const button = element('button', 'btn secondary', 'Supprimer la fiche'); button.type = 'button';
       button.addEventListener('click', async () => {
@@ -568,6 +632,7 @@
     }
     else if (document.querySelector('form[data-initial-type]')) await setupForm();
     else if (offlineDetail) await renderDetail();
+    setupExports();
     if (offlineDetail) {
       window.addEventListener('cai:local', () => renderDetail().catch(report));
       window.addEventListener('cai:sync', () => renderDetail().catch(report));

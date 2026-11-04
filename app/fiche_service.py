@@ -47,6 +47,8 @@ def save_fiche(form, evenement, user, client_uuid=None):
             fiche.client_uuid = client_uuid
             db.session.add(fiche)
             db.session.flush()
+            from .person_search import create_from_fiche
+            create_from_fiche(fiche, form, user_id)
             from .fiche_updates import creation_metadata
             creation_metadata(fiche, form, user_id)
             db.session.add(TimelineEntry(
