@@ -26,6 +26,7 @@ def event_selector():
 def serialize(row):
     return {'id': row.id, 'seeker_nom': row.seeker_nom, 'seeker_prenom': row.seeker_prenom,
             'seeker_fiche_id': row.seeker_fiche_id,
+            'created_by_id': row.created_by_id,
             'target_nom': row.target_nom, 'target_prenom': row.target_prenom,
             'created_at': row.created_at.isoformat() + 'Z',
             'resolved_at': row.resolved_at.isoformat() + 'Z' if row.resolved_at else None}
@@ -137,7 +138,7 @@ def page(event_id):
                 db.session.add(PersonSearch(evenement_id=event_id, created_by_id=user.id,
                                             seeker_fiche_id=int(seeker_id) if seeker_id else None, **values))
                 flash('La recherche de personne a été enregistrée.', 'success')
-            elif action in {'resolve', 'reopen'}:
+            elif action in {'resolve', 'reopen', 'delete'}:
                 search_id = request.form.get('search_id', type=int)
                 if not search_id:
                     raise ValueError('Choisissez la recherche à mettre à jour.')
@@ -146,11 +147,14 @@ def page(event_id):
                     abort(403)
                 if row.created_by_id != user.id and not (user.is_admin or user.role.lower() == 'responsable'):
                     abort(403)
-                if action == 'resolve' and row.resolved_at is None:
+                if action == 'delete':
+                    db.session.delete(row)
+                elif action == 'resolve' and row.resolved_at is None:
                     row.resolved_at = utcnow()
                 elif action == 'reopen':
                     row.resolved_at = None
-                flash('La recherche a été mise à jour.', 'success')
+                flash('La recherche a été supprimée.' if action == 'delete'
+                      else 'La recherche a été mise à jour.', 'success')
             else:
                 raise ValueError('Action de recherche inconnue.')
             resolve_matching_searches(event_id)

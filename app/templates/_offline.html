@@ -12,6 +12,7 @@
     'canExport': user.is_admin or user.role | lower in ['codep', 'responsable'],
     'canEditPec': user.is_admin or user.role | lower not in ['technicien', 'logisticien'],
     'canDelete': user.is_admin or user.role | lower in ['codep', 'responsable'],
+    'canManageSearches': user.is_admin or user.role | lower == 'responsable',
     'canBagages': user.is_admin or user.role | lower in ['codep', 'responsable', 'technicien']
   },
 } | tojson }}</script>

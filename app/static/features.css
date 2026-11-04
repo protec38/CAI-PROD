@@ -8,3 +8,4 @@
 .search-toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:20000;box-sizing:border-box;width:max-content;max-width:calc(100vw - 32px);padding:18px 24px;border:2px solid #2d8b4e;border-radius:14px;background:#eaf7ee;color:#17582f;font:600 1.05rem/1.5 system-ui,sans-serif;box-shadow:0 8px 32px #0003;overflow-wrap:anywhere}
 .seeker-suggestions{display:flex;flex-direction:column;gap:8px;margin:12px 0}.seeker-suggestions[hidden]{display:none}.seeker-suggestions button{text-align:left}
 .feature-page a.primary{display:inline-flex;align-items:center;min-height:44px;box-sizing:border-box;padding:10px 16px;border-radius:9px;text-decoration:none}
+.search-actions{display:flex;flex-wrap:wrap;gap:10px}.feature-page button.search-delete{background:#b42332;border-color:#b42332;color:#fff}

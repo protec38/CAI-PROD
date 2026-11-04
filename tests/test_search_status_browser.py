@@ -77,6 +77,8 @@ def test_found_person_popup_and_seeker_suggestions(app, tmp_path):
             # A subsequent poll must not replay the same notification.
             watcher.wait_for_timeout(3200)
             expect(watcher.locator('.search-toast')).to_have_count(0)
+            observer = context.new_page()
+            observer.goto(base + '/evenement/1/recherches')
             # Editing the selected identity returns to free entry.
             name.fill('Martin')
             page.get_by_role('button', name='Martin Luc — F1', exact=True).click()
@@ -88,6 +90,20 @@ def test_found_person_popup_and_seeker_suggestions(app, tmp_path):
             page.get_by_label('Prénom de la personne recherchée', exact=True).fill('Personne')
             page.get_by_role('button', name='Enregistrer la recherche', exact=True).click()
             expect(page.locator('[data-search-id]').filter(has_text='Sans fiche Libre')).to_have_count(1)
+            expect(observer.locator('.search-entry').filter(has_text='Sans fiche Libre').get_by_role(
+                'button', name='Supprimer', exact=True)).to_be_visible(timeout=12000)
+            # Status refreshes must preserve the separate delete action.
+            expect(observer.locator('.search-entry').filter(has_text='Durand Emma').get_by_role(
+                'button', name='Supprimer', exact=True)).to_be_visible()
+            page.locator('.search-entry').filter(has_text='Sans fiche Libre').get_by_role(
+                'button', name='Supprimer', exact=True).click()
+            expect(page.get_by_text('La recherche a été supprimée.', exact=True)).to_be_visible()
+            expect(observer.locator('.search-entry').filter(has_text='Sans fiche Libre')).to_have_count(0, timeout=12000)
+            page.locator('.search-entry').filter(has_text='Durand Emma').get_by_role(
+                'button', name='Supprimer', exact=True).click()
+            expect(page.locator('[data-search-empty]')).to_be_visible()
+            expect(observer.locator('.search-entry')).to_have_count(0, timeout=12000)
+            expect(observer.locator('[data-search-empty]')).to_be_visible()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
             assert not errors, errors
             browser.close()

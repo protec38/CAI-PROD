@@ -159,3 +159,59 @@ def test_automatic_resolution_requires_a_matching_person_in_same_event(app, clie
     assert result['notifications'] == []
     assert result['searches'][0]['resolved_at'] is None
     assert 'search-missing' in client.get('/evenement/1/recherches').text
+
+
+@pytest.mark.parametrize('resolved', [False, True])
+def test_delete_search_removes_it_from_event_lists_and_preserves_fiches(app, client, resolved):
+    with app.app_context():
+        search = PersonSearch(evenement_id=1, created_by_id=2, seeker_fiche_id=1,
+                              resolved_at=utcnow() if resolved else None, **fields())
+        db.session.add(search)
+        db.session.commit()
+        search_id = search.id
+    page = client.get('/evenement/1/recherches').text
+    assert 'value="delete"' in page and '>Supprimer</button>' in page
+    response = client.post('/evenement/1/recherches', data={'action': 'delete', 'search_id': search_id},
+                           follow_redirects=True)
+    assert response.status_code == 200
+    assert 'La recherche a été supprimée.' in response.text
+    assert f'data-search-id="{search_id}"' not in response.text
+    assert client.get('/evenement/1/fiches_json').json['person_searches'] == []
+    since = (utcnow() - timedelta(seconds=10)).isoformat() + 'Z'
+    status = client.get('/api/evenement/1/recherches/etat', query_string={'since': since}).json
+    assert status['searches'] == status['notifications'] == []
+    with app.app_context():
+        assert db.session.get(PersonSearch, search_id) is None
+        assert FicheImplique.query.count() == 2
+
+
+@pytest.mark.parametrize(('role', 'author', 'allowed'), [
+    ('technicien', 2, True), ('technicien', 1, False), ('responsable', 1, True), ('admin', 1, True),
+])
+def test_delete_search_requires_author_or_manager(app, client, role, author, allowed):
+    from app.models import Utilisateur
+
+    with app.app_context():
+        db.session.get(Utilisateur, 2).role = role
+        db.session.get(Utilisateur, 2).is_admin = role == 'admin'
+        search = PersonSearch(evenement_id=1, created_by_id=author, **fields())
+        db.session.add(search)
+        db.session.commit()
+        search_id = search.id
+    page = client.get('/evenement/1/recherches').text
+    assert ('>Supprimer</button>' in page) == allowed
+    response = client.post('/evenement/1/recherches', data={'action': 'delete', 'search_id': search_id})
+    assert response.status_code == (302 if allowed else 403)
+    with app.app_context():
+        assert (db.session.get(PersonSearch, search_id) is None) == allowed
+
+
+def test_delete_search_cannot_target_another_event(app, client):
+    with app.app_context():
+        search = PersonSearch(evenement_id=2, created_by_id=2, **fields())
+        db.session.add(search)
+        db.session.commit()
+        search_id = search.id
+    assert client.post('/evenement/1/recherches', data={'action': 'delete', 'search_id': search_id}).status_code == 403
+    with app.app_context():
+        assert db.session.get(PersonSearch, search_id) is not None

@@ -164,7 +164,7 @@
     article.classList.toggle('search-found',found);article.classList.toggle('search-missing',!found);
     const status=article.querySelector('[data-search-status]');
     if(status)status.textContent=found?'Personne retrouvée · Recherche terminée':'Personne non retrouvée · Recherche en cours';
-    const action=article.querySelector('input[name=action]'), submit=article.querySelector('button[type=submit]');
+    const action=article.querySelector('[data-search-status-form] input[name=action]'), submit=article.querySelector('[data-search-status-form] button[type=submit]');
     if(action)action.value=found?'reopen':'resolve';
     if(submit)submit.textContent=found?'Relancer la recherche':'Marquer comme retrouvée';
   }
@@ -254,8 +254,9 @@
     if(searchList) {
       document.querySelector('[data-cai-dashboard-link]').href='/evenement/'+context.eventId+'/dashboard';
       const current=[...(latestSearches || payload.person_searches || []),...(latestSearches ? (payload.person_searches || []).filter(row=>String(row.id).startsWith('local-')) : [])];
+      for(const article of document.querySelectorAll('[data-search-id]')){const row=current.find(row=>String(row.id)===article.dataset.searchId);if(row)searchAppearance(article,row);else if(latestSearches)article.remove();}
       const rendered=new Set([...document.querySelectorAll('[data-search-id]')].map(node=>node.dataset.searchId));
-      for(const article of document.querySelectorAll('[data-search-id]')){const row=current.find(row=>String(row.id)===article.dataset.searchId);if(row)searchAppearance(article,row);}
+      const empty=document.querySelector('[data-search-empty]');if(empty)empty.hidden=current.length>0;
       const searches=current.filter(row=>offlineSearch || !rendered.has(String(row.id)));
       searchList.hidden=!offlineSearch && !searches.length;
       searchList.replaceChildren(el('h2',offlineSearch?'Recherches disponibles sur cet appareil':'Nouvelles recherches disponibles'));
@@ -270,6 +271,11 @@
         if(row.pending)article.append(el('p','En attente du serveur'));
         for(const fiche of payload.fiches.filter(f=>!f.est_animal && f.statut!=='supprimé' && norm(f.nom)===norm(row.target_nom) && norm(f.prenom)===norm(row.target_prenom))) {
           const p=el('p');link('Fiche correspondante : '+fiche.numero+' — '+fiche.nom+' '+fiche.prenom,'/fiche/'+fiche.id+'?evenement_id='+context.eventId,p);article.append(p);
+        }
+        if(!offlineSearch && !String(row.id).startsWith('local-') && (row.created_by_id===context.userId || context.permissions?.canManageSearches)) {
+          const form=el('form');form.method='post';form.action=`/evenement/${context.eventId}/recherches`;
+          for(const [name,value] of [['csrf_token',csrf()],['search_id',row.id],['action','delete']]){const input=el('input');input.type='hidden';input.name=name;input.value=value;form.append(input);}
+          const remove=el('button','Supprimer','search-delete');remove.type='submit';form.append(remove);article.append(form);
         }
         searchList.append(article);
       }
